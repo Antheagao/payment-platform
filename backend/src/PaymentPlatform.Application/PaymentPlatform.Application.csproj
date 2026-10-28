@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use cases in feature folders and the ports for external systems (ADR 002). No web or host types. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PaymentPlatform.Domain\PaymentPlatform.Domain.csproj" />
+    <ProjectReference Include="..\PaymentPlatform.Persistence\PaymentPlatform.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

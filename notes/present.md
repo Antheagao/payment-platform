@@ -36,7 +36,9 @@ The base of the project was requested with these requirements; they are recorded
   - `src/PaymentPlatform.ServiceDefaults`: `AddServiceDefaults()` (JSON console logs with scopes and trace ids, OpenTelemetry traces, metrics, and logs with OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, a `self` liveness check), `UseRequestIds()`, and `MapDefaultEndpoints()` for `/health/live` and `/health/ready`.
   - `src/PaymentPlatform.Persistence`: `PaymentsDbContext` (schema `payments`, no tables yet), `AddPersistence()` (requires `ConnectionStrings:Payments`; pooled contexts; transient-fault retries; migration history in the `payments` schema), the `database` readiness check (connects, no pending migration, 5 s timeout), and a design-time factory that holds no credentials.
     `System.Security.Cryptography.Pkcs` is pinned to 10.0.14 because NuGet audit failed the build on the 9.0.11 that Microsoft.Data.SqlClient 6.1.7 asks for.
-  - Tests (xUnit v3): `PaymentPlatform.Domain.Tests` 105 (including all 36 status pairs), `PaymentPlatform.ServiceDefaults.Tests` 18 (request id rules, header injection refused, health output leaks nothing); 123 in total.
+  - `src/PaymentPlatform.Application`: `AddApplication()` (registers `TimeProvider.System` and the acquirer), `ApplicationTelemetry` (the `PaymentPlatform.Application` activity source), and `Acquiring/`: the `IAcquirer` port (authorize, capture, refund; the payment id is the acquirer-side idempotency key; outages are an `Unavailable` answer, not an exception) and `SimulatedAcquirer` (stateless and deterministic: scenario tokens in `SimulatedCardTokens` decline or go unanswered, any other token is approved, references derive from the payment id; latency from `Acquirer:Simulated:LatencyMilliseconds`, validated 0 to 5000 at startup).
+    No use cases yet; they arrive with T19 onward in feature folders.
+  - Tests (xUnit v3): `PaymentPlatform.Domain.Tests` 105 (including all 36 status pairs), `PaymentPlatform.ServiceDefaults.Tests` 18 (request id rules, header injection refused, health output leaks nothing), `PaymentPlatform.Application.Tests` 11 (every acquirer branch, repeat calls, latency on a fake clock, cancellation, options validation); 134 in total.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
@@ -53,8 +55,8 @@ The base of the project was requested with these requirements; they are recorded
 | T4 | Domain: payment lifecycle state machine with unit tests | Done |
 | T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Done |
 | T6 | Persistence: EF Core on SQL Server, readiness check | Done |
-| T7 | Application layer: use-case home, acquirer port and simulated adapter | Next |
-| T8 | API host: `/api/v1`, problem details, OpenAPI, health endpoints | Queued |
+| T7 | Application layer: use-case home, acquirer port and simulated adapter | Done |
+| T8 | API host: `/api/v1`, problem details, OpenAPI, health endpoints | Next |
 | T9 | Worker host: periodic job runner, health endpoints | Queued |
 | T10 | Integration tests on a real SQL Server (Testcontainers) | Queued |
 | T11 | Architecture tests for project dependency direction | Queued |

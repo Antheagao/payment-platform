@@ -51,3 +51,8 @@ Update this file when a task lands; keep the present and future notes in sync.
   - NuGet audit did its job on the first SQL Server reference: Microsoft.Data.SqlClient 6.1.7 pulls `System.Security.Cryptography.Pkcs` 9.0.11 (GHSA-846f-f764-76mx, high), and the build failed until the transitive pin to 10.0.14.
   - `dotnet ef` takes `--configuration`, not `-c`, and reads Debug output by default.
   - The design-time factory first held the local SA password; it now holds none, since `migrations add` never connects and the repository is public.
+
+## 2026-10-28: application layer (T7)
+
+- `backend: add the application layer with the acquirer port`: `PaymentPlatform.Application` and its 11 tests.
+- Design note: the simulated acquirer is stateless on purpose. The API and the worker run separate processes, so an in-memory record of authorizations would make the worker's reconciliation disagree with the API; deriving the outcome from the token and the reference from the payment id makes every process give the same answer.

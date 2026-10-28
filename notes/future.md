@@ -12,11 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T7. Application layer
-
-- `PaymentPlatform.Application`: the home for use cases (feature folders), `AddApplication()`, and the acquirer port with a deterministic simulated adapter for local runs and tests.
-- Gate: build, unit tests for the simulated acquirer's outcomes.
-
 ### T8. API host
 
 - `PaymentPlatform.Api`: minimal APIs under `/api/v1`, snake_case JSON, RFC 9457 problem details for every error including unknown routes, the built-in OpenAPI document, security headers, and the service defaults.
