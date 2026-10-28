@@ -12,11 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T11. Architecture tests
-
-- `PaymentPlatform.ArchitectureTests`: Domain references nothing but the BCL, Persistence never references a host, no host references another host.
-- Gate: `dotnet test`.
-
 ### T12. Containers
 
 - Dockerfiles for the API and the worker (multi-stage, non-root), `docker-compose.yml` with SQL Server, the Aspire dashboard as the OTLP sink, the API, and the worker; `.env.example`.

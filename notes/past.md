@@ -84,3 +84,9 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `backend: add integration tests on SQL Server with Testcontainers`: `PaymentPlatform.IntegrationTests` (assembly-fixture container, a migrated database per test class, `ApiFactory` over the real `Program`), 12 tests, and the `payment-platform-testing` overlay; `docs/requirements.md`: R14 and R23 done, R25 scaffolded.
 - Docker Desktop was not running at the start of the session; starting it also restarted other projects' containers through their restart policies (doc-pilot, ecommerce-api, workout, recipe), which were left alone.
 - In .NET 10 the top-level `Program` is public, so `WebApplicationFactory<Program>` needs no `public partial class Program`.
+
+## 2026-10-28: architecture tests (T11)
+
+- `backend: enforce the project boundaries with architecture tests`: `PaymentPlatform.ArchitectureTests`, 16 tests, no extra package (reflection over the loaded assemblies plus the `.csproj` files).
+- Gate: 169 tests green; a probe that unsealed `Actor` failed `Concrete_classes_are_sealed...` and was reverted.
+- Lesson: compiler-generated closures (`<>c__DisplayClass1_0`) have public mutable fields, so type rules must skip compiler output.

@@ -28,7 +28,7 @@ Six source projects, with dependencies pointing inward only:
   The clock is `TimeProvider`, injected, so tests control time.
 - **The lifecycle is enforced in the Domain.** `Payment` exposes methods (`Authorize`, `Capture`, `Settle`, `Refund`, `Fail`) and no public status setter, so no use case can make an illegal transition.
 - **Hosts are thin.** An endpoint binds input, calls one use case, and maps the result to a response; a worker job calls one use case per run.
-- Project references are enforced by architecture tests (T11), not by convention.
+- Project references are enforced by architecture tests (`backend/tests/PaymentPlatform.ArchitectureTests`), not by convention.
 
 ## Rejected alternatives
 

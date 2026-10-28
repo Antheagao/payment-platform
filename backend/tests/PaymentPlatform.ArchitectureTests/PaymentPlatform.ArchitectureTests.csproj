@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The project boundaries of ADR 002, enforced: it references every source project so it can inspect them. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PaymentPlatform.Api\PaymentPlatform.Api.csproj" />
+    <ProjectReference Include="..\..\src\PaymentPlatform.Worker\PaymentPlatform.Worker.csproj" />
+  </ItemGroup>
+
+</Project>

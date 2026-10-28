@@ -16,6 +16,7 @@ The gate commands live in `AGENTS.md`; `dotnet test` from `backend/` runs everyt
 | `PaymentPlatform.ServiceDefaults.Tests` | Unit | Correlation id rules and middleware, header injection, health output that leaks nothing |
 | `PaymentPlatform.Application.Tests` | Unit | Every simulated acquirer branch, repeat calls, latency on a fake clock, options validation |
 | `PaymentPlatform.Worker.Tests` | Unit | `PeriodicJob` schedule, failure isolation and counting, scope per run, clean stop |
+| `PaymentPlatform.ArchitectureTests` | Rules | ADR 002's reference table (declared in each `.csproj` and used in IL), no web types in the core, hosts never use each other, concrete classes sealed, no public status setter |
 | `PaymentPlatform.IntegrationTests` | Integration | The real API pipeline on SQL Server: probes against live and dead databases, problem details for 404 and 405, correlation ids, security headers |
 
 ## Harness (`PaymentPlatform.IntegrationTests/Support/`)
