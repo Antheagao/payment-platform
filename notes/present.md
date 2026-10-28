@@ -35,7 +35,8 @@ The base of the project was requested with these requirements; they are recorded
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
-  `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes; `payment-platform-pull-requests` is the first guide overlay, and the rest land with the code they describe.
+  `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
+  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`; the rest land with the code they describe.
 
 ## Task board
 
@@ -43,8 +44,8 @@ The base of the project was requested with these requirements; they are recorded
 | --- | --- | --- |
 | T1 | Repository base, notes rotation, agent rules | Done |
 | T2 | Architecture overview, requirements traceability, ADRs | Done |
-| T3 | Backend solution, SDK pin, shared build and package props | In progress: conventions landed, overlays next |
-| T4 | Domain: payment lifecycle state machine with unit tests | Queued |
+| T3 | Backend solution, SDK pin, shared build and package props | Done |
+| T4 | Domain: payment lifecycle state machine with unit tests | Next |
 | T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Queued |
 | T6 | Persistence: EF Core on SQL Server, readiness check | Queued |
 | T7 | Application layer: use-case home, acquirer port and simulated adapter | Queued |
