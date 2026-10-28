@@ -118,3 +118,11 @@ Update this file when a task lands; keep the present and future notes in sync.
   - the neutral Refunded pill vanished on its gray row; neutral pills now carry an inset ring.
   - the focused skip link had no padding, because Tailwind's `not-sr-only` resets it; the padding is now focus-scoped.
 - The contrast checker reads `globals.css` instead of keeping its own copy of the palette (cosgift's script duplicates it), so the stylesheet stays the only source of truth.
+
+## 2026-10-28: frontend tests (T15)
+
+- `frontend: add Vitest unit tests and Playwright golden paths`: `vitest.config.mts`, `test/`, 16 unit and component tests, `playwright.config.ts`, `e2e/home.spec.ts` (12 runs), `test`, `test:watch`, and `e2e` scripts, and the frontend section of the testing overlay.
+- Gate: `npm test` 16/16, `npm run e2e` 12/12 in 9 s, typecheck, lint, format; the container image still serves pages and CSS.
+- Two warnings fixed rather than ignored:
+  - Vite now resolves tsconfig paths itself, so `vite-tsconfig-paths` is gone in favor of `resolve.tsconfigPaths`.
+  - `next start` does not support `output: "standalone"`; standalone is now built only when `NEXT_OUTPUT=standalone`, which the Dockerfile sets.

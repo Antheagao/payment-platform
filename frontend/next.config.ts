@@ -14,8 +14,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // A self-contained server for the container image (frontend/Dockerfile).
-  output: "standalone",
+  // A self-contained server for the container image only (frontend/Dockerfile sets the variable);
+  // `next start`, which local runs and the end-to-end tests use, does not support standalone output.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   poweredByHeader: false,
   cacheComponents: true,
   partialPrefetching: true,

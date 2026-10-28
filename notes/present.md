@@ -53,6 +53,7 @@ The base of the project was requested with these requirements; they are recorded
   Prettier 3.9 with the Tailwind class-sorting plugin; scripts `typecheck` (`next typegen && tsc --noEmit`), `lint` (zero warnings), `format:check`, `build`; Node 22 or later.
   The shell (T14): design tokens in `src/app/globals.css` (OKLCH `light-dark()`, following the OS; 19 tokens, 36 contrast pairs checked by `node scripts/check-contrast.mjs`), `ui/` primitives (`Badge`, `Button`, `Container`), a sticky `SiteHeader` with the API readiness badge streamed in `<Suspense>`, the `PaymentLifecycle` legend, `error.tsx`, `global-error.tsx`, `not-found.tsx`, the skip link, security headers in `next.config.ts`, and the server-only `src/lib/api.ts` (`API_ORIGIN`, no-store, 3 s timeout).
   `frontend/Dockerfile` builds the standalone server onto distroless Node 22 (non-root); compose serves it on `http://localhost:3080`.
+  Tests (T15): Vitest 5 with Testing Library, 16 tests in 5 files beside the code (`getApiHealth` with a stubbed fetch, `Badge`, the lifecycle legend, the status table, `classNames`); Playwright, 6 golden-path checks on the production build at 1440 and 360 (12 runs): the legend, the API-down badge, the skip link, security headers, no sideways scroll, the 404 page.
 
 ## Task board
 
@@ -72,8 +73,8 @@ The base of the project was requested with these requirements; they are recorded
 | T12 | Dockerfiles and `docker-compose.yml` with SQL Server and the Aspire dashboard | Done |
 | T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Done |
 | T14 | Frontend shell: design tokens, layout, API status | Done |
-| T15 | Frontend tests: Vitest and a Playwright smoke test | Next |
-| T16 | CI: GitHub Actions, Dependabot, CodeQL | Queued |
+| T15 | Frontend tests: Vitest and a Playwright smoke test | Done |
+| T16 | CI: GitHub Actions, Dependabot, CodeQL | Next |
 | T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Queued |
 | T18 | README and documentation deliverables | Queued |
 

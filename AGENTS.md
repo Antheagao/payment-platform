@@ -31,7 +31,7 @@ Longer procedures live in `.claude/skills/`.
 
 - Backend, from `backend/`: `dotnet format --verify-no-changes`, `dotnet build -c Release`, `dotnet test -c Release`.
   Warnings are errors and NuGet audit runs on restore, so a vulnerable package fails the build.
-- Frontend, from `frontend/`: `npm run typecheck` (typegen, then `tsc`), `npm run lint` (zero warnings), `npm run format:check`, `npm test` (from T15), `npm run build`, `npm audit --omit=dev`.
+- Frontend, from `frontend/`: `npm run typecheck` (typegen, then `tsc`), `npm run lint` (zero warnings), `npm run format:check`, `npm test`, `npm run build`, `npm audit --omit=dev`; `npm run e2e` (Playwright on the production build) for UI changes.
 - Repository: `node scripts/check-docs.mjs` (links, em dashes) and `node scripts/check-contrast.mjs` whenever `globals.css` changes.
 - UI work is not done until it has been checked in a real browser, light and dark, 360px to 1440px.
 - Write long build and test output to a scratch file and grep it rather than printing it into the transcript.

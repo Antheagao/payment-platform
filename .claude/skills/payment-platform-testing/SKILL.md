@@ -19,7 +19,19 @@ The gate commands live in `AGENTS.md`; `dotnet test` from `backend/` runs everyt
 | `PaymentPlatform.ArchitectureTests` | Rules | ADR 002's reference table (declared in each `.csproj` and used in IL), no web types in the core, hosts never use each other, concrete classes sealed, no public status setter |
 | `PaymentPlatform.IntegrationTests` | Integration | The real API pipeline on SQL Server: probes against live and dead databases, problem details for 404 and 405, correlation ids, security headers |
 
-## Harness (`PaymentPlatform.IntegrationTests/Support/`)
+## Frontend (`frontend/`)
+
+| Kind | Where | Runs with |
+| --- | --- | --- |
+| Unit and component | `src/**/*.test.ts(x)`, beside the code | `npm test` (Vitest 5, jsdom, Testing Library, jest-dom matchers) |
+| Browser end to end | `e2e/*.spec.ts` | `npm run e2e` (Playwright, Chromium, `desktop` 1440x900 and `mobile` 360x780 projects) |
+
+- `vitest.config.mts` resolves the `@/*` alias natively and maps `server-only` to `test/empty-module.ts`, so server modules such as `src/lib/api.ts` are unit-testable; stub `fetch` with `vi.stubGlobal` (globals and mocks are restored after each test).
+- Async server components are covered end to end, not with Testing Library.
+- Playwright builds and starts the production server itself (`next build`, then `next start -p 3080`) with `API_ORIGIN` on a closed port, so the shell is tested with the API down; flows that need data run against the composed stack (T29).
+- Locators are roles and names; assertions are web-first (`toBeVisible`, `toHaveText`); no fixed waits.
+
+## Backend harness (`PaymentPlatform.IntegrationTests/Support/`)
 
 - `SqlServerFixture` is an xUnit v3 assembly fixture: one SQL Server container (the compose image, `2025-CU10-ubuntu-24.04`) per test run, started once, removed by Testcontainers at the end.
 - `CreateDatabaseAsync()` makes a `t_<guid>` database and applies every migration with `MigrateAsync`, so migrations are exercised on every run.

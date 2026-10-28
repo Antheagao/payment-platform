@@ -25,7 +25,7 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 - `src/components/ui/`: `Badge` (tone pill with a dot and a text label), `Button` and `buttonClasses()` (primary, secondary; `type="button"` unless overridden), `Container` (the one page column).
 - `src/components/`: `SiteHeader` (sticky, product mark, `ApiStatus` in `<Suspense>`), `ApiStatus` and `ApiStatusFallback`, `PaymentLifecycle` (the status legend).
 - `src/app/`: root layout with Geist, the skip link, and `<main id="main">`; `page.tsx`; `error.tsx` (client, shows the digest, `retry()`); `global-error.tsx` (own `<html>` and `<body>`, imports the tokens); `not-found.tsx`.
-- `next.config.ts`: standalone output, no `X-Powered-By`, and headers on every response: `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `nosniff`, `X-Frame-Options: DENY`, `strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`.
+- `next.config.ts`: standalone output only when `NEXT_OUTPUT=standalone` (the Dockerfile sets it; `next start` does not support standalone), no `X-Powered-By`, and headers on every response: `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `nosniff`, `X-Frame-Options: DENY`, `strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`.
 - `frontend/Dockerfile`: `npm ci` and `next build` on Node 22, then the standalone server on distroless `nodejs22-debian12:nonroot`; compose runs it with `API_ORIGIN=http://api:8080`.
 
 ## Design tokens
@@ -39,7 +39,6 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 
 - No script-src CSP yet: a nonce needs `proxy.ts` and per-request rendering, which arrives with sign-in (T26).
 - No OpenTelemetry in the dashboard yet, so traces start at the API; `instrumentation.ts` with OTLP export is a follow-up.
-- No JS tests until T15.
 
 ## Visual QA routine
 
