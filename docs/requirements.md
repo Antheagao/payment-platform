@@ -31,7 +31,7 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 
 | Id | Requirement | Where it lives | Task | Status |
 | --- | --- | --- | --- | --- |
-| R14 | Structured (JSON) logs | `PaymentPlatform.ServiceDefaults` | T5 | Planned |
+| R14 | Structured (JSON) logs | JSON console formatter with scopes in `PaymentPlatform.ServiceDefaults` | T5 | Done |
 | R15 | A correlation id carried from the API through the async workflow | `CorrelationIdMiddleware` (`X-Correlation-Id`); the id and W3C trace context stored on each outbox row | T5, T23 | Scaffolded |
 | R16 | Log levels used deliberately | `payment-platform-error-handling-logging` overlay | T5 | Planned |
 | R17 | No card numbers, CVV, or secrets in logs | Tokenization at the edge, no body logging, a test that greps the captured logs | T5, T20 | Planned |
@@ -40,9 +40,9 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 | R20 | Queue depth, processing lag, retries, and failures for the async workflow | `PaymentPlatform.Outbox` meter | T25 | Planned |
 | R21 | A trace spanning the API request and the async work | `traceparent` persisted with the outbox row and restored by the worker | T23 | Planned |
 | R22 | A story for adopting distributed tracing in production | [ADR 005](decisions/005-observability-on-opentelemetry.md) | T2 | Planned |
-| R23 | Health and readiness endpoints | `/health/live`, `/health/ready` on the API and the worker | T5, T8, T9 | Planned |
+| R23 | Health and readiness endpoints | `/health/live`, `/health/ready` on the API and the worker, integration-tested against live and dead databases | T5, T8, T9, T10 | Done |
 | R24 | An audit trail of every payment state change: who, when, from, to | `PaymentEvents` table written in the same transaction as the change | T20, T21 | Planned |
-| R25 | Consistent, structured error responses | RFC 9457 problem details with a stable `code`, [ADR 006](decisions/006-errors-as-problem-details.md) | T8 | Planned |
+| R25 | Consistent, structured error responses | RFC 9457 problem details with a stable `code`, [ADR 006](decisions/006-errors-as-problem-details.md); framework errors covered by integration tests | T8, T10 | Scaffolded |
 | R26 | Idempotent create, capture, and refund | `Idempotency-Key` header, [ADR 007](decisions/007-idempotency-keys.md) | T20, T21 | Planned |
 | R27 | Retries with backoff, timeouts, and dead-lettering in the async workflow | Outbox dispatcher and webhook delivery | T23 | Planned |
 

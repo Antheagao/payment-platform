@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Everything that needs the real HTTP pipeline or a real SQL Server. Docker must be running. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.MsSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PaymentPlatform.Api\PaymentPlatform.Api.csproj" />
+  </ItemGroup>
+
+</Project>

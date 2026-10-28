@@ -78,3 +78,9 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `backend: add the worker host and the periodic job runner`: `PaymentPlatform.Worker` with `PeriodicJob` and `WorkerTelemetry`, 5 tests, and the `payment-platform-architecture` and `payment-platform-design-principles` overlays.
 - Gate: build, 141 tests three times in a row, format; the worker started against no database and answered `/health/live` 200 and `/health/ready` 503, with JSON logs and no `Server` header.
 - Writing the design overlay exposed that every job would have created its own DI scope; `PeriodicJob` now hands each run a fresh scope, with a test.
+
+## 2026-10-28: integration test harness (T10)
+
+- `backend: add integration tests on SQL Server with Testcontainers`: `PaymentPlatform.IntegrationTests` (assembly-fixture container, a migrated database per test class, `ApiFactory` over the real `Program`), 12 tests, and the `payment-platform-testing` overlay; `docs/requirements.md`: R14 and R23 done, R25 scaffolded.
+- Docker Desktop was not running at the start of the session; starting it also restarted other projects' containers through their restart policies (doc-pilot, ecommerce-api, workout, recipe), which were left alone.
+- In .NET 10 the top-level `Program` is public, so `WebApplicationFactory<Program>` needs no `public partial class Program`.

@@ -12,13 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T10. Integration test harness
-
-- `PaymentPlatform.IntegrationTests`: one SQL Server container per test run (Testcontainers), a database per test class, and a `WebApplicationFactory` over the real `Program`.
-  First tests: liveness, readiness against a live and a dead database, and the unknown-route envelope.
-- Overlay: `payment-platform-testing`.
-- Gate: `dotnet test` with Docker running.
-
 ### T11. Architecture tests
 
 - `PaymentPlatform.ArchitectureTests`: Domain references nothing but the BCL, Persistence never references a host, no host references another host.
