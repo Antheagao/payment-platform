@@ -12,12 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T16. Continuous integration
-
-- `.github/workflows/ci.yml`: backend (format, build, tests with SQL Server), frontend (typegen, tsc, eslint, tests, build, audit), compose validation; `dependabot.yml`; CodeQL for C# and TypeScript.
-- Overlay: `payment-platform-ci-cd`.
-- Gate: CI green on the pushed commit.
-
 ### T17. Infrastructure as code
 
 - `infra/bicep/`: App Service for the API and the dashboard, the worker host, Azure SQL, Service Bus, Storage, Key Vault, Application Insights, all with managed identities.

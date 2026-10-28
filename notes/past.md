@@ -133,3 +133,8 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Before pushing: `CI=true dotnet restore --locked-mode` succeeded locally, so the lock files written on Windows hold for a Linux runner as far as Windows can tell.
 - `backend: drop an unused using that newer SDKs flag`: the first CI run failed only in `dotnet format` on an unused `using System.Diagnostics;` in `ServiceDefaultsExtensions.cs`; CI installs SDK 10.0.403 while this machine has 10.0.101, which never reported it.
   Lesson: CI's SDK is the authority until this machine's SDK is updated; the other four jobs (frontend, e2e, repository, containers) were green on the first run.
+
+## 2026-10-28: continuous integration (T16, part 2)
+
+- `ci: hold back deliberate majors and add the ci-cd overlay`: CI run 40790028817 on `85a1598` was green in all five jobs and CodeQL found nothing; Dependabot's first scan opened #1 to #5, four of them majors that would break deliberate pins, so `dependabot.yml` now ignores majors for Node (image and types), TypeScript, ESLint, and the .NET images; the `payment-platform-ci-cd` overlay records the jobs, how to reproduce each, the toolchain drift, and the Dependabot policy.
+- The open Dependabot pull requests were not closed or merged: that is the owner's call.

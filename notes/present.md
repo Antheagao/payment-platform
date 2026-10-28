@@ -47,7 +47,7 @@ The base of the project was requested with these requirements; they are recorded
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
   `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
-  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`, `-architecture`, `-design-principles`, `-testing`, `-frontend-ui`; the rest land with the code they describe.
+  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`, `-architecture`, `-design-principles`, `-testing`, `-frontend-ui`, `-ci-cd`; the rest land with the code they describe.
 
 - **frontend/** (`payment-platform-dashboard`): `create-next-app` 16.4.3 with TypeScript strict, Tailwind v4 through `@tailwindcss/turbopack`, ESLint (`eslint-config-next` plus `eslint-config-prettier`), App Router under `src/`, the React Compiler, and `cacheComponents` with `partialPrefetching` (the create-next-app default, and the default everywhere in the next major).
   Prettier 3.9 with the Tailwind class-sorting plugin; scripts `typecheck` (`next typegen && tsc --noEmit`), `lint` (zero warnings), `format:check`, `build`; Node 22 or later.
@@ -56,7 +56,8 @@ The base of the project was requested with these requirements; they are recorded
   Tests (T15): Vitest 5 with Testing Library, 16 tests in 5 files beside the code (`getApiHealth` with a stubbed fetch, `Badge`, the lifecycle legend, the status table, `classNames`); Playwright, 6 golden-path checks on the production build at 1440 and 360 (12 runs): the legend, the API-down badge, the skip link, security headers, no sideways scroll, the 404 page.
 
 - **CI** (`.github/`): `ci.yml` with five jobs (backend: locked and audited restore, format, Release build, every test project including the SQL Server integration tests; frontend: typecheck, lint, format, Vitest, build, `npm audit`; e2e: Playwright; repository: docs links and contrast; containers: compose config and all three images), `codeql.yml` (C# and TypeScript, `security-extended`, weekly too), and `dependabot.yml` (NuGet, npm, Actions, Docker, compose; minor and patch grouped).
-  First run: four of five jobs green; the backend job failed `dotnet format` on an unused using that CI's newer SDK (10.0.403) reports and this machine's 10.0.101 does not; fixed in the next commit.
+  Green on `85a1598` (run 40790028817): all five CI jobs, including the SQL Server integration tests on the Linux runner, and CodeQL with 0 alerts.
+  Dependabot opened five pull requests on its first scan (#1 to #5); four were major bumps that conflict with deliberate pins (Node 25, `@types/node` 26, TypeScript 7, ESLint 10), so the config now ignores those majors; the open pull requests are left for the owner to close or merge.
 
 ## Task board
 
@@ -77,8 +78,8 @@ The base of the project was requested with these requirements; they are recorded
 | T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Done |
 | T14 | Frontend shell: design tokens, layout, API status | Done |
 | T15 | Frontend tests: Vitest and a Playwright smoke test | Done |
-| T16 | CI: GitHub Actions, Dependabot, CodeQL | In progress: workflows pushed, overlay after the first green run |
-| T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Queued |
+| T16 | CI: GitHub Actions, Dependabot, CodeQL | Done |
+| T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Next |
 | T18 | README and documentation deliverables | Queued |
 
 Feature work (T19 onward) is ranked in `future.md`.
