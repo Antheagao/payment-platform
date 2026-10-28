@@ -53,4 +53,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.Run();
+if (app.Configuration.GetValue<bool>(DatabaseMigrator.SettingName))
+{
+    await DatabaseMigrator.MigrateAsync(app.Services, app.Lifetime.ApplicationStopping);
+}
+
+await app.RunAsync();

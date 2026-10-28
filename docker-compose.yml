@@ -1,0 +1,95 @@
+# The whole platform on one machine: `cp .env.example .env`, then `docker compose up --build`.
+#
+#   API                 http://localhost:5080   (OpenAPI at /openapi/v1.json)
+#   Worker health       http://localhost:5081/health/ready
+#   Aspire dashboard    http://localhost:18888  (traces, metrics, structured logs)
+#   SQL Server          localhost,14333         (payments_app / PAYMENTS_DB_PASSWORD)
+#
+# Every port binds to 127.0.0.1 only. For the inner loop, run `docker compose up -d sqlserver
+# sqlserver-init aspire-dashboard` and start the API and worker with `dotnet run`.
+
+name: payment-platform
+
+x-otel: &otel
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-24.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?copy .env.example to .env first}
+    ports:
+      - "127.0.0.1:14333:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # One-shot: the database and the least-privilege application login (scripts/sql/create-local-database.sql).
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-24.04
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?copy .env.example to .env first}
+      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:?copy .env.example to .env first}
+    volumes:
+      - ./scripts/sql:/scripts:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - /opt/mssql-tools18/bin/sqlcmd -C -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -b -i /scripts/create-local-database.sql -v AppPassword="$$PAYMENTS_DB_PASSWORD"
+    restart: "no"
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.2
+    environment:
+      # Local only and bound to 127.0.0.1; a shared environment would use the dashboard's login token.
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+      - "127.0.0.1:18888:18888"
+      - "127.0.0.1:4317:18889"
+
+  api:
+    build:
+      context: ./backend
+      target: api
+    depends_on:
+      sqlserver-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *otel
+      ASPNETCORE_ENVIRONMENT: Development
+      OTEL_SERVICE_NAME: payment-api
+      ConnectionStrings__Payments: Server=sqlserver,1433;Database=payments;User Id=payments_app;Password=${PAYMENTS_DB_PASSWORD:?copy .env.example to .env first};TrustServerCertificate=True
+      Database__MigrateOnStartup: "true"
+    ports:
+      - "127.0.0.1:5080:8080"
+
+  worker:
+    build:
+      context: ./backend
+      target: worker
+    depends_on:
+      sqlserver-init:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+    environment:
+      <<: *otel
+      ASPNETCORE_ENVIRONMENT: Development
+      OTEL_SERVICE_NAME: payment-worker
+      ConnectionStrings__Payments: Server=sqlserver,1433;Database=payments;User Id=payments_app;Password=${PAYMENTS_DB_PASSWORD:?copy .env.example to .env first};TrustServerCertificate=True
+    ports:
+      - "127.0.0.1:5081:8080"
+
+volumes:
+  sqlserver-data:

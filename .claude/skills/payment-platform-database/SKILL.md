@@ -17,7 +17,8 @@ The global `database` guide is written for PostgreSQL and sqlx; its principles h
 - `dotnet ef migrations add <PascalCaseName> --project src/PaymentPlatform.Persistence --startup-project src/PaymentPlatform.Persistence` from `backend/`; the design-time factory needs no database.
 - Review the generated SQL before committing: `dotnet ef migrations script <previous> <new>`.
 - Never edit a pushed migration; add a new one.
-- Locally the API applies migrations at startup in Development; in a pipeline they run as an idempotent script (`migrations script --idempotent`) or a migration bundle before the new build takes traffic, which the readiness check enforces.
+- Locally the API applies migrations at startup when `Database:MigrateOnStartup` is true (compose sets it; `DatabaseMigrator`); the worker never migrates. In a pipeline they run as an idempotent script (`migrations script --idempotent`) or a migration bundle before the new build takes traffic, which the readiness check enforces.
+- The local database and login come from `scripts/sql/create-local-database.sql` (run by compose's `sqlserver-init`); it creates no tables.
 - `ALTER DATABASE` and other statements that cannot run in a transaction use `migrationBuilder.Sql(..., suppressTransaction: true)`, one per migration.
 
 ## Safe under load (translations)

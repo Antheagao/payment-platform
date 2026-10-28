@@ -90,3 +90,10 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `backend: enforce the project boundaries with architecture tests`: `PaymentPlatform.ArchitectureTests`, 16 tests, no extra package (reflection over the loaded assemblies plus the `.csproj` files).
 - Gate: 169 tests green; a probe that unsealed `Actor` failed `Concrete_classes_are_sealed...` and was reverted.
 - Lesson: compiler-generated closures (`<>c__DisplayClass1_0`) have public mutable fields, so type rules must skip compiler output.
+
+## 2026-10-28: containers (T12)
+
+- `infra: add container images and the compose stack`: `backend/Dockerfile` (one restore, `api` and `worker` targets, chiseled non-root runtime), `backend/.dockerignore`, `docker-compose.yml`, `.env.example`, `scripts/sql/create-local-database.sql`, `Persistence/DatabaseMigrator` behind `Database:MigrateOnStartup`.
+- Gate: `docker compose config -q`; `docker compose build` (45 s cold); `docker compose up`: both readiness probes green, the bootstrap exited 0, the API logged its startup migration, and the Aspire dashboard showed the API's traces and structured logs in a real browser; `docker compose down`.
+- Found while gating: `AddService(serviceName: ...)` silently overrode the standard `OTEL_SERVICE_NAME`, so compose's `payment-api` never appeared; the service defaults now read the variable first.
+- The app never connects as `sa`: the bootstrap creates a `payments_app` login that owns only the `payments` database.

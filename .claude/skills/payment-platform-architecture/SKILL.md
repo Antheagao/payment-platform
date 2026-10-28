@@ -40,12 +40,18 @@ No use case, endpoint resource, table, or job exists yet; the queue in `notes/fu
 
 | Key | Read by | Notes |
 | --- | --- | --- |
-| `ConnectionStrings:Payments` | API, worker | Required at startup; environment or user secrets locally, Key Vault in Azure |
+| `ConnectionStrings:Payments` | API, worker | Required at startup; environment or user secrets locally (compose connects as `payments_app`, never `sa`), Key Vault in Azure |
+| `Database:MigrateOnStartup` | API only | `true` only in compose; deployments migrate in the pipeline |
 | `Acquirer:Simulated:LatencyMilliseconds` | API, worker | 0 to 5000, validated at startup |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` | API, worker | Export only when set |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` | API, worker | Export only when the endpoint is set; the service name defaults to the assembly name (compose sets `payment-api` and `payment-worker`) |
 | `ASPNETCORE_ENVIRONMENT` | API, worker | `Development` enables OpenAPI and disables HSTS |
 
-A new setting lands in one commit across its validated options class, `appsettings.json` (non-secret defaults only), `.env.example` and `docker-compose.yml` once they exist (T12), this table, and the How it runs section of `notes/present.md`.
+A new setting lands in one commit across its validated options class, `appsettings.json` (non-secret defaults only), `docker-compose.yml` (and `.env.example` if it is a secret), this table, and the How it runs section of `notes/present.md`.
+
+## Containers
+
+- `backend/Dockerfile` builds both hosts from one restore (`--target api`, `--target worker`) in locked mode onto `aspnet:10.0-noble-chiseled-extra`: no shell, non-root, port 8080.
+- `docker-compose.yml`: `sqlserver` (2025-CU10, healthchecked), `sqlserver-init` (one-shot `scripts/sql/create-local-database.sql`: the database and the `payments_app` login, db_owner of that database only), `aspire-dashboard` (13.6.2, anonymous, OTLP on 4317), `api`, `worker`; every port on 127.0.0.1.
 
 ## Decision records
 

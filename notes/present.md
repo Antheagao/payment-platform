@@ -25,7 +25,7 @@ The base of the project was requested with these requirements; they are recorded
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
-  Layout so far: `.claude/`, `.githooks/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `.editorconfig`, `.gitattributes`, `.gitignore`.
+  Layout so far: `.claude/`, `.githooks/`, `backend/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes`, `.gitignore`.
 - **Decisions** in `docs/decisions/`: 001 stack and layout, 002 backend project boundaries, 003 the async workflow on a transactional outbox, 004 short-lived JWTs held by the dashboard's server, 005 OpenTelemetry, 006 RFC 9457 problem details with a stable `code`, 007 idempotency keys.
   `docs/assumptions.md` records the fifteen choices made where the brief was ambiguous.
 - **Architecture**: `docs/architecture.md` (components, project dependencies, the lifecycle, the create and async sequences, observability, security, scaling, the Azure mapping, with Mermaid diagrams) and `docs/requirements.md` (27 requirements and 6 documentation deliverables, each with its home, task, and status).
@@ -38,6 +38,7 @@ The base of the project was requested with these requirements; they are recorded
     `System.Security.Cryptography.Pkcs` is pinned to 10.0.14 because NuGet audit failed the build on the 9.0.11 that Microsoft.Data.SqlClient 6.1.7 asks for.
   - `src/PaymentPlatform.Application`: `AddApplication()` (registers `TimeProvider.System` and the acquirer), `ApplicationTelemetry` (the `PaymentPlatform.Application` activity source), and `Acquiring/`: the `IAcquirer` port (authorize, capture, refund; the payment id is the acquirer-side idempotency key; outages are an `Unavailable` answer, not an exception) and `SimulatedAcquirer` (stateless and deterministic: scenario tokens in `SimulatedCardTokens` decline or go unanswered, any other token is approved, references derive from the payment id; latency from `Acquirer:Simulated:LatencyMilliseconds`, validated 0 to 5000 at startup).
     No use cases yet; they arrive with T19 onward in feature folders.
+  - `Persistence/DatabaseMigrator`: applies pending migrations when `Database:MigrateOnStartup` is true; only the API calls it.
   - `src/PaymentPlatform.Api` (`http://localhost:5080`): service defaults, persistence, and application wired in `Program.cs`; correlation ids first, then the exception handler and status code pages so every error is RFC 9457 problem details with `code`, `correlation_id`, and `trace_id` (`Errors/`); `SecurityHeadersMiddleware`; HSTS outside Development; 64 KB bodies; 10 s request timeout (`503`); snake_case JSON and enums; the empty `/api/v1` group (`Endpoints/ApiRoutes.cs`); OpenAPI at `/openapi/v1.json` in Development; `UserSecretsId` for the local connection string.
   - `src/PaymentPlatform.Worker` (`http://localhost:5081`, health only): a slim web host with the service defaults, persistence, and application; `Jobs/PeriodicJob` (run at startup and then every interval on the injected clock, never overlapping, a DI scope, a span, and a duration sample per run, a failed run logged and counted while the schedule continues) and `Jobs/WorkerTelemetry` (`worker.job.duration`, `worker.job.failures` by `job.name`).
     No jobs are registered yet; T23 and T24 add them.
@@ -63,8 +64,8 @@ The base of the project was requested with these requirements; they are recorded
 | T9 | Worker host: periodic job runner, health endpoints | Done |
 | T10 | Integration tests on a real SQL Server (Testcontainers) | Done |
 | T11 | Architecture tests for project dependency direction | Done |
-| T12 | Dockerfiles and `docker-compose.yml` with SQL Server and the Aspire dashboard | Next |
-| T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Queued |
+| T12 | Dockerfiles and `docker-compose.yml` with SQL Server and the Aspire dashboard | Done |
+| T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Next |
 | T14 | Frontend shell: design tokens, layout, API status | Queued |
 | T15 | Frontend tests: Vitest and a Playwright smoke test | Queued |
 | T16 | CI: GitHub Actions, Dependabot, CodeQL | Queued |
@@ -78,7 +79,9 @@ Feature work (T19 onward) is ranked in `future.md`.
 - API alone, from `backend/`: set `ConnectionStrings__Payments` (or `dotnet user-secrets set ConnectionStrings:Payments ... --project src/PaymentPlatform.Api`), then `dotnet run --project src/PaymentPlatform.Api`; it listens on `http://localhost:5080`.
   Without a database, `/health/live` is 200 and `/health/ready` is 503 within the 5 s check timeout.
 - Worker alone: the same connection string, then `dotnet run --project src/PaymentPlatform.Worker` (health on `http://localhost:5081`).
-- T12 adds `docker compose up` for the whole stack.
+- Whole stack: `cp .env.example .env`, then `docker compose up --build`: SQL Server on `localhost,14333`, a one-shot bootstrap that creates the `payments` database and the `payments_app` login, the Aspire dashboard on `http://localhost:18888`, the API on 5080, the worker on 5081; `docker compose down` stops it.
+  Verified 2026-10-28: both readiness probes green, the API migrated at startup, traces and structured logs in the dashboard under `payment-api`.
+- The frontend joins compose with T14.
 
 ## Decisions pending
 

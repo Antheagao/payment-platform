@@ -20,6 +20,7 @@ ADR 004 (authentication) and `docs/assumptions.md` (card data) come first.
 - Request bodies capped at 64 KB and requests at 10 s.
 - Error responses never carry exception messages (`ProblemDetailsSetup`), and health responses never carry check descriptions or exceptions (`HealthResponseWriter`), with tests for the latter.
 - Supply chain: NuGet audit of transitive packages fails the build at any severity; lock files are restored in locked mode in CI; transitive security pins live in `Directory.Packages.props` with the advisory named.
+- Containers: chiseled runtime images (no shell, no package manager, non-root); compose binds every port to 127.0.0.1; the app connects as `payments_app` (one database) and only the bootstrap uses `sa`; passwords come from the gitignored `.env`.
 - Secrets: none in the repository; the API reads `ConnectionStrings:Payments` from the environment or user secrets (`UserSecretsId` is set), and the EF design-time factory holds no credentials.
 
 ## Card data (PCI mindset)

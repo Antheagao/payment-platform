@@ -20,6 +20,8 @@ Longer procedures live in `.claude/skills/`.
 
 ## Running it
 
+- Whole stack: `cp .env.example .env` once, then `docker compose up --build` (SQL Server, the database bootstrap, the Aspire dashboard, the API, the worker); `docker compose down` to stop.
+- Inner loop: `docker compose up -d sqlserver sqlserver-init aspire-dashboard`, then `dotnet run` the API or worker from `backend/` with `ConnectionStrings__Payments` set.
 - Docker Desktop must be running for the integration tests (Testcontainers) and for `docker compose`.
 - Ports: API `5080`, worker `5081`, dashboard `3000`, SQL Server `14333` on the host, Aspire dashboard UI `18888`, OTLP `4317`.
   Stop every server, container, and watcher you start before finishing.

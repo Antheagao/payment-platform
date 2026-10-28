@@ -12,11 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T12. Containers
-
-- Dockerfiles for the API and the worker (multi-stage, non-root), `docker-compose.yml` with SQL Server, the Aspire dashboard as the OTLP sink, the API, and the worker; `.env.example`.
-- Gate: `docker compose config -q`, `docker compose up --build`, both health endpoints green, a trace visible in the dashboard; then `docker compose down`.
-
 ### T13. Frontend scaffold
 
 - `frontend/` from `create-next-app` (Next.js 16, TypeScript strict, Tailwind v4, ESLint, App Router, `src/`), Prettier, `server-only`.

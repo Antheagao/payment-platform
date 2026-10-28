@@ -84,10 +84,12 @@ public static class ServiceDefaultsExtensions
 
     private static void ConfigureOpenTelemetry(this IHostApplicationBuilder builder)
     {
+        // OTEL_SERVICE_NAME is the standard override; without it the assembly name identifies the service.
+        var serviceName = builder.Configuration["OTEL_SERVICE_NAME"] is { Length: > 0 } configured
+            ? configured
+            : builder.Environment.ApplicationName;
         var telemetry = builder.Services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource.AddService(
-                serviceName: builder.Environment.ApplicationName,
-                serviceNamespace: "payment-platform"))
+            .ConfigureResource(resource => resource.AddService(serviceName: serviceName, serviceNamespace: "payment-platform"))
             .WithTracing(tracing => tracing
                 .AddSource($"{TelemetryPrefix}.*")
                 .AddAspNetCoreInstrumentation(options => options.Filter = IsNotHealthProbe)
