@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    The background host: runs the asynchronous workflow (outbox dispatch, webhook delivery, settlement,
+    reconciliation) as periodic jobs. A web SDK only so it can answer health probes; it serves no API.
+  -->
+
+  <PropertyGroup>
+    <UserSecretsId>payment-platform-worker</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PaymentPlatform.Application\PaymentPlatform.Application.csproj" />
+    <ProjectReference Include="..\PaymentPlatform.ServiceDefaults\PaymentPlatform.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PaymentPlatform.Worker.Tests" />
+  </ItemGroup>
+
+</Project>

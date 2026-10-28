@@ -72,3 +72,9 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `backend: add the API host with problem details and security headers`: `PaymentPlatform.Api`, and the `payment-platform-api-design` and `payment-platform-security` overlays.
 - Gate (run against the Release build with no database): `/health/live` 200 with `nosniff`, CSP, and `X-Correlation-Id`; `/health/ready` 503 in 3.3 s with a 3 s connect timeout; `GET /api/v1/payments` and `DELETE /health/live` return `application/problem+json` with `code`, `correlation_id`, and `trace_id`; a caller's correlation id is echoed; `/openapi/v1.json` is 200; logs are JSON lines.
 - Cosmetic, left as is: EF Core warns at startup that no entity configurations exist; the warning goes away with the first table (T19).
+
+## 2026-10-28: worker host (T9)
+
+- `backend: add the worker host and the periodic job runner`: `PaymentPlatform.Worker` with `PeriodicJob` and `WorkerTelemetry`, 5 tests, and the `payment-platform-architecture` and `payment-platform-design-principles` overlays.
+- Gate: build, 141 tests three times in a row, format; the worker started against no database and answered `/health/live` 200 and `/health/ready` 503, with JSON logs and no `Server` header.
+- Writing the design overlay exposed that every job would have created its own DI scope; `PeriodicJob` now hands each run a fresh scope, with a test.

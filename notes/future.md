@@ -12,12 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T9. Worker host
-
-- `PaymentPlatform.Worker`: a slim web host for health endpoints plus a periodic job runner (timer, cancellation, per-run tracing, duration and failure metrics) that the outbox, webhook, and settlement jobs plug into later.
-- Overlays: `payment-platform-architecture`, `payment-platform-design-principles`.
-- Gate: build; the worker starts and answers `/health/live`.
-
 ### T10. Integration test harness
 
 - `PaymentPlatform.IntegrationTests`: one SQL Server container per test run (Testcontainers), a database per test class, and a `WebApplicationFactory` over the real `Program`.

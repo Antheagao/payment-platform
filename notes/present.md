@@ -39,12 +39,14 @@ The base of the project was requested with these requirements; they are recorded
   - `src/PaymentPlatform.Application`: `AddApplication()` (registers `TimeProvider.System` and the acquirer), `ApplicationTelemetry` (the `PaymentPlatform.Application` activity source), and `Acquiring/`: the `IAcquirer` port (authorize, capture, refund; the payment id is the acquirer-side idempotency key; outages are an `Unavailable` answer, not an exception) and `SimulatedAcquirer` (stateless and deterministic: scenario tokens in `SimulatedCardTokens` decline or go unanswered, any other token is approved, references derive from the payment id; latency from `Acquirer:Simulated:LatencyMilliseconds`, validated 0 to 5000 at startup).
     No use cases yet; they arrive with T19 onward in feature folders.
   - `src/PaymentPlatform.Api` (`http://localhost:5080`): service defaults, persistence, and application wired in `Program.cs`; correlation ids first, then the exception handler and status code pages so every error is RFC 9457 problem details with `code`, `correlation_id`, and `trace_id` (`Errors/`); `SecurityHeadersMiddleware`; HSTS outside Development; 64 KB bodies; 10 s request timeout (`503`); snake_case JSON and enums; the empty `/api/v1` group (`Endpoints/ApiRoutes.cs`); OpenAPI at `/openapi/v1.json` in Development; `UserSecretsId` for the local connection string.
-  - Tests (xUnit v3): `PaymentPlatform.Domain.Tests` 105 (including all 36 status pairs), `PaymentPlatform.ServiceDefaults.Tests` 20 (correlation id rules, header injection refused, health output leaks nothing), `PaymentPlatform.Application.Tests` 11 (every acquirer branch, repeat calls, latency on a fake clock, cancellation, options validation); 136 in total.
+  - `src/PaymentPlatform.Worker` (`http://localhost:5081`, health only): a slim web host with the service defaults, persistence, and application; `Jobs/PeriodicJob` (run at startup and then every interval on the injected clock, never overlapping, a DI scope, a span, and a duration sample per run, a failed run logged and counted while the schedule continues) and `Jobs/WorkerTelemetry` (`worker.job.duration`, `worker.job.failures` by `job.name`).
+    No jobs are registered yet; T23 and T24 add them.
+  - Tests (xUnit v3): `PaymentPlatform.Domain.Tests` 105 (including all 36 status pairs), `PaymentPlatform.ServiceDefaults.Tests` 20 (correlation id rules, header injection refused, health output leaks nothing), `PaymentPlatform.Application.Tests` 11 (every acquirer branch, repeat calls, latency on a fake clock, cancellation, options validation), `PaymentPlatform.Worker.Tests` 5 (schedule, failure isolation and counting, scope per run, duration on the fake clock, clean stop); 141 in total, stable across three consecutive runs.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
   `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
-  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`; the rest land with the code they describe.
+  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`, `-architecture`, `-design-principles`; the rest land with the code they describe.
 
 ## Task board
 
@@ -58,8 +60,8 @@ The base of the project was requested with these requirements; they are recorded
 | T6 | Persistence: EF Core on SQL Server, readiness check | Done |
 | T7 | Application layer: use-case home, acquirer port and simulated adapter | Done |
 | T8 | API host: `/api/v1`, problem details, OpenAPI, health endpoints | Done |
-| T9 | Worker host: periodic job runner, health endpoints | Next |
-| T10 | Integration tests on a real SQL Server (Testcontainers) | Queued |
+| T9 | Worker host: periodic job runner, health endpoints | Done |
+| T10 | Integration tests on a real SQL Server (Testcontainers) | Next |
 | T11 | Architecture tests for project dependency direction | Queued |
 | T12 | Dockerfiles and `docker-compose.yml` with SQL Server and the Aspire dashboard | Queued |
 | T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Queued |
@@ -75,6 +77,7 @@ Feature work (T19 onward) is ranked in `future.md`.
 
 - API alone, from `backend/`: set `ConnectionStrings__Payments` (or `dotnet user-secrets set ConnectionStrings:Payments ... --project src/PaymentPlatform.Api`), then `dotnet run --project src/PaymentPlatform.Api`; it listens on `http://localhost:5080`.
   Without a database, `/health/live` is 200 and `/health/ready` is 503 within the 5 s check timeout.
+- Worker alone: the same connection string, then `dotnet run --project src/PaymentPlatform.Worker` (health on `http://localhost:5081`).
 - T12 adds `docker compose up` for the whole stack.
 
 ## Decisions pending

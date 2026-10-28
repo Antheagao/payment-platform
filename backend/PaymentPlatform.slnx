@@ -5,10 +5,12 @@
     <Project Path="src/PaymentPlatform.Domain/PaymentPlatform.Domain.csproj" />
     <Project Path="src/PaymentPlatform.Persistence/PaymentPlatform.Persistence.csproj" />
     <Project Path="src/PaymentPlatform.ServiceDefaults/PaymentPlatform.ServiceDefaults.csproj" />
+    <Project Path="src/PaymentPlatform.Worker/PaymentPlatform.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PaymentPlatform.Application.Tests/PaymentPlatform.Application.Tests.csproj" />
     <Project Path="tests/PaymentPlatform.Domain.Tests/PaymentPlatform.Domain.Tests.csproj" />
     <Project Path="tests/PaymentPlatform.ServiceDefaults.Tests/PaymentPlatform.ServiceDefaults.Tests.csproj" />
+    <Project Path="tests/PaymentPlatform.Worker.Tests/PaymentPlatform.Worker.Tests.csproj" />
   </Folder>
 </Solution>
