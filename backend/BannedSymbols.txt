@@ -1,0 +1,10 @@
+P:System.DateTime.Now;Inject TimeProvider and call GetUtcNow(), so tests control time
+P:System.DateTime.UtcNow;Inject TimeProvider and call GetUtcNow(), so tests control time
+P:System.DateTime.Today;Inject TimeProvider and call GetUtcNow(), so tests control time
+P:System.DateTimeOffset.Now;Inject TimeProvider and call GetUtcNow(), so tests control time
+P:System.DateTimeOffset.UtcNow;Inject TimeProvider and call GetUtcNow(), so tests control time
+M:System.Console.WriteLine(System.String);Log through ILogger so the line is structured and correlated
+M:System.Console.WriteLine(System.Object);Log through ILogger so the line is structured and correlated
+M:System.Threading.Tasks.Task.Wait;Await the task; blocking on async code can deadlock and starves the thread pool
+P:System.Threading.Tasks.Task`1.Result;Await the task; blocking on async code can deadlock and starves the thread pool
+M:System.Random.#ctor;Use Random.Shared, or RandomNumberGenerator for anything security-relevant

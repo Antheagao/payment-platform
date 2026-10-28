@@ -30,6 +30,8 @@ The base of the project was requested with these requirements; they are recorded
   `docs/assumptions.md` records the fifteen choices made where the brief was ambiguous.
 - **Architecture**: `docs/architecture.md` (components, project dependencies, the lifecycle, the create and async sequences, observability, security, scaling, the Azure mapping, with Mermaid diagrams) and `docs/requirements.md` (27 requirements and 6 documentation deliverables, each with its home, task, and status).
 - **Docs gate**: `node scripts/check-docs.mjs` fails on a broken relative link or an em dash in any Markdown file.
+- **backend/** (no projects yet): `PaymentPlatform.slnx`, `global.json` (SDK 10.0.100 with `latestFeature`; this machine has 10.0.101), `Directory.Build.props` (net10.0, nullable, warnings as errors, `latest-recommended` analyzers, code style in build, NuGet audit of transitive packages, lock files restored in locked mode under `CI=true`), `Directory.Packages.props` (central versions with transitive pinning), `BannedSymbols.txt` (wall-clock time, `Console.WriteLine`, blocking waits, `new Random()`), and `dotnet-ef` 10.0.14 in the tool manifest.
+  C# style rules live in the root `.editorconfig`.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
@@ -41,7 +43,7 @@ The base of the project was requested with these requirements; they are recorded
 | --- | --- | --- |
 | T1 | Repository base, notes rotation, agent rules | Done |
 | T2 | Architecture overview, requirements traceability, ADRs | Done |
-| T3 | Backend solution, SDK pin, shared build and package props | Next |
+| T3 | Backend solution, SDK pin, shared build and package props | In progress: conventions landed, overlays next |
 | T4 | Domain: payment lifecycle state machine with unit tests | Queued |
 | T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Queued |
 | T6 | Persistence: EF Core on SQL Server, readiness check | Queued |
