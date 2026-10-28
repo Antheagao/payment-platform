@@ -3,7 +3,7 @@
 # The dashboard as Next.js's standalone server. Build context is frontend/.
 # The runtime image is distroless: no shell or package manager, and it runs as a non-root user.
 
-FROM node:22-bookworm-slim AS build
+FROM node:25-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_OUTPUT=standalone
