@@ -1,0 +1,40 @@
+# Secrets and local config
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+
+# Backend (.NET)
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
+*.user
+*.suo
+.vs/
+*.trx
+
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+
+# Infrastructure build output
+infra/**/*.json
+!infra/**/*.parameters.json
+!infra/**/bicepconfig.json
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
