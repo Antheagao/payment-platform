@@ -1,0 +1,28 @@
+#!/bin/sh
+# Notes rotation guard for pushes.
+# Every range being pushed must touch notes/present.md at least once, so a commit
+# made with --no-verify or NOTES_SKIP still gets its notes before it leaves the machine.
+# Bypass once with: NOTES_SKIP=1 git push ...
+[ -n "$NOTES_SKIP" ] && exit 0
+
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue            # branch deletion
+  if [ "$remote_sha" = "$zero" ]; then
+    # New branch: only the commits no remote has seen yet are being pushed.
+    commits=$(git rev-list "$local_sha" --not --remotes)
+    [ -z "$commits" ] && continue                    # nothing new leaves the machine
+    touched=$(git log --format= --name-only "$local_sha" --not --remotes -- notes/present.md)
+    range="$local_sha (new branch, commits not on any remote)"
+  else
+    touched=$(git log --format= --name-only "$remote_sha..$local_sha" -- notes/present.md)
+    range="$remote_sha..$local_sha"
+  fi
+  if [ -z "$touched" ]; then
+    echo "pre-push: $local_ref changes nothing in notes/present.md across $range." >&2
+    echo "  Rotate the notes and amend or add a commit. One-off bypass: NOTES_SKIP=1 git push ..." >&2
+    status=1
+  fi
+done
+exit $status

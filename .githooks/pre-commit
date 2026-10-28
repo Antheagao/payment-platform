@@ -1,0 +1,19 @@
+#!/bin/sh
+# Notes rotation guard.
+# A commit that changes anything outside notes/ must also update notes/present.md,
+# which is where the rotation happens (landed work -> past.md, new state -> present.md,
+# re-plan -> future.md). Bypass once with: NOTES_SKIP=1 git commit ...
+[ -n "$NOTES_SKIP" ] && exit 0
+
+staged=$(git diff --cached --name-only --diff-filter=ACMRD)
+[ -z "$staged" ] && exit 0
+
+outside=$(printf '%s\n' "$staged" | grep -v '^notes/' | head -n 1)
+[ -z "$outside" ] && exit 0
+
+if ! printf '%s\n' "$staged" | grep -qx 'notes/present.md'; then
+  echo "pre-commit: this commit changes code or docs but notes/present.md is not staged." >&2
+  echo "  Rotate the notes first: what landed -> notes/past.md, current state -> notes/present.md, plan -> notes/future.md." >&2
+  echo "  One-off bypass: NOTES_SKIP=1 git commit ..." >&2
+  exit 1
+fi
