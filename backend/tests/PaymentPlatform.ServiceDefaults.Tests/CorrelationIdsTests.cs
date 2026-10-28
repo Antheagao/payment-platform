@@ -1,6 +1,6 @@
 namespace PaymentPlatform.ServiceDefaults.Tests;
 
-public sealed class RequestIdsTests
+public sealed class CorrelationIdsTests
 {
     [Theory]
     [InlineData("a")]
@@ -8,14 +8,14 @@ public sealed class RequestIdsTests
     [InlineData("checkout-2026-10-28.retry_1:abc")]
     public void Well_formed_caller_ids_are_kept(string candidate)
     {
-        Assert.True(RequestIds.IsAcceptable(candidate));
-        Assert.Equal(candidate, RequestIds.AcceptOrCreate(candidate));
+        Assert.True(CorrelationIds.IsAcceptable(candidate));
+        Assert.Equal(candidate, CorrelationIds.AcceptOrCreate(candidate));
     }
 
     [Fact]
     public void An_id_of_exactly_the_maximum_length_is_kept()
     {
-        Assert.True(RequestIds.IsAcceptable(new string('a', RequestIds.MaxLength)));
+        Assert.True(CorrelationIds.IsAcceptable(new string('a', CorrelationIds.MaxLength)));
     }
 
     [Theory]
@@ -29,9 +29,9 @@ public sealed class RequestIdsTests
     [InlineData("<script>")]
     public void Unsafe_or_empty_caller_ids_are_replaced(string? candidate)
     {
-        Assert.False(RequestIds.IsAcceptable(candidate));
+        Assert.False(CorrelationIds.IsAcceptable(candidate));
 
-        var replacement = RequestIds.AcceptOrCreate(candidate);
+        var replacement = CorrelationIds.AcceptOrCreate(candidate);
 
         Assert.NotEqual(candidate, replacement);
         Assert.Matches("^[0-9a-f]{32}$", replacement);
@@ -40,13 +40,13 @@ public sealed class RequestIdsTests
     [Fact]
     public void An_id_one_over_the_maximum_length_is_replaced()
     {
-        Assert.False(RequestIds.IsAcceptable(new string('a', RequestIds.MaxLength + 1)));
+        Assert.False(CorrelationIds.IsAcceptable(new string('a', CorrelationIds.MaxLength + 1)));
     }
 
     [Fact]
     public void Generated_ids_are_unique()
     {
-        var ids = Enumerable.Range(0, 1_000).Select(_ => RequestIds.New()).ToHashSet();
+        var ids = Enumerable.Range(0, 1_000).Select(_ => CorrelationIds.New()).ToHashSet();
 
         Assert.Equal(1_000, ids.Count);
     }

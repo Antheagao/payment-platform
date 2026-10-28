@@ -18,7 +18,7 @@ Six source projects, with dependencies pointing inward only:
 | `PaymentPlatform.Domain` | The payment aggregate, the lifecycle transition table, `Money`, domain events, domain errors | The base class library only |
 | `PaymentPlatform.Persistence` | `PaymentsDbContext`, entity configurations, migrations, T-SQL objects | Domain |
 | `PaymentPlatform.Application` | Use cases in feature folders, ports for external systems with their adapters | Domain, Persistence |
-| `PaymentPlatform.ServiceDefaults` | Logging, OpenTelemetry, health endpoints, the request id | Framework packages only |
+| `PaymentPlatform.ServiceDefaults` | Logging, OpenTelemetry, health endpoints, the correlation id | Framework packages only |
 | `PaymentPlatform.Api` | HTTP endpoints, authentication, problem details | Application, ServiceDefaults |
 | `PaymentPlatform.Worker` | Background job hosting | Application, ServiceDefaults |
 
@@ -42,3 +42,7 @@ Six source projects, with dependencies pointing inward only:
 - Six projects is more than the smallest possible layout; each one is there because something must be kept out of it.
 - Swapping the simulated acquirer for a real one touches one adapter and the DI registration.
 - Persistence is a dependency of Application, so EF Core types appear in use cases; that is deliberate, and the Domain stays free of them.
+
+## Amendments
+
+- 2026-10-28: "request id" renamed to "correlation id"; see the amendment in [ADR 005](005-observability-on-opentelemetry.md).

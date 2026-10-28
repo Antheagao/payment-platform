@@ -12,7 +12,7 @@ The Azure design must map onto services the team already runs (Service Bus, Func
 
 ## Decision
 
-- **Outbox table in SQL Server.** Every state change writes an `OutboxMessages` row (event type, payload, `traceparent`, request id, due time) in the same transaction as the change.
+- **Outbox table in SQL Server.** Every state change writes an `OutboxMessages` row (event type, payload, `traceparent`, correlation id, due time) in the same transaction as the change.
 - **The worker claims rows** with `UPDATE TOP (@batch) ... WITH (UPDLOCK, READPAST, ROWLOCK) ... OUTPUT inserted.*`, setting a lease that expires after a few minutes, so several worker instances share the work without double-processing and a crashed worker's rows come back.
 - **Webhook delivery is its own table.** The dispatcher turns each outbox message into one `WebhookDeliveries` row per subscribed endpoint, so one slow merchant never delays another, and each delivery has its own attempts, next-attempt time, last error, and status.
 - **Retries:** exponential backoff with full jitter, 10 seconds doubling to 1 hour, at most 12 attempts (about a day); then the delivery is dead-lettered (`DeadLettered` status), counted, and left for an operator to replay.
@@ -34,3 +34,7 @@ The Azure design must map onto services the team already runs (Service Bus, Func
 - Polling adds up to a second of latency, which is acceptable for webhooks and settlement.
 - The database carries the queue load; at higher volume the dispatcher becomes a relay that publishes outbox rows to Azure Service Bus and consumers become Service Bus-triggered Azure Functions, with the outbox still guaranteeing atomicity.
 - Dead-lettered deliveries need an operator action (a replay endpoint or script), queued with T23.
+
+## Amendments
+
+- 2026-10-28: "request id" renamed to "correlation id"; see the amendment in [ADR 005](005-observability-on-opentelemetry.md).

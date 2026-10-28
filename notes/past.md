@@ -56,3 +56,13 @@ Update this file when a task lands; keep the present and future notes in sync.
 
 - `backend: add the application layer with the acquirer port`: `PaymentPlatform.Application` and its 11 tests.
 - Design note: the simulated acquirer is stateless on purpose. The API and the worker run separate processes, so an in-memory record of authorizations would make the worker's reconciliation disagree with the API; deriving the outcome from the token and the reference from the payment id makes every process give the same answer.
+
+## 2026-10-28: correlation id (found while gating T8)
+
+- `backend: carry a correlation id and log each failed probe once`: running the API for the first time showed three defects, all fixed in this commit.
+  - ASP.NET Core already writes a `RequestId` (connection id plus counter) into every log scope, so ours appeared as a second `RequestId` with a different value.
+    The id is now the correlation id: `X-Correlation-Id`, the `CorrelationId` scope, `correlation_id` in problem details; ADRs 002, 003, 005, and 006 carry a dated amendment.
+  - Our scope was a `Dictionary`, so its `Message` printed as a type name; a one-entry scope type now prints `CorrelationId:<id>`.
+  - A failed readiness probe logged twice (our warning and the health check service's error); the check now returns its description and exception and logs nothing.
+  - `MapHealthChecks` answered every method, so `DELETE /health/live` was a 200; both probes are now GET and HEAD only.
+- Lesson: Bash tool commands over about 8 KB still fail to parse on this machine; long edit scripts go in a scratchpad file.

@@ -14,7 +14,7 @@ using OpenTelemetry.Trace;
 
 namespace PaymentPlatform.ServiceDefaults;
 
-/// <summary>The wiring every host shares: JSON logs, OpenTelemetry, health checks, and request ids (ADR 005).</summary>
+/// <summary>The wiring every host shares: JSON logs, OpenTelemetry, health checks, and correlation ids (ADR 005).</summary>
 public static class ServiceDefaultsExtensions
 {
     /// <summary>Every <c>ActivitySource</c> and <c>Meter</c> the platform creates is named under this prefix.</summary>
@@ -38,9 +38,9 @@ public static class ServiceDefaultsExtensions
         return builder;
     }
 
-    /// <summary>Assigns the request id first, so every later log line and error response carries it.</summary>
-    public static IApplicationBuilder UseRequestIds(this IApplicationBuilder app) =>
-        app.UseMiddleware<RequestIdMiddleware>();
+    /// <summary>Assigns the correlation id first, so every later log line and error response carries it.</summary>
+    public static IApplicationBuilder UseCorrelationIds(this IApplicationBuilder app) =>
+        app.UseMiddleware<CorrelationIdMiddleware>();
 
     /// <summary>
     /// Maps <c>/health/live</c> (the process answers) and <c>/health/ready</c> (every dependency answers),
@@ -50,15 +50,17 @@ public static class ServiceDefaultsExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
+        // MapHealthChecks answers every method; probes only GET or HEAD, so anything else is a 405.
+        string[] probeMethods = [HttpMethods.Get, HttpMethods.Head];
         endpoints.MapHealthChecks(LivenessPath, new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains(LiveTag),
             ResponseWriter = HealthResponseWriter.WriteAsync,
-        });
+        }).WithMetadata(new HttpMethodMetadata(probeMethods));
         endpoints.MapHealthChecks(ReadinessPath, new HealthCheckOptions
         {
             ResponseWriter = HealthResponseWriter.WriteAsync,
-        });
+        }).WithMetadata(new HttpMethodMetadata(probeMethods));
         return endpoints;
     }
 

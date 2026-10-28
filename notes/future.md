@@ -81,7 +81,7 @@ Ranked by what the exercise grades most: the lifecycle and its audit trail, idem
 
 - **T19. Merchant accounts and login.** Merchants and users tables (first migration), password hashing, `POST /api/v1/auth/login` issuing a short-lived signed JWT, login rate limiting, a seeded demo merchant, and tests for expiry and tampering.
 - **T20. Create and read payments.** Payments and payment-event (audit) tables, `POST /api/v1/payments` with `Idempotency-Key`, `GET /api/v1/payments/{id}`, merchant scoping (another merchant's payment is a 404), the simulated authorization.
-- **T21. Capture and refund.** `POST /payments/{id}/capture` and `/refund`, idempotent, every transition audited with actor, time, and request id.
+- **T21. Capture and refund.** `POST /payments/{id}/capture` and `/refund`, idempotent, every transition audited with actor, time, and correlation id.
 - **T22. List and search.** Filters by status, date range, amount, and reference; keyset pagination with an opaque cursor; the indexes that serve it.
 - **T23. Outbox and webhook delivery.** Outbox rows written in the same transaction as the state change, a dispatcher claiming rows with `READPAST`, HMAC-signed webhooks, exponential backoff with jitter, a dead-letter state, and trace context carried across the hop.
 - **T24. Settlement.** A scheduled batch that settles captured payments through a T-SQL stored procedure, with reconciliation counts.

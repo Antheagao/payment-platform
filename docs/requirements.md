@@ -32,7 +32,7 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 | Id | Requirement | Where it lives | Task | Status |
 | --- | --- | --- | --- | --- |
 | R14 | Structured (JSON) logs | `PaymentPlatform.ServiceDefaults` | T5 | Planned |
-| R15 | A correlation id carried from the API through the async workflow | Request id middleware; request id and W3C trace context stored on each outbox row | T5, T23 | Planned |
+| R15 | A correlation id carried from the API through the async workflow | `CorrelationIdMiddleware` (`X-Correlation-Id`); the id and W3C trace context stored on each outbox row | T5, T23 | Scaffolded |
 | R16 | Log levels used deliberately | `payment-platform-error-handling-logging` overlay | T5 | Planned |
 | R17 | No card numbers, CVV, or secrets in logs | Tokenization at the edge, no body logging, a test that greps the captured logs | T5, T20 | Planned |
 | R18 | Request rate, error rate, and latency (RED) | ASP.NET Core and HttpClient OpenTelemetry meters | T5 | Planned |

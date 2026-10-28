@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Host wiring shared by the API and the worker: logging, telemetry, health, request ids. No business code. -->
+  <!-- Host wiring shared by the API and the worker: logging, telemetry, health, correlation ids. No business code. -->
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

@@ -1,6 +1,6 @@
 ---
 name: payment-platform-error-handling-logging
-description: Payment Platform logging, tracing, metrics, health, and request id facts for .NET, plus the error rules translated from Rust. Use when adding a log line, a span, a meter, a health check, or an error path in this repository.
+description: Payment Platform logging, tracing, metrics, health, and correlation id facts for .NET, plus the error rules translated from Rust. Use when adding a log line, a span, a meter, a health check, or an error path in this repository.
 ---
 
 # Payment Platform error-handling-logging overlay
@@ -12,10 +12,12 @@ ADR 005 (observability) and ADR 006 (problem details) come first; this file says
 
 - `AddServiceDefaults()` clears the default providers and installs the JSON console formatter (UTC timestamps, scopes included) plus OpenTelemetry logging, with `TraceId`, `SpanId`, and `ParentId` added to every scope.
 - OpenTelemetry traces and metrics: every `ActivitySource` and `Meter` named `PaymentPlatform.*`, ASP.NET Core (health probes filtered out of traces), HttpClient, and runtime instrumentation; OTLP export only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
-- `UseRequestIds()` (`RequestIdMiddleware`, rules in `RequestIds`): keeps a caller's `X-Request-Id` of 1 to 64 characters from `[A-Za-z0-9-_.:]`, otherwise generates 32 hex characters; sets `HttpContext.TraceIdentifier`, echoes the header, tags the span `request.id`, and opens a `RequestId` log scope.
+- `UseCorrelationIds()` (`CorrelationIdMiddleware`, rules in `CorrelationIds`): keeps a caller's `X-Correlation-Id` of 1 to 64 characters from `[A-Za-z0-9-_.:]`, otherwise generates 32 hex characters; stores it for `HttpContext.GetCorrelationId()`, echoes the header, tags the span `correlation.id`, and opens a `CorrelationId` log scope.
   It must be the first middleware, so every later line carries the id.
-- `MapDefaultEndpoints()`: `/health/live` runs only checks tagged `live` (the built-in `self`); `/health/ready` runs all; `HealthResponseWriter` returns status, per-check status, and duration, never a description or exception.
-- Tests: `tests/PaymentPlatform.ServiceDefaults.Tests` (request id rules, header injection refused, health output leaks nothing).
+  ASP.NET Core's own `RequestId` scope (connection id plus a counter) is a different thing and stays as it is; `CorrelationIds.BeginScope` is how the worker restores an id from an outbox row.
+- `MapDefaultEndpoints()`: `/health/live` runs only checks tagged `live` (the built-in `self`); `/health/ready` runs all; both answer only `GET` and `HEAD`; `HealthResponseWriter` returns status, per-check status, and duration, never a description or exception.
+- Checks log nothing themselves: the health check service logs each unhealthy result once at `Error` with the description and exception the check returns.
+- Tests: `tests/PaymentPlatform.ServiceDefaults.Tests` (correlation id rules, header injection refused, health output leaks nothing).
 
 ## Translations from the Rust guide
 

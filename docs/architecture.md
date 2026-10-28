@@ -48,7 +48,7 @@ flowchart BT
 - **Application** holds the use cases in feature folders (`Payments/`, `Settlement/`, `Webhooks/`) and the ports for the external systems: the acquirer and the webhook transport.
   Use cases work with the `DbContext` directly; there is no repository layer over EF Core ([ADR 002](decisions/002-backend-project-boundaries.md)).
 - **Api** and **Worker** are thin hosts: they translate HTTP requests or timer ticks into use-case calls.
-- **ServiceDefaults** is shared host wiring: JSON logging, OpenTelemetry, health endpoints, and the request id.
+- **ServiceDefaults** is shared host wiring: JSON logging, OpenTelemetry, health endpoints, and the correlation id.
 
 ## The payment lifecycle
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 ```
 
 The transition table lives in the Domain project and is the only code allowed to change a payment's status.
-Every transition produces a domain event; when the change is saved, the event becomes one audit row in `PaymentEvents` (who, when, from, to, the request id) and one outbox message, in the same transaction as the status change.
+Every transition produces a domain event; when the change is saved, the event becomes one audit row in `PaymentEvents` (who, when, from, to, the correlation id) and one outbox message, in the same transaction as the status change.
 
 ## Creating a payment (planned, T20)
 
@@ -96,7 +96,7 @@ sequenceDiagram
     participant D as SQL Server
     participant W as Worker
     participant M as Merchant endpoint
-    A->>D: state change + audit + outbox row (traceparent, request id)
+    A->>D: state change + audit + outbox row (traceparent, correlation id)
     loop every second
         W->>D: claim due outbox rows (UPDLOCK, READPAST)
         W->>D: create one webhook delivery per subscribed endpoint
@@ -115,18 +115,18 @@ sequenceDiagram
 - **Transactional outbox.** The message is written in the same transaction as the change that causes it, so there is never an event without a change or a change without an event ([ADR 003](decisions/003-async-workflow-on-a-transactional-outbox.md)).
 - **Competing consumers.** Rows are claimed with `UPDLOCK, READPAST`, so several worker instances share the load without double-processing; a claim is a lease that expires if the worker dies.
 - **Retries.** Exponential backoff with full jitter from 10 seconds to 1 hour, bounded by attempt count; after the last attempt the delivery is dead-lettered and counted.
-- **Trace continuity.** The outbox row stores the W3C `traceparent` and the request id of the request that wrote it; the worker restores both, so the webhook delivery appears in the same trace as the API call and its logs carry the same request id.
+- **Trace continuity.** The outbox row stores the W3C `traceparent` and the correlation id of the request that wrote it; the worker restores both, so the webhook delivery appears in the same trace as the API call and its logs carry the same correlation id.
 - **Settlement.** A scheduled job calls a T-SQL stored procedure that moves due `Captured` payments to `Settled` in batches, writing the audit rows and outbox messages set-based in the same transaction.
 
 ## Observability
 
 | Signal | What is emitted | Where it goes |
 | --- | --- | --- |
-| Logs | JSON lines with timestamp, level, category, message template, and scope properties: `RequestId`, `TraceId`, `SpanId`, `MerchantId`, `PaymentId` (PascalCase, the .NET logging convention) | Console (collected by the platform) and OTLP |
+| Logs | JSON lines with timestamp, level, category, message template, and scope properties: `CorrelationId`, `TraceId`, `SpanId`, `MerchantId`, `PaymentId` (PascalCase, the .NET logging convention) | Console (collected by the platform) and OTLP |
 | Traces | ASP.NET Core, HttpClient, and SQL client spans, plus custom spans for the acquirer call and each worker job run | OTLP |
 | Metrics | RED metrics from the ASP.NET Core and HttpClient meters; `PaymentPlatform.Payments` (transitions by state); `PaymentPlatform.Outbox` (depth, oldest pending age, retries, dead letters) | OTLP |
 | Health | `/health/live` (the process answers) and `/health/ready` (the database answers and the schema is current) on the API and the worker | Load balancer and orchestrator probes |
-| Audit | One `PaymentEvents` row per transition: actor, time, from, to, request id | SQL Server, shown on the dashboard's payment page |
+| Audit | One `PaymentEvents` row per transition: actor, time, from, to, correlation id | SQL Server, shown on the dashboard's payment page |
 
 Card numbers, CVVs, tokens, passwords, and secrets never reach a log line: request bodies are not logged, the card number is tokenized before anything else touches it, and a test captures the logs of a full payment flow and asserts none of them appear ([ADR 005](decisions/005-observability-on-opentelemetry.md)).
 

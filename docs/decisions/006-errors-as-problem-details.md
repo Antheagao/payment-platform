@@ -13,7 +13,7 @@ The claude-brain `api-design` guide prefers a `{"error": {"code", "message"}}` e
 
 - Every non-2xx response is `application/problem+json` (RFC 9457) with `type`, `title`, `status`, and `detail`, plus these extension members:
   - `code`: a stable snake_case slug clients switch on (`payment_not_capturable`, `idempotency_key_reused`); never renamed or reused.
-  - `request_id` and `trace_id`: the ids that find the request in the logs and traces.
+  - `correlation_id` and `trace_id`: the ids that find the request in the logs and traces.
   - `errors`: for validation failures, a map from snake_case field name to the codes that failed (`{"amount": ["amount_must_be_positive"]}`).
 - `detail` is short, safe to show, and never contains SQL, stack traces, internal ids, or whether an account exists; the cause of a `500` is logged once and the response says only `internal_error`.
 - The built-in `AddProblemDetails`, the exception handler, and status code pages produce the shape for framework errors, so a `404` for an unknown route, a `405`, and a `415` look like every other error.
@@ -29,3 +29,7 @@ The claude-brain `api-design` guide prefers a `{"error": {"code", "message"}}` e
 
 - The frontend parses problem details in one place and switches on `code`.
 - Adding a field later is additive; the media type never changes.
+
+## Amendments
+
+- 2026-10-28: "request id" renamed to "correlation id"; see the amendment in [ADR 005](005-observability-on-opentelemetry.md).
