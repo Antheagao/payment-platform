@@ -11,9 +11,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- Required for IDE0005 (unused usings) to run at build time; missing XML docs are not an error. -->
+    <!--
+      Required for IDE0005 (unused usings) to run at build time. Missing XML docs (CS1591) and
+      documenting only the parameters worth explaining (CS1573) are allowed: see the code-comments overlay.
+    -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
 
     <!-- Supply chain: audit every package, direct and transitive, on restore, and restore from lock files. -->
     <NuGetAudit>true</NuGetAudit>

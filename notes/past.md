@@ -28,3 +28,12 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Gate: `dotnet build PaymentPlatform.slnx` succeeds (with only "no project to restore" until T4 adds one).
 - Versions chosen on 2026-10-28: EF Core and ASP.NET Core packages 10.0.14, OpenTelemetry 1.20.1 (SqlClient instrumentation is now stable), xunit.v3 4.0.2 with xunit.runner.visualstudio 4.0.1, Testcontainers.MsSql 4.16.0.
 - `agents: add repository-structure, clean-code, and code-comments overlays`: the C# and SQL Server translations of the three global guides (EF timestamped migrations replace `NNNN_` numbering; T-SQL objects live as embedded `.sql` files; test names are underscore sentences); T3 done.
+
+## 2026-10-28: domain (T4)
+
+- `backend: add the domain model with the payment lifecycle`: `PaymentPlatform.Domain` and `PaymentPlatform.Domain.Tests` (105 tests); `docs/requirements.md` marks R8 done.
+- Lessons:
+  - xUnit v3 (4.x) runs on Microsoft.Testing.Platform, and the .NET 10 SDK refuses the VSTest bridge; `global.json` now selects `"test": {"runner": "Microsoft.Testing.Platform"}`, and `Microsoft.NET.Test.Sdk` and `xunit.runner.visualstudio` are gone.
+  - `latest-recommended` raises CA1000 for static factories on a generic type, so `Result<T>` is built by implicit conversion; CS1573 (partial parameter docs) is off so only meaningful parameters get docs.
+  - Private static readonly fields needed their own PascalCase naming rule; the editorconfig rule with more modifiers wins.
+  - A probe file using `DateTime.UtcNow` failed the build with RS0030, so the banned-API rule is live.

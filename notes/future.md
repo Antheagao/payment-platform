@@ -12,12 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T4. Domain
-
-- `PaymentPlatform.Domain`: `PaymentStatus`, the transition table (`Pending -> Authorized -> Captured -> Settled`, `Failed` and `Refunded` as terminal branches), `Money` in integer minor units with an ISO 4217 currency, and typed domain errors.
-- `PaymentPlatform.Domain.Tests` (xUnit v3): every allowed and every rejected transition, money boundaries.
-- Gate: `dotnet build`, `dotnet test`, `dotnet format --verify-no-changes`.
-
 ### T5. Service defaults
 
 - `PaymentPlatform.ServiceDefaults`: JSON console logs with scopes, OpenTelemetry tracing, metrics, and logs over OTLP, `/health/live` and `/health/ready`, and the request id middleware (accept a well-formed `X-Request-Id`, otherwise generate one, echo it, and put it in the log scope).

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Pure domain model: no package or project references, enforced by the architecture tests. -->
+
+</Project>

@@ -72,6 +72,14 @@ dotnet_naming_symbols.private_fields.required_modifiers =
 dotnet_naming_style.underscore_camel.required_prefix = _
 dotnet_naming_style.underscore_camel.capitalization = camel_case
 
+# Private static readonly fields are PascalCase like constants; the rule with more modifiers wins.
+dotnet_naming_rule.static_readonly_fields_are_pascal.symbols = static_readonly_fields
+dotnet_naming_rule.static_readonly_fields_are_pascal.style = pascal
+dotnet_naming_rule.static_readonly_fields_are_pascal.severity = warning
+dotnet_naming_symbols.static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.static_readonly_fields.applicable_accessibilities = private
+dotnet_naming_symbols.static_readonly_fields.required_modifiers = static, readonly
+
 dotnet_naming_rule.constants_are_pascal.symbols = constants
 dotnet_naming_rule.constants_are_pascal.style = pascal
 dotnet_naming_rule.constants_are_pascal.severity = warning

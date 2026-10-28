@@ -15,7 +15,7 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 | R5 | Refund a payment | `POST /api/v1/payments/{id}/refund` | T21 | Planned |
 | R6 | List and search payments | `GET /api/v1/payments` with filters and a cursor | T22 | Planned |
 | R7 | Payment endpoints require a logged-in merchant; the validation and expiry of a login are explainable | JWT bearer validation, [ADR 004](decisions/004-authentication-with-short-lived-jwts.md) | T19 | Planned |
-| R8 | Lifecycle `Pending -> Authorized -> Captured -> Settled`, with `Failed` and `Refunded` as terminal branches | `PaymentPlatform.Domain` transition table | T4 | Planned |
+| R8 | Lifecycle `Pending -> Authorized -> Captured -> Settled`, with `Failed` and `Refunded` as terminal branches | `PaymentLifecycle` and `Payment` in `PaymentPlatform.Domain`, every pair tested | T4 | Done |
 | R9 | At least one asynchronous workflow | Webhook delivery over a transactional outbox, plus settlement, [ADR 003](decisions/003-async-workflow-on-a-transactional-outbox.md) | T23, T24 | Planned |
 
 ## Frontend

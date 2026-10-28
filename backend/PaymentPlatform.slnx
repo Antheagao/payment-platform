@@ -1,2 +1,8 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PaymentPlatform.Domain/PaymentPlatform.Domain.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PaymentPlatform.Domain.Tests/PaymentPlatform.Domain.Tests.csproj" />
+  </Folder>
 </Solution>
