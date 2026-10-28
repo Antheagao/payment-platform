@@ -12,12 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T17. Infrastructure as code
-
-- `infra/bicep/`: App Service for the API and the dashboard, the worker host, Azure SQL, Service Bus, Storage, Key Vault, Application Insights, all with managed identities.
-  Validated with `az bicep build` and `bicep lint` in CI; never deployed (portfolio rule: no real deploys).
-- Gate: the CI infra job is green.
-
 ### T18. README and documentation deliverables
 
 - README: what it is, how to run it locally, the architecture in one diagram, links to docs.

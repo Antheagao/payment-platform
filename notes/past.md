@@ -138,3 +138,9 @@ Update this file when a task lands; keep the present and future notes in sync.
 
 - `ci: hold back deliberate majors and add the ci-cd overlay`: CI run 40790028817 on `85a1598` was green in all five jobs and CodeQL found nothing; Dependabot's first scan opened #1 to #5, four of them majors that would break deliberate pins, so `dependabot.yml` now ignores majors for Node (image and types), TypeScript, ESLint, and the .NET images; the `payment-platform-ci-cd` overlay records the jobs, how to reproduce each, the toolchain drift, and the Dependabot policy.
 - The open Dependabot pull requests were not closed or merged: that is the owner's call.
+
+## 2026-10-28: infrastructure as code (T17)
+
+- `infra: describe the Azure shape in Bicep, validated in CI`: `infra/bicep/` (main, eight modules, parameters, linter config), `infra/sql/grant-app-identities.sql`, `infra/README.md`, the `infra` CI job, and the infrastructure section of the ci-cd overlay.
+- Gate: the Bicep CLI 0.48.1 (the official release binary, downloaded to the session scratchpad, since this machine has no Azure CLI) builds and lints with no diagnostics and builds the parameter file; a probe with an unused parameter and a hard-coded management URL failed lint with two errors; CI runs the same three commands.
+- Choices worth knowing: no secret anywhere (managed identities for SQL, Service Bus, Key Vault, and Application Insights; the JWT key is a Key Vault reference); the worker site refuses inbound traffic; the Service Bus host comes from the resource's own endpoint rather than a hard-coded domain; Service Bus defaults to Premium because only Premium supports private endpoints.

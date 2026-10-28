@@ -22,7 +22,7 @@ Reviewers will run it on their own machines, so the setup has to be short and pr
 | --- | --- |
 | `backend/` | The .NET solution: `src/` projects and `tests/` projects |
 | `frontend/` | The Next.js dashboard |
-| `infra/` | Bicep for the Azure shape, validated in CI and never deployed |
+| `infra/` | Bicep for the Azure shape and its post-deployment SQL, validated in CI and never deployed |
 | `docs/` | Architecture, requirements, assumptions, and these decision records |
 | `notes/` | The rotating past, present, and future notes that drive the batch loop |
 | `scripts/` | Developer and CI scripts, such as the documentation link check |

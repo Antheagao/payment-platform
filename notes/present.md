@@ -25,7 +25,7 @@ The base of the project was requested with these requirements; they are recorded
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
-  Layout so far: `.claude/`, `.githooks/`, `.github/`, `backend/`, `frontend/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes`, `.gitignore`.
+  Layout so far: `.claude/`, `.githooks/`, `.github/`, `backend/`, `frontend/`, `infra/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes`, `.gitignore`.
 - **Decisions** in `docs/decisions/`: 001 stack and layout, 002 backend project boundaries, 003 the async workflow on a transactional outbox, 004 short-lived JWTs held by the dashboard's server, 005 OpenTelemetry, 006 RFC 9457 problem details with a stable `code`, 007 idempotency keys.
   `docs/assumptions.md` records the fifteen choices made where the brief was ambiguous.
 - **Architecture**: `docs/architecture.md` (components, project dependencies, the lifecycle, the create and async sequences, observability, security, scaling, the Azure mapping, with Mermaid diagrams) and `docs/requirements.md` (27 requirements and 6 documentation deliverables, each with its home, task, and status).
@@ -59,6 +59,9 @@ The base of the project was requested with these requirements; they are recorded
   Green on `85a1598` (run 40790028817): all five CI jobs, including the SQL Server integration tests on the Linux runner, and CodeQL with 0 alerts.
   Dependabot opened five pull requests on its first scan (#1 to #5); four were major bumps that conflict with deliberate pins (Node 25, `@types/node` 26, TypeScript 7, ESLint 10), so the config now ignores those majors; the open pull requests are left for the owner to close or merge.
 
+- **infra/** (validated, never deployed): `bicep/main.bicep` with modules for monitoring (Application Insights with local auth off), network (app and private-endpoint subnets), a reusable private endpoint with its DNS zone, Key Vault (RBAC, purge protection, private), Azure SQL (Entra-only, private, serverless `payments`), Service Bus (no shared keys, `payment-events` queue with duplicate detection, private when Premium), App Service (API, worker without inbound access, dashboard; managed identities, VNet integration, `/health/ready` probes), and role assignments; `main.bicepparam` reads the Entra group from the environment; `bicepconfig.json` makes the key linter rules errors; `sql/grant-app-identities.sql` and `README.md` describe what a deployment would add.
+  The `infra` CI job runs `az bicep build`, `lint`, and `build-params`.
+
 ## Task board
 
 | Task | What | Status |
@@ -79,8 +82,8 @@ The base of the project was requested with these requirements; they are recorded
 | T14 | Frontend shell: design tokens, layout, API status | Done |
 | T15 | Frontend tests: Vitest and a Playwright smoke test | Done |
 | T16 | CI: GitHub Actions, Dependabot, CodeQL | Done |
-| T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Next |
-| T18 | README and documentation deliverables | Queued |
+| T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Done |
+| T18 | README and documentation deliverables | Next |
 
 Feature work (T19 onward) is ranked in `future.md`.
 

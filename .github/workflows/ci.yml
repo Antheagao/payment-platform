@@ -5,6 +5,7 @@
 # frontend   typegen and tsc, ESLint with zero warnings, Prettier, Vitest, production build, npm audit.
 # e2e        Playwright golden paths against the production build, desktop and mobile viewports.
 # repository documentation links and the design-token contrast check.
+# infra      Bicep build, lint, and parameter build; validated only, never deployed.
 # containers compose config and both Dockerfiles build, so `docker compose up` keeps working.
 #
 # NuGet audit fails the restore on any known vulnerability, and GitHub sets CI=true, which switches
@@ -121,6 +122,22 @@ jobs:
         run: node scripts/check-docs.mjs
       - name: Design-token contrast
         run: node scripts/check-contrast.mjs
+
+  infra:
+    name: Infrastructure (Bicep build, lint, parameters)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # The runner's Azure CLI compiles Bicep offline; nothing signs in and nothing is deployed.
+      - name: Install Bicep
+        run: az bicep install && az bicep version
+      - name: Build
+        run: az bicep build --file infra/bicep/main.bicep --stdout > /dev/null
+      - name: Lint
+        run: az bicep lint --file infra/bicep/main.bicep
+      - name: Build parameters
+        run: az bicep build-params --file infra/bicep/main.bicepparam --stdout > /dev/null
 
   containers:
     name: Containers (compose config, image builds)

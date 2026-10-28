@@ -17,6 +17,7 @@ CI runs exactly the gates in `AGENTS.md`, so a change that passes them locally p
 | `ci.yml` e2e | Playwright on the production build, desktop and mobile; report uploaded on failure | `npm run e2e` |
 | `ci.yml` repository | `node scripts/check-docs.mjs`, `node scripts/check-contrast.mjs` | the same |
 | `ci.yml` containers | `docker compose config -q` with `.env.example`, then `docker compose build api worker frontend` | the same |
+| `ci.yml` infra | `az bicep build`, `az bicep lint`, `az bicep build-params` | the Bicep CLI, see `infra/README.md` |
 | `codeql.yml` | C# and TypeScript, `security-extended`, on push, pull request, and Mondays | none; results in Security, Code scanning |
 
 - Permissions default to `contents: read`; only CodeQL gets `security-events: write`.
@@ -42,7 +43,9 @@ CI runs exactly the gates in `AGENTS.md`, so a change that passes them locally p
 
 ## Infrastructure as code
 
-- Bicep for the Azure shape arrives with T17, validated in CI and never deployed (the owner's rule for portfolio work: validate and plan, never apply).
+- `infra/bicep/` (see `infra/README.md`) is validated on every push and never deployed (the owner's rule for portfolio work: validate and plan, never apply).
+- `bicepconfig.json` raises the rules that matter to errors (unused parameters and variables, hard-coded cloud URLs, secrets in outputs, insecure parameter defaults, stable identifiers).
+- A Bicep change ships with `infra/README.md` updated when it changes what a deployment would need.
 
 ## Azure DevOps
 
