@@ -56,7 +56,7 @@ The base of the project was requested with these requirements; they are recorded
   Tests (T15): Vitest 5 with Testing Library, 16 tests in 5 files beside the code (`getApiHealth` with a stubbed fetch, `Badge`, the lifecycle legend, the status table, `classNames`); Playwright, 6 golden-path checks on the production build at 1440 and 360 (12 runs): the legend, the API-down badge, the skip link, security headers, no sideways scroll, the 404 page.
 
 - **CI** (`.github/`): `ci.yml` with five jobs (backend: locked and audited restore, format, Release build, every test project including the SQL Server integration tests; frontend: typecheck, lint, format, Vitest, build, `npm audit`; e2e: Playwright; repository: docs links and contrast; containers: compose config and all three images), `codeql.yml` (C# and TypeScript, `security-extended`, weekly too), and `dependabot.yml` (NuGet, npm, Actions, Docker, compose; minor and patch grouped).
-  First run: pending at the time of this commit.
+  First run: four of five jobs green; the backend job failed `dotnet format` on an unused using that CI's newer SDK (10.0.403) reports and this machine's 10.0.101 does not; fixed in the next commit.
 
 ## Task board
 

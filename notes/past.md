@@ -131,3 +131,5 @@ Update this file when a task lands; keep the present and future notes in sync.
 
 - `ci: add GitHub Actions, CodeQL, and Dependabot`: the three files above; current majors `actions/checkout@v7`, `setup-dotnet@v6`, `setup-node@v7`, `upload-artifact@v7`, `codeql-action@v4`.
 - Before pushing: `CI=true dotnet restore --locked-mode` succeeded locally, so the lock files written on Windows hold for a Linux runner as far as Windows can tell.
+- `backend: drop an unused using that newer SDKs flag`: the first CI run failed only in `dotnet format` on an unused `using System.Diagnostics;` in `ServiceDefaultsExtensions.cs`; CI installs SDK 10.0.403 while this machine has 10.0.101, which never reported it.
+  Lesson: CI's SDK is the authority until this machine's SDK is updated; the other four jobs (frontend, e2e, repository, containers) were green on the first run.
