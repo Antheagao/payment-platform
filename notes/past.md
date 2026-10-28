@@ -66,3 +66,9 @@ Update this file when a task lands; keep the present and future notes in sync.
   - A failed readiness probe logged twice (our warning and the health check service's error); the check now returns its description and exception and logs nothing.
   - `MapHealthChecks` answered every method, so `DELETE /health/live` was a 200; both probes are now GET and HEAD only.
 - Lesson: Bash tool commands over about 8 KB still fail to parse on this machine; long edit scripts go in a scratchpad file.
+
+## 2026-10-28: API host (T8)
+
+- `backend: add the API host with problem details and security headers`: `PaymentPlatform.Api`, and the `payment-platform-api-design` and `payment-platform-security` overlays.
+- Gate (run against the Release build with no database): `/health/live` 200 with `nosniff`, CSP, and `X-Correlation-Id`; `/health/ready` 503 in 3.3 s with a 3 s connect timeout; `GET /api/v1/payments` and `DELETE /health/live` return `application/problem+json` with `code`, `correlation_id`, and `trace_id`; a caller's correlation id is echoed; `/openapi/v1.json` is 200; logs are JSON lines.
+- Cosmetic, left as is: EF Core warns at startup that no entity configurations exist; the warning goes away with the first table (T19).

@@ -19,6 +19,10 @@
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.14" />
   </ItemGroup>
 
+  <ItemGroup Label="Web">
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+  </ItemGroup>
+
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.14" />

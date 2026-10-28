@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/PaymentPlatform.Api/PaymentPlatform.Api.csproj" />
     <Project Path="src/PaymentPlatform.Application/PaymentPlatform.Application.csproj" />
     <Project Path="src/PaymentPlatform.Domain/PaymentPlatform.Domain.csproj" />
     <Project Path="src/PaymentPlatform.Persistence/PaymentPlatform.Persistence.csproj" />

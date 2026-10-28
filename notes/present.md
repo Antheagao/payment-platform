@@ -38,12 +38,13 @@ The base of the project was requested with these requirements; they are recorded
     `System.Security.Cryptography.Pkcs` is pinned to 10.0.14 because NuGet audit failed the build on the 9.0.11 that Microsoft.Data.SqlClient 6.1.7 asks for.
   - `src/PaymentPlatform.Application`: `AddApplication()` (registers `TimeProvider.System` and the acquirer), `ApplicationTelemetry` (the `PaymentPlatform.Application` activity source), and `Acquiring/`: the `IAcquirer` port (authorize, capture, refund; the payment id is the acquirer-side idempotency key; outages are an `Unavailable` answer, not an exception) and `SimulatedAcquirer` (stateless and deterministic: scenario tokens in `SimulatedCardTokens` decline or go unanswered, any other token is approved, references derive from the payment id; latency from `Acquirer:Simulated:LatencyMilliseconds`, validated 0 to 5000 at startup).
     No use cases yet; they arrive with T19 onward in feature folders.
+  - `src/PaymentPlatform.Api` (`http://localhost:5080`): service defaults, persistence, and application wired in `Program.cs`; correlation ids first, then the exception handler and status code pages so every error is RFC 9457 problem details with `code`, `correlation_id`, and `trace_id` (`Errors/`); `SecurityHeadersMiddleware`; HSTS outside Development; 64 KB bodies; 10 s request timeout (`503`); snake_case JSON and enums; the empty `/api/v1` group (`Endpoints/ApiRoutes.cs`); OpenAPI at `/openapi/v1.json` in Development; `UserSecretsId` for the local connection string.
   - Tests (xUnit v3): `PaymentPlatform.Domain.Tests` 105 (including all 36 status pairs), `PaymentPlatform.ServiceDefaults.Tests` 20 (correlation id rules, header injection refused, health output leaks nothing), `PaymentPlatform.Application.Tests` 11 (every acquirer branch, repeat calls, latency on a fake clock, cancellation, options validation); 136 in total.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
   `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
-  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`; the rest land with the code they describe.
+  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`; the rest land with the code they describe.
 
 ## Task board
 
@@ -56,8 +57,8 @@ The base of the project was requested with these requirements; they are recorded
 | T5 | Service defaults: JSON logs, OpenTelemetry, health, correlation id | Done |
 | T6 | Persistence: EF Core on SQL Server, readiness check | Done |
 | T7 | Application layer: use-case home, acquirer port and simulated adapter | Done |
-| T8 | API host: `/api/v1`, problem details, OpenAPI, health endpoints | Next |
-| T9 | Worker host: periodic job runner, health endpoints | Queued |
+| T8 | API host: `/api/v1`, problem details, OpenAPI, health endpoints | Done |
+| T9 | Worker host: periodic job runner, health endpoints | Next |
 | T10 | Integration tests on a real SQL Server (Testcontainers) | Queued |
 | T11 | Architecture tests for project dependency direction | Queued |
 | T12 | Dockerfiles and `docker-compose.yml` with SQL Server and the Aspire dashboard | Queued |
@@ -72,7 +73,9 @@ Feature work (T19 onward) is ranked in `future.md`.
 
 ## How it runs
 
-Nothing runs yet; T12 adds `docker compose up`.
+- API alone, from `backend/`: set `ConnectionStrings__Payments` (or `dotnet user-secrets set ConnectionStrings:Payments ... --project src/PaymentPlatform.Api`), then `dotnet run --project src/PaymentPlatform.Api`; it listens on `http://localhost:5080`.
+  Without a database, `/health/live` is 200 and `/health/ready` is 503 within the 5 s check timeout.
+- T12 adds `docker compose up` for the whole stack.
 
 ## Decisions pending
 

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The merchant-facing HTTP host: endpoints, authentication, problem details. Business rules live in Application. -->
+
+  <PropertyGroup>
+    <UserSecretsId>payment-platform-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PaymentPlatform.Application\PaymentPlatform.Application.csproj" />
+    <ProjectReference Include="..\PaymentPlatform.ServiceDefaults\PaymentPlatform.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>
