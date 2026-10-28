@@ -50,9 +50,9 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 
 | Id | Deliverable | Where it lives | Task | Status |
 | --- | --- | --- | --- | --- |
-| D1 | Setup instructions for a local run | `README.md` | T18 | Planned |
+| D1 | Setup instructions for a local run | [README.md](../README.md), verified from a fresh clone | T18 | Done |
 | D2 | Architectural overview | [architecture.md](architecture.md) | T2 | Done |
-| D3 | Tradeoffs made | `docs/tradeoffs.md` and the ADRs | T18, T30 | Planned |
+| D3 | Tradeoffs made | [tradeoffs.md](tradeoffs.md) and the ADRs; revisited in T30 | T18, T30 | Done |
 | D4 | Assumptions | [assumptions.md](assumptions.md) | T2, T30 | Done |
-| D5 | Production considerations | `docs/production.md` | T18, T30 | Planned |
-| D6 | Areas for future improvement | `docs/future-improvements.md` | T18, T30 | Planned |
+| D5 | Production considerations | [production.md](production.md); revisited in T30 | T18, T30 | Done |
+| D6 | Areas for future improvement | [future-improvements.md](future-improvements.md); revisited in T30 | T18, T30 | Done |

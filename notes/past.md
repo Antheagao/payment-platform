@@ -144,3 +144,11 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `infra: describe the Azure shape in Bicep, validated in CI`: `infra/bicep/` (main, eight modules, parameters, linter config), `infra/sql/grant-app-identities.sql`, `infra/README.md`, the `infra` CI job, and the infrastructure section of the ci-cd overlay.
 - Gate: the Bicep CLI 0.48.1 (the official release binary, downloaded to the session scratchpad, since this machine has no Azure CLI) builds and lints with no diagnostics and builds the parameter file; a probe with an unused parameter and a hard-coded management URL failed lint with two errors; CI runs the same three commands.
 - Choices worth knowing: no secret anywhere (managed identities for SQL, Service Bus, Key Vault, and Application Insights; the JWT key is a Key Vault reference); the worker site refuses inbound traffic; the Service Bus host comes from the resource's own endpoint rather than a hard-coded domain; Service Bus defaults to Premium because only Premium supports private endpoints.
+
+## 2026-10-28: README and documentation deliverables (T18)
+
+- `docs: write the README and the documentation deliverables`: `README.md` (badges, status, run it, develop, diagram, repository, documentation, how it is built), `docs/tradeoffs.md`, `docs/production.md`, `docs/future-improvements.md`; `docs/requirements.md` marks D1, D3, D5, and D6 done; ADR 005 links the production page.
+- Gate: docs links resolve; a fresh clone of `83577a5` from GitHub into the scratchpad, followed exactly as the README says (`cp .env.example .env`, `docker compose up --build`), brought every service up with both readiness probes green, the dashboard showing "API ready", OpenAPI served, and the Aspire dashboard answering; then `docker compose down`.
+  The clone reused the existing `payment-platform_sqlserver-data` volume (same compose project name); the first-ever bootstrap on an empty volume was exercised in T12.
+- CI run 40790395009 on `83577a5`: all six jobs green, including the new Bicep job.
+- The scaffold queue (T1 to T18) is empty; the run stopped here because the owner asked for the initial structure, and `future.md` now opens on T19 with its first slice laid out.

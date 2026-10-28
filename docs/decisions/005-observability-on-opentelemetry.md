@@ -32,7 +32,7 @@ The full stack is not expected, but the instrumentation seams and the production
 
 - A reviewer opens one URL (the Aspire dashboard on port 18888) to follow a payment's trace from the API into the worker.
 - Telemetry is in-memory in the local dashboard and gone on restart, which is fine for a local run.
-- Sampling, retention, and alert rules are production decisions, written down in `docs/production.md` with T18.
+- Sampling, retention, and alert rules are production decisions, written down in [production.md](../production.md).
 
 ## Amendments
 
