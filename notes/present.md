@@ -34,12 +34,14 @@ The base of the project was requested with these requirements; they are recorded
   C# style rules live in the root `.editorconfig`.
   - `src/PaymentPlatform.Domain` (no references): `PaymentStatus`, `PaymentLifecycle` (the transition table and the stable error code for each rejected move), `Payment` (status changes only through `Authorize`, `Fail`, `Capture`, `Settle`, `Refund`, each recording a `PaymentStatusChanged` with actor, time, and reason), `Money` and `Currency` (integer minor units, six ISO 4217 currencies, a per-payment cap of 99,999,999), `PaymentId` (GUID v7), `MerchantId`, `Actor`, `Result` and `DomainError`.
   - `src/PaymentPlatform.ServiceDefaults`: `AddServiceDefaults()` (JSON console logs with scopes and trace ids, OpenTelemetry traces, metrics, and logs with OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, a `self` liveness check), `UseRequestIds()`, and `MapDefaultEndpoints()` for `/health/live` and `/health/ready`.
+  - `src/PaymentPlatform.Persistence`: `PaymentsDbContext` (schema `payments`, no tables yet), `AddPersistence()` (requires `ConnectionStrings:Payments`; pooled contexts; transient-fault retries; migration history in the `payments` schema), the `database` readiness check (connects, no pending migration, 5 s timeout), and a design-time factory that holds no credentials.
+    `System.Security.Cryptography.Pkcs` is pinned to 10.0.14 because NuGet audit failed the build on the 9.0.11 that Microsoft.Data.SqlClient 6.1.7 asks for.
   - Tests (xUnit v3): `PaymentPlatform.Domain.Tests` 105 (including all 36 status pairs), `PaymentPlatform.ServiceDefaults.Tests` 18 (request id rules, header injection refused, health output leaks nothing); 123 in total.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
   `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
-  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`; the rest land with the code they describe.
+  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`; the rest land with the code they describe.
 
 ## Task board
 
@@ -50,8 +52,8 @@ The base of the project was requested with these requirements; they are recorded
 | T3 | Backend solution, SDK pin, shared build and package props | Done |
 | T4 | Domain: payment lifecycle state machine with unit tests | Done |
 | T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Done |
-| T6 | Persistence: EF Core on SQL Server, readiness check | Next |
-| T7 | Application layer: use-case home, acquirer port and simulated adapter | Queued |
+| T6 | Persistence: EF Core on SQL Server, readiness check | Done |
+| T7 | Application layer: use-case home, acquirer port and simulated adapter | Next |
 | T8 | API host: `/api/v1`, problem details, OpenAPI, health endpoints | Queued |
 | T9 | Worker host: periodic job runner, health endpoints | Queued |
 | T10 | Integration tests on a real SQL Server (Testcontainers) | Queued |

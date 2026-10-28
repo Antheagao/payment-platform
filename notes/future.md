@@ -12,13 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T6. Persistence
-
-- `PaymentPlatform.Persistence`: `PaymentsDbContext` on the SQL Server provider, a design-time factory for `dotnet ef`, connection resiliency, and a readiness health check.
-  No tables yet; the first migration lands with T19.
-- Overlay: `payment-platform-database` (SQL Server translations of the global PostgreSQL rules).
-- Gate: build.
-
 ### T7. Application layer
 
 - `PaymentPlatform.Application`: the home for use cases (feature folders), `AddApplication()`, and the acquirer port with a deterministic simulated adapter for local runs and tests.

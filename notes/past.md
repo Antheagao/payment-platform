@@ -42,3 +42,12 @@ Update this file when a task lands; keep the present and future notes in sync.
 
 - `backend: add service defaults for logs, telemetry, health, and request ids`: `PaymentPlatform.ServiceDefaults` and its 18 tests; the `payment-platform-error-handling-logging` overlay.
 - Log properties are PascalCase (`RequestId`, beside the `TraceId` and `SpanId` that .NET adds), so `docs/architecture.md` now says so; API JSON stays snake_case (`request_id` in problem details).
+
+## 2026-10-28: persistence (T6)
+
+- `backend: add persistence on EF Core and SQL Server`: `PaymentPlatform.Persistence` (context, registration, readiness check, design-time factory), SQL client tracing in the service defaults, and the `payment-platform-database` overlay.
+- Gate: build, the 123 existing tests, format; `dotnet ef migrations list --no-connect` and `dotnet ef dbcontext info` both build the context with no database running.
+- Lessons:
+  - NuGet audit did its job on the first SQL Server reference: Microsoft.Data.SqlClient 6.1.7 pulls `System.Security.Cryptography.Pkcs` 9.0.11 (GHSA-846f-f764-76mx, high), and the build failed until the transitive pin to 10.0.14.
+  - `dotnet ef` takes `--configuration`, not `-c`, and reads Debug output by default.
+  - The design-time factory first held the local SA password; it now holds none, since `migrations add` never connects and the repository is public.

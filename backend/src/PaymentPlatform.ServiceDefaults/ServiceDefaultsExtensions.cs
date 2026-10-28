@@ -89,7 +89,8 @@ public static class ServiceDefaultsExtensions
             .WithTracing(tracing => tracing
                 .AddSource($"{TelemetryPrefix}.*")
                 .AddAspNetCoreInstrumentation(options => options.Filter = IsNotHealthProbe)
-                .AddHttpClientInstrumentation())
+                .AddHttpClientInstrumentation()
+                .AddSqlClientInstrumentation())
             .WithMetrics(metrics => metrics
                 .AddMeter($"{TelemetryPrefix}.*")
                 .AddAspNetCoreInstrumentation()
