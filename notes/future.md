@@ -12,12 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T5. Service defaults
-
-- `PaymentPlatform.ServiceDefaults`: JSON console logs with scopes, OpenTelemetry tracing, metrics, and logs over OTLP, `/health/live` and `/health/ready`, and the request id middleware (accept a well-formed `X-Request-Id`, otherwise generate one, echo it, and put it in the log scope).
-- Overlay: `payment-platform-error-handling-logging`.
-- Gate: build, tests for the request id rules.
-
 ### T6. Persistence
 
 - `PaymentPlatform.Persistence`: `PaymentsDbContext` on the SQL Server provider, a design-time factory for `dotnet ef`, connection resiliency, and a readiness health check.

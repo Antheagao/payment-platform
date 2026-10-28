@@ -122,7 +122,7 @@ sequenceDiagram
 
 | Signal | What is emitted | Where it goes |
 | --- | --- | --- |
-| Logs | JSON lines with timestamp, level, category, message template, and scope fields: `request_id`, `trace_id`, `span_id`, `merchant_id`, `payment_id` | Console (collected by the platform) and OTLP |
+| Logs | JSON lines with timestamp, level, category, message template, and scope properties: `RequestId`, `TraceId`, `SpanId`, `MerchantId`, `PaymentId` (PascalCase, the .NET logging convention) | Console (collected by the platform) and OTLP |
 | Traces | ASP.NET Core, HttpClient, and SQL client spans, plus custom spans for the acquirer call and each worker job run | OTLP |
 | Metrics | RED metrics from the ASP.NET Core and HttpClient meters; `PaymentPlatform.Payments` (transitions by state); `PaymentPlatform.Outbox` (depth, oldest pending age, retries, dead letters) | OTLP |
 | Health | `/health/live` (the process answers) and `/health/ready` (the database answers and the schema is current) on the API and the worker | Load balancer and orchestrator probes |

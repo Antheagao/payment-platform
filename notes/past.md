@@ -37,3 +37,8 @@ Update this file when a task lands; keep the present and future notes in sync.
   - `latest-recommended` raises CA1000 for static factories on a generic type, so `Result<T>` is built by implicit conversion; CS1573 (partial parameter docs) is off so only meaningful parameters get docs.
   - Private static readonly fields needed their own PascalCase naming rule; the editorconfig rule with more modifiers wins.
   - A probe file using `DateTime.UtcNow` failed the build with RS0030, so the banned-API rule is live.
+
+## 2026-10-28: service defaults (T5)
+
+- `backend: add service defaults for logs, telemetry, health, and request ids`: `PaymentPlatform.ServiceDefaults` and its 18 tests; the `payment-platform-error-handling-logging` overlay.
+- Log properties are PascalCase (`RequestId`, beside the `TraceId` and `SpanId` that .NET adds), so `docs/architecture.md` now says so; API JSON stays snake_case (`request_id` in problem details).

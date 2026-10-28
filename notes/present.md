@@ -33,12 +33,13 @@ The base of the project was requested with these requirements; they are recorded
 - **backend/**: `PaymentPlatform.slnx`, `global.json` (SDK 10.0.100 with `latestFeature`, this machine has 10.0.101; `dotnet test` runs on Microsoft.Testing.Platform), `Directory.Build.props` (net10.0, nullable, warnings as errors, `latest-recommended` analyzers, code style in build, NuGet audit of transitive packages, lock files restored in locked mode under `CI=true`), `Directory.Packages.props` (central versions with transitive pinning), `BannedSymbols.txt` (wall-clock time, `Console.WriteLine`, blocking waits, `new Random()`), and `dotnet-ef` 10.0.14 in the tool manifest.
   C# style rules live in the root `.editorconfig`.
   - `src/PaymentPlatform.Domain` (no references): `PaymentStatus`, `PaymentLifecycle` (the transition table and the stable error code for each rejected move), `Payment` (status changes only through `Authorize`, `Fail`, `Capture`, `Settle`, `Refund`, each recording a `PaymentStatusChanged` with actor, time, and reason), `Money` and `Currency` (integer minor units, six ISO 4217 currencies, a per-payment cap of 99,999,999), `PaymentId` (GUID v7), `MerchantId`, `Actor`, `Result` and `DomainError`.
-  - `tests/PaymentPlatform.Domain.Tests` (xUnit v3): 105 tests, including all 36 status pairs.
+  - `src/PaymentPlatform.ServiceDefaults`: `AddServiceDefaults()` (JSON console logs with scopes and trace ids, OpenTelemetry traces, metrics, and logs with OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set, a `self` liveness check), `UseRequestIds()`, and `MapDefaultEndpoints()` for `/health/live` and `/health/ready`.
+  - Tests (xUnit v3): `PaymentPlatform.Domain.Tests` 105 (including all 36 status pairs), `PaymentPlatform.ServiceDefaults.Tests` 18 (request id rules, header injection refused, health output leaks nothing); 123 in total.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
   `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
-  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`; the rest land with the code they describe.
+  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`; the rest land with the code they describe.
 
 ## Task board
 
@@ -48,8 +49,8 @@ The base of the project was requested with these requirements; they are recorded
 | T2 | Architecture overview, requirements traceability, ADRs | Done |
 | T3 | Backend solution, SDK pin, shared build and package props | Done |
 | T4 | Domain: payment lifecycle state machine with unit tests | Done |
-| T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Next |
-| T6 | Persistence: EF Core on SQL Server, readiness check | Queued |
+| T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Done |
+| T6 | Persistence: EF Core on SQL Server, readiness check | Next |
 | T7 | Application layer: use-case home, acquirer port and simulated adapter | Queued |
 | T8 | API host: `/api/v1`, problem details, OpenAPI, health endpoints | Queued |
 | T9 | Worker host: periodic job runner, health endpoints | Queued |

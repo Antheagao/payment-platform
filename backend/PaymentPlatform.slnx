@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/PaymentPlatform.Domain/PaymentPlatform.Domain.csproj" />
+    <Project Path="src/PaymentPlatform.ServiceDefaults/PaymentPlatform.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PaymentPlatform.Domain.Tests/PaymentPlatform.Domain.Tests.csproj" />
+    <Project Path="tests/PaymentPlatform.ServiceDefaults.Tests/PaymentPlatform.ServiceDefaults.Tests.csproj" />
   </Folder>
 </Solution>
