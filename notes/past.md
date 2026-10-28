@@ -126,3 +126,8 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Two warnings fixed rather than ignored:
   - Vite now resolves tsconfig paths itself, so `vite-tsconfig-paths` is gone in favor of `resolve.tsconfigPaths`.
   - `next start` does not support `output: "standalone"`; standalone is now built only when `NEXT_OUTPUT=standalone`, which the Dockerfile sets.
+
+## 2026-10-28: continuous integration (T16, part 1)
+
+- `ci: add GitHub Actions, CodeQL, and Dependabot`: the three files above; current majors `actions/checkout@v7`, `setup-dotnet@v6`, `setup-node@v7`, `upload-artifact@v7`, `codeql-action@v4`.
+- Before pushing: `CI=true dotnet restore --locked-mode` succeeded locally, so the lock files written on Windows hold for a Linux runner as far as Windows can tell.

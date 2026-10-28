@@ -1,0 +1,136 @@
+# Continuous integration: the gates AGENTS.md lists, on every push to main and every pull request.
+#
+# backend    format, Release build with warnings as errors, every test project; the integration tests
+#            start their own SQL Server container through Testcontainers on the runner's Docker.
+# frontend   typegen and tsc, ESLint with zero warnings, Prettier, Vitest, production build, npm audit.
+# e2e        Playwright golden paths against the production build, desktop and mobile viewports.
+# repository documentation links and the design-token contrast check.
+# containers compose config and both Dockerfiles build, so `docker compose up` keeps working.
+#
+# NuGet audit fails the restore on any known vulnerability, and GitHub sets CI=true, which switches
+# restore to locked mode: a lock file that drifted from its project fails here, not in production.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  backend:
+    name: Backend (format, build, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: backend/global.json
+          cache: true
+          cache-dependency-path: backend/**/packages.lock.json
+      - name: Restore (locked, audited)
+        run: dotnet restore PaymentPlatform.slnx
+      - name: Format
+        run: dotnet format PaymentPlatform.slnx --verify-no-changes --no-restore
+      - name: Build
+        run: dotnet build PaymentPlatform.slnx -c Release --no-restore
+      - name: Test
+        run: dotnet test --solution PaymentPlatform.slnx -c Release --no-build
+
+  frontend:
+    name: Frontend (types, lint, format, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Format
+        run: npm run format:check
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Dependency audit
+        run: npm audit --omit=dev
+
+  e2e:
+    name: End to end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Golden paths
+        run: npm run e2e
+      - name: Keep the report of a failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
+  repository:
+    name: Repository (docs, contrast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Documentation links
+        run: node scripts/check-docs.mjs
+      - name: Design-token contrast
+        run: node scripts/check-contrast.mjs
+
+  containers:
+    name: Containers (compose config, image builds)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose config -q
+      - name: Build the API, worker, and dashboard images
+        run: docker compose build api worker frontend

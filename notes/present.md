@@ -25,7 +25,7 @@ The base of the project was requested with these requirements; they are recorded
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
-  Layout so far: `.claude/`, `.githooks/`, `backend/`, `frontend/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes`, `.gitignore`.
+  Layout so far: `.claude/`, `.githooks/`, `.github/`, `backend/`, `frontend/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes`, `.gitignore`.
 - **Decisions** in `docs/decisions/`: 001 stack and layout, 002 backend project boundaries, 003 the async workflow on a transactional outbox, 004 short-lived JWTs held by the dashboard's server, 005 OpenTelemetry, 006 RFC 9457 problem details with a stable `code`, 007 idempotency keys.
   `docs/assumptions.md` records the fifteen choices made where the brief was ambiguous.
 - **Architecture**: `docs/architecture.md` (components, project dependencies, the lifecycle, the create and async sequences, observability, security, scaling, the Azure mapping, with Mermaid diagrams) and `docs/requirements.md` (27 requirements and 6 documentation deliverables, each with its home, task, and status).
@@ -55,6 +55,9 @@ The base of the project was requested with these requirements; they are recorded
   `frontend/Dockerfile` builds the standalone server onto distroless Node 22 (non-root); compose serves it on `http://localhost:3080`.
   Tests (T15): Vitest 5 with Testing Library, 16 tests in 5 files beside the code (`getApiHealth` with a stubbed fetch, `Badge`, the lifecycle legend, the status table, `classNames`); Playwright, 6 golden-path checks on the production build at 1440 and 360 (12 runs): the legend, the API-down badge, the skip link, security headers, no sideways scroll, the 404 page.
 
+- **CI** (`.github/`): `ci.yml` with five jobs (backend: locked and audited restore, format, Release build, every test project including the SQL Server integration tests; frontend: typecheck, lint, format, Vitest, build, `npm audit`; e2e: Playwright; repository: docs links and contrast; containers: compose config and all three images), `codeql.yml` (C# and TypeScript, `security-extended`, weekly too), and `dependabot.yml` (NuGet, npm, Actions, Docker, compose; minor and patch grouped).
+  First run: pending at the time of this commit.
+
 ## Task board
 
 | Task | What | Status |
@@ -74,7 +77,7 @@ The base of the project was requested with these requirements; they are recorded
 | T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Done |
 | T14 | Frontend shell: design tokens, layout, API status | Done |
 | T15 | Frontend tests: Vitest and a Playwright smoke test | Done |
-| T16 | CI: GitHub Actions, Dependabot, CodeQL | Next |
+| T16 | CI: GitHub Actions, Dependabot, CodeQL | In progress: workflows pushed, overlay after the first green run |
 | T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Queued |
 | T18 | README and documentation deliverables | Queued |
 
