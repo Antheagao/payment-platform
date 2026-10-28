@@ -8,8 +8,11 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const skipped = new Set([".git", "node_modules", ".next", "bin", "obj", "TestResults"]);
+// Generated files are checked for links only: their wording belongs to the tool that writes them.
+const generated = new Set(["frontend/AGENTS.md"]);
 const linkPattern = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-const emDash = "—";
+// Written as an escape so the character itself never appears in the repository.
+const emDash = String.fromCharCode(0x2014);
 
 function* markdownFiles(dir) {
   for (const name of readdirSync(dir)) {
@@ -31,6 +34,7 @@ for (const file of markdownFiles(root)) {
     const path = decodeURIComponent(target.split("#")[0]);
     if (!existsSync(resolve(dirname(file), path))) problems.push(`${where}: broken link ${target}`);
   }
+  if (generated.has(where)) continue;
   text.split("\n").forEach((line, index) => {
     if (line.includes(emDash)) problems.push(`${where}:${index + 1}: em dash`);
   });

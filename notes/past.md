@@ -104,3 +104,6 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Gate: `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build` (two static routes), `npm audit --omit=dev` with 0 vulnerabilities.
 - Surprises: create-next-app 16.4 enables `cacheComponents` and `partialPrefetching` without being asked, and wires Tailwind through `@tailwindcss/turbopack` instead of PostCSS; both kept (the installed docs say both flags become the only behavior in the next major).
   Its `.gitignore` ignored every `.env*`, including the example; it now keeps `.env.example`.
+- `scripts: check generated docs for links only`: the T13 commit (`006728f`) went out with the docs gate failing on em dashes in `frontend/AGENTS.md`, which `next dev` writes and nobody may edit, because a failed edit and the commit sat on separate lines of one shell command.
+  The gate now checks generated files for links only, and the em dash it searches for is built from its code point so the character never appears in the repository.
+  Lesson: chain every gate and the commit with `&&` in one line, or the commit runs after a failure.
