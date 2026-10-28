@@ -12,13 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T2. Architecture and decisions
-
-- `docs/requirements.md`: the exercise restated in our own words as a traceability table (requirement, where it will live, status).
-- `docs/architecture.md`: components, request and async flows, the observability seams, and a Mermaid diagram.
-- ADRs in `docs/decisions/`: 001 stack and repository layout, 002 backend project boundaries, 003 the async workflow on a transactional outbox, 004 authentication with short-lived JWTs behind the Next.js server, 005 observability on OpenTelemetry, 006 errors as RFC 9457 problem details with a stable `code`.
-- Gate: every relative link in `docs/` resolves; no em dashes.
-
 ### T3. Backend solution and conventions
 
 - `backend/global.json` (SDK 10.0.1xx, `latestFeature`), `Directory.Build.props` (nullable, warnings as errors, analyzers, NuGet audit), `Directory.Packages.props` (central package management), `PaymentPlatform.slnx`, `.config/dotnet-tools.json` with `dotnet-ef`, and the C# rules in `.editorconfig`.

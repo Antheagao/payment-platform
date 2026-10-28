@@ -9,7 +9,7 @@ Last updated: 2026-10-28.
 
 The repository answers a software engineer technical exercise: a simplified payment processing platform with a backend API, a merchant dashboard, and at least one asynchronous workflow.
 The exercise grades system design, code quality, architectural decisions, operational thinking, and tradeoffs; it prefers a small, well-reasoned slice over a broad, shallow one.
-The requirements are restated in our own words in `docs/requirements.md` once T2 lands.
+The requirements are restated in our own words in `docs/requirements.md`, each traced to where it lives and its status.
 
 The base of the project was requested with these requirements; they are recorded here so nothing drifts:
 
@@ -28,6 +28,7 @@ The base of the project was requested with these requirements; they are recorded
   Layout so far: `.claude/`, `.githooks/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `.editorconfig`, `.gitattributes`, `.gitignore`.
 - **Decisions** in `docs/decisions/`: 001 stack and layout, 002 backend project boundaries, 003 the async workflow on a transactional outbox, 004 short-lived JWTs held by the dashboard's server, 005 OpenTelemetry, 006 RFC 9457 problem details with a stable `code`, 007 idempotency keys.
   `docs/assumptions.md` records the fifteen choices made where the brief was ambiguous.
+- **Architecture**: `docs/architecture.md` (components, project dependencies, the lifecycle, the create and async sequences, observability, security, scaling, the Azure mapping, with Mermaid diagrams) and `docs/requirements.md` (27 requirements and 6 documentation deliverables, each with its home, task, and status).
 - **Docs gate**: `node scripts/check-docs.mjs` fails on a broken relative link or an em dash in any Markdown file.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
@@ -39,8 +40,8 @@ The base of the project was requested with these requirements; they are recorded
 | Task | What | Status |
 | --- | --- | --- |
 | T1 | Repository base, notes rotation, agent rules | Done |
-| T2 | Architecture overview, requirements traceability, ADRs | In progress: ADRs and assumptions landed |
-| T3 | Backend solution, SDK pin, shared build and package props | Queued |
+| T2 | Architecture overview, requirements traceability, ADRs | Done |
+| T3 | Backend solution, SDK pin, shared build and package props | Next |
 | T4 | Domain: payment lifecycle state machine with unit tests | Queued |
 | T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Queued |
 | T6 | Persistence: EF Core on SQL Server, readiness check | Queued |
