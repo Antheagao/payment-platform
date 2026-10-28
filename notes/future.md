@@ -12,11 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T1. Repository base (finishing)
-
-- Agent rules: `AGENTS.md` at the root, `.claude/CLAUDE.md` importing it, the `batch-loop` skill, and the `payment-platform-pull-requests` overlay.
-- Gate: the hooks fire (a commit without `notes/present.md` is refused), and the skill files have valid front matter.
-
 ### T2. Architecture and decisions
 
 - `docs/requirements.md`: the exercise restated in our own words as a traceability table (requirement, where it will live, status).

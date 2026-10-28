@@ -25,15 +25,17 @@ The base of the project was requested with these requirements; they are recorded
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
-  Layout so far: `notes/`, `.githooks/`, `README.md`, `.editorconfig`, `.gitattributes`, `.gitignore`.
+  Layout so far: `.claude/`, `.githooks/`, `notes/`, `AGENTS.md`, `README.md`, `.editorconfig`, `.gitattributes`, `.gitignore`.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
+- **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
+  `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes; `payment-platform-pull-requests` is the first guide overlay, and the rest land with the code they describe.
 
 ## Task board
 
 | Task | What | Status |
 | --- | --- | --- |
-| T1 | Repository base, notes rotation, agent rules | In progress |
+| T1 | Repository base, notes rotation, agent rules | Done |
 | T2 | Architecture overview, requirements traceability, ADRs | Next |
 | T3 | Backend solution, SDK pin, shared build and package props | Queued |
 | T4 | Domain: payment lifecycle state machine with unit tests | Queued |
