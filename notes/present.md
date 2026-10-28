@@ -25,7 +25,10 @@ The base of the project was requested with these requirements; they are recorded
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
-  Layout so far: `.claude/`, `.githooks/`, `notes/`, `AGENTS.md`, `README.md`, `.editorconfig`, `.gitattributes`, `.gitignore`.
+  Layout so far: `.claude/`, `.githooks/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `.editorconfig`, `.gitattributes`, `.gitignore`.
+- **Decisions** in `docs/decisions/`: 001 stack and layout, 002 backend project boundaries, 003 the async workflow on a transactional outbox, 004 short-lived JWTs held by the dashboard's server, 005 OpenTelemetry, 006 RFC 9457 problem details with a stable `code`, 007 idempotency keys.
+  `docs/assumptions.md` records the fifteen choices made where the brief was ambiguous.
+- **Docs gate**: `node scripts/check-docs.mjs` fails on a broken relative link or an em dash in any Markdown file.
 - **Notes rotation**: `.githooks/pre-commit` refuses a commit that changes anything outside `notes/` without staging `notes/present.md`; `.githooks/pre-push` refuses a push range that never touches it.
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
@@ -36,7 +39,7 @@ The base of the project was requested with these requirements; they are recorded
 | Task | What | Status |
 | --- | --- | --- |
 | T1 | Repository base, notes rotation, agent rules | Done |
-| T2 | Architecture overview, requirements traceability, ADRs | Next |
+| T2 | Architecture overview, requirements traceability, ADRs | In progress: ADRs and assumptions landed |
 | T3 | Backend solution, SDK pin, shared build and package props | Queued |
 | T4 | Domain: payment lifecycle state machine with unit tests | Queued |
 | T5 | Service defaults: JSON logs, OpenTelemetry, health, request id | Queued |
