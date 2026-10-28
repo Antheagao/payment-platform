@@ -1,5 +1,6 @@
 # The whole platform on one machine: `cp .env.example .env`, then `docker compose up --build`.
 #
+#   Dashboard           http://localhost:3080
 #   API                 http://localhost:5080   (OpenAPI at /openapi/v1.json)
 #   Worker health       http://localhost:5081/health/ready
 #   Aspire dashboard    http://localhost:18888  (traces, metrics, structured logs)
@@ -90,6 +91,18 @@ services:
       ConnectionStrings__Payments: Server=sqlserver,1433;Database=payments;User Id=payments_app;Password=${PAYMENTS_DB_PASSWORD:?copy .env.example to .env first};TrustServerCertificate=True
     ports:
       - "127.0.0.1:5081:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      # Server-side only: the browser talks to the dashboard, the dashboard talks to the API (ADR 004).
+      API_ORIGIN: http://api:8080
+    ports:
+      - "127.0.0.1:3080:3000"
 
 volumes:
   sqlserver-data:

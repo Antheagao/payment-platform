@@ -47,11 +47,12 @@ The base of the project was requested with these requirements; they are recorded
   Activate once per clone with `git config core.hooksPath .githooks`.
 - **Agent rules**: `AGENTS.md` (always loaded; imported by `.claude/CLAUDE.md`) holds the orientation, gates, guide table, and commit rules.
   `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
-  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`, `-architecture`, `-design-principles`, `-testing`; the rest land with the code they describe.
+  Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`, `-architecture`, `-design-principles`, `-testing`, `-frontend-ui`; the rest land with the code they describe.
 
 - **frontend/** (`payment-platform-dashboard`): `create-next-app` 16.4.3 with TypeScript strict, Tailwind v4 through `@tailwindcss/turbopack`, ESLint (`eslint-config-next` plus `eslint-config-prettier`), App Router under `src/`, the React Compiler, and `cacheComponents` with `partialPrefetching` (the create-next-app default, and the default everywhere in the next major).
   Prettier 3.9 with the Tailwind class-sorting plugin; scripts `typecheck` (`next typegen && tsc --noEmit`), `lint` (zero warnings), `format:check`, `build`; Node 22 or later.
-  One placeholder page and the root layout with the title template; no API calls yet.
+  The shell (T14): design tokens in `src/app/globals.css` (OKLCH `light-dark()`, following the OS; 19 tokens, 36 contrast pairs checked by `node scripts/check-contrast.mjs`), `ui/` primitives (`Badge`, `Button`, `Container`), a sticky `SiteHeader` with the API readiness badge streamed in `<Suspense>`, the `PaymentLifecycle` legend, `error.tsx`, `global-error.tsx`, `not-found.tsx`, the skip link, security headers in `next.config.ts`, and the server-only `src/lib/api.ts` (`API_ORIGIN`, no-store, 3 s timeout).
+  `frontend/Dockerfile` builds the standalone server onto distroless Node 22 (non-root); compose serves it on `http://localhost:3080`.
 
 ## Task board
 
@@ -70,8 +71,8 @@ The base of the project was requested with these requirements; they are recorded
 | T11 | Architecture tests for project dependency direction | Done |
 | T12 | Dockerfiles and `docker-compose.yml` with SQL Server and the Aspire dashboard | Done |
 | T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Done |
-| T14 | Frontend shell: design tokens, layout, API status | Next |
-| T15 | Frontend tests: Vitest and a Playwright smoke test | Queued |
+| T14 | Frontend shell: design tokens, layout, API status | Done |
+| T15 | Frontend tests: Vitest and a Playwright smoke test | Next |
 | T16 | CI: GitHub Actions, Dependabot, CodeQL | Queued |
 | T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Queued |
 | T18 | README and documentation deliverables | Queued |
@@ -85,7 +86,7 @@ Feature work (T19 onward) is ranked in `future.md`.
 - Worker alone: the same connection string, then `dotnet run --project src/PaymentPlatform.Worker` (health on `http://localhost:5081`).
 - Whole stack: `cp .env.example .env`, then `docker compose up --build`: SQL Server on `localhost,14333`, a one-shot bootstrap that creates the `payments` database and the `payments_app` login, the Aspire dashboard on `http://localhost:18888`, the API on 5080, the worker on 5081; `docker compose down` stops it.
   Verified 2026-10-28: both readiness probes green, the API migrated at startup, traces and structured logs in the dashboard under `payment-api`.
-- The frontend joins compose with T14.
+- The dashboard is part of compose on `http://localhost:3080`; alone, `cp frontend/.env.example frontend/.env.local` and `npm run dev` from `frontend/` (same port).
 
 ## Decisions pending
 

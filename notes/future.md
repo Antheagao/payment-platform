@@ -12,12 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T14. Frontend shell
-
-- Semantic design tokens with `light-dark()`, the app layout and header, a server-only API module with timeouts, and an API status badge; the frontend Dockerfile and compose service.
-- Overlay: `payment-platform-frontend-ui`.
-- Gate: frontend gates plus a real-browser check in light and dark at 360px and 1440px.
-
 ### T15. Frontend tests
 
 - Vitest with Testing Library for components and pure helpers; Playwright with one smoke test against `next build` plus `next start`.

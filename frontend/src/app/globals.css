@@ -1,26 +1,92 @@
 @import "tailwindcss";
 
+/*
+  Design tokens. Components use only the semantic utilities these map to (bg-surface, text-muted,
+  border-border, bg-primary, ...), never raw palette colors or arbitrary values.
+
+  Every value is light-dark(light, dark) in OKLCH; `color-scheme` on :root follows the operating
+  system. One neutral hue (260) carries the surfaces and text; indigo (265) is the single accent,
+  reserved for the main action and focus; the status hues are functional and always come with a
+  text label, never color alone.
+
+  Contrast targets are checked by `node scripts/check-contrast.mjs`, which reads this file:
+  body text 7:1, secondary text and status pills 4.5:1, borders and focus 3:1.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light dark;
+
+  --bg: light-dark(oklch(0.985 0.003 260), oklch(0.17 0.012 260));
+  --surface: light-dark(oklch(1 0 0), oklch(0.21 0.014 260));
+  --surface-2: light-dark(oklch(0.965 0.005 260), oklch(0.25 0.016 260));
+  --fg: light-dark(oklch(0.21 0.02 260), oklch(0.96 0.005 260));
+  --muted: light-dark(oklch(0.47 0.02 260), oklch(0.74 0.015 260));
+  --border: light-dark(oklch(0.89 0.008 260), oklch(0.32 0.016 260));
+  --border-strong: light-dark(oklch(0.6 0.02 260), oklch(0.56 0.02 260));
+
+  --primary: light-dark(oklch(0.48 0.17 265), oklch(0.72 0.13 265));
+  --primary-fg: light-dark(oklch(1 0 0), oklch(0.17 0.03 265));
+  --primary-hover: light-dark(oklch(0.43 0.17 265), oklch(0.77 0.11 265));
+  --primary-soft: light-dark(oklch(0.95 0.022 265), oklch(0.28 0.06 265));
+
+  --success: light-dark(oklch(0.45 0.11 150), oklch(0.79 0.13 150));
+  --success-soft: light-dark(oklch(0.95 0.04 150), oklch(0.27 0.05 150));
+  --warning: light-dark(oklch(0.47 0.1 70), oklch(0.83 0.11 80));
+  --warning-soft: light-dark(oklch(0.95 0.05 85), oklch(0.28 0.05 75));
+  --danger: light-dark(oklch(0.5 0.18 27), oklch(0.75 0.14 27));
+  --danger-soft: light-dark(oklch(0.95 0.022 27), oklch(0.28 0.06 27));
+  --info: light-dark(oklch(0.47 0.08 200), oklch(0.8 0.09 200));
+  --info-soft: light-dark(oklch(0.95 0.025 200), oklch(0.27 0.04 200));
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    /* The sticky header must never hide the focused element (WCAG 2.4.11). */
+    scroll-padding-top: 5rem;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }

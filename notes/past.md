@@ -107,3 +107,14 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `scripts: check generated docs for links only`: the T13 commit (`006728f`) went out with the docs gate failing on em dashes in `frontend/AGENTS.md`, which `next dev` writes and nobody may edit, because a failed edit and the commit sat on separate lines of one shell command.
   The gate now checks generated files for links only, and the em dash it searches for is built from its code point so the character never appears in the repository.
   Lesson: chain every gate and the commit with `&&` in one line, or the commit runs after a failure.
+
+## 2026-10-28: frontend shell (T14)
+
+- `frontend: add the dashboard shell, design tokens, and container image`: tokens, primitives, header with the streamed API status, lifecycle legend, error and not-found pages, security headers, the server-only API module, `frontend/Dockerfile`, the compose service, `scripts/check-contrast.mjs`, and the `payment-platform-frontend-ui` overlay.
+- Gate: typecheck, lint, format, build (both routes partially prerendered), `npm audit --omit=dev` 0; contrast 36 of 36 pairs with all 19 tokens in gamut; in a real browser through compose at 1440 and 360, light and dark, no horizontal overflow, the API-down badge, and the skip link.
+- Found in the browser and fixed before committing:
+  - port 3000 already belonged to the doc-pilot container, and my first curl had reached doc-pilot; the dashboard moved to 3080 everywhere.
+  - Authorized (blue 245) and Captured (indigo 265) looked identical; Authorized is now teal (200).
+  - the neutral Refunded pill vanished on its gray row; neutral pills now carry an inset ring.
+  - the focused skip link had no padding, because Tailwind's `not-sr-only` resets it; the padding is now focus-scoped.
+- The contrast checker reads `globals.css` instead of keeping its own copy of the palette (cosgift's script duplicates it), so the stylesheet stays the only source of truth.

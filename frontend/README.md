@@ -5,7 +5,7 @@ It talks to the API only from server code; the browser never holds the API token
 
 ```sh
 npm ci
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:3080
 npm run typecheck && npm run lint && npm run format:check && npm run build
 ```
 
