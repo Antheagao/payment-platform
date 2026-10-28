@@ -97,3 +97,10 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Gate: `docker compose config -q`; `docker compose build` (45 s cold); `docker compose up`: both readiness probes green, the bootstrap exited 0, the API logged its startup migration, and the Aspire dashboard showed the API's traces and structured logs in a real browser; `docker compose down`.
 - Found while gating: `AddService(serviceName: ...)` silently overrode the standard `OTEL_SERVICE_NAME`, so compose's `payment-api` never appeared; the service defaults now read the variable first.
 - The app never connects as `sa`: the bootstrap creates a `payments_app` login that owns only the `payments` database.
+
+## 2026-10-28: frontend scaffold (T13)
+
+- `frontend: scaffold the dashboard with Next.js 16, TypeScript, and Tailwind v4`: `create-next-app@16.4.3 --ts --tailwind --eslint --app --src-dir --react-compiler`, the boilerplate assets removed, Prettier added, strict scripts, a placeholder page.
+- Gate: `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run build` (two static routes), `npm audit --omit=dev` with 0 vulnerabilities.
+- Surprises: create-next-app 16.4 enables `cacheComponents` and `partialPrefetching` without being asked, and wires Tailwind through `@tailwindcss/turbopack` instead of PostCSS; both kept (the installed docs say both flags become the only behavior in the next major).
+  Its `.gitignore` ignored every `.env*`, including the example; it now keeps `.env.example`.

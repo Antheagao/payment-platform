@@ -17,6 +17,7 @@ Longer procedures live in `.claude/skills/`.
 - Read `notes/present.md` first; it is the current state, the task board, and how things run.
 - `notes/future.md` is the ranked roadmap and the queue for the `batch-loop` skill; `notes/past.md` is the log.
 - Decisions live in `docs/decisions/`; the system shape lives in `docs/architecture.md`.
+- `frontend/AGENTS.md` is written by `next dev`: Next.js 16 differs from training data, so read `frontend/node_modules/next/dist/docs/` before writing frontend code.
 
 ## Running it
 
@@ -28,9 +29,9 @@ Longer procedures live in `.claude/skills/`.
 
 ## Gates (the same commands CI runs)
 
-- Backend, from `backend/` (from T3): `dotnet format --verify-no-changes`, `dotnet build -c Release`, `dotnet test -c Release`.
+- Backend, from `backend/`: `dotnet format --verify-no-changes`, `dotnet build -c Release`, `dotnet test -c Release`.
   Warnings are errors and NuGet audit runs on restore, so a vulnerable package fails the build.
-- Frontend, from `frontend/` (from T13): `npx next typegen`, `npx tsc --noEmit`, `npx eslint . --max-warnings 0`, `npm test`, `npx next build`, `npm audit --omit=dev`.
+- Frontend, from `frontend/`: `npm run typecheck` (typegen, then `tsc`), `npm run lint` (zero warnings), `npm run format:check`, `npm test` (from T15), `npm run build`, `npm audit --omit=dev`.
 - UI work is not done until it has been checked in a real browser, light and dark, 360px to 1440px.
 - Write long build and test output to a scratch file and grep it rather than printing it into the transcript.
 

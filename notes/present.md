@@ -25,7 +25,7 @@ The base of the project was requested with these requirements; they are recorded
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
-  Layout so far: `.claude/`, `.githooks/`, `backend/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes`, `.gitignore`.
+  Layout so far: `.claude/`, `.githooks/`, `backend/`, `frontend/`, `docs/`, `notes/`, `scripts/`, `AGENTS.md`, `README.md`, `docker-compose.yml`, `.env.example`, `.editorconfig`, `.gitattributes`, `.gitignore`.
 - **Decisions** in `docs/decisions/`: 001 stack and layout, 002 backend project boundaries, 003 the async workflow on a transactional outbox, 004 short-lived JWTs held by the dashboard's server, 005 OpenTelemetry, 006 RFC 9457 problem details with a stable `code`, 007 idempotency keys.
   `docs/assumptions.md` records the fifteen choices made where the brief was ambiguous.
 - **Architecture**: `docs/architecture.md` (components, project dependencies, the lifecycle, the create and async sequences, observability, security, scaling, the Azure mapping, with Mermaid diagrams) and `docs/requirements.md` (27 requirements and 6 documentation deliverables, each with its home, task, and status).
@@ -49,6 +49,10 @@ The base of the project was requested with these requirements; they are recorded
   `.claude/skills/batch-loop` maps the claude-brain `campaign-loop` onto these notes.
   Guide overlays so far: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`, `-architecture`, `-design-principles`, `-testing`; the rest land with the code they describe.
 
+- **frontend/** (`payment-platform-dashboard`): `create-next-app` 16.4.3 with TypeScript strict, Tailwind v4 through `@tailwindcss/turbopack`, ESLint (`eslint-config-next` plus `eslint-config-prettier`), App Router under `src/`, the React Compiler, and `cacheComponents` with `partialPrefetching` (the create-next-app default, and the default everywhere in the next major).
+  Prettier 3.9 with the Tailwind class-sorting plugin; scripts `typecheck` (`next typegen && tsc --noEmit`), `lint` (zero warnings), `format:check`, `build`; Node 22 or later.
+  One placeholder page and the root layout with the title template; no API calls yet.
+
 ## Task board
 
 | Task | What | Status |
@@ -65,8 +69,8 @@ The base of the project was requested with these requirements; they are recorded
 | T10 | Integration tests on a real SQL Server (Testcontainers) | Done |
 | T11 | Architecture tests for project dependency direction | Done |
 | T12 | Dockerfiles and `docker-compose.yml` with SQL Server and the Aspire dashboard | Done |
-| T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Next |
-| T14 | Frontend shell: design tokens, layout, API status | Queued |
+| T13 | Frontend scaffold: Next.js 16, TypeScript, Tailwind v4 | Done |
+| T14 | Frontend shell: design tokens, layout, API status | Next |
 | T15 | Frontend tests: Vitest and a Playwright smoke test | Queued |
 | T16 | CI: GitHub Actions, Dependabot, CodeQL | Queued |
 | T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Queued |

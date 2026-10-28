@@ -12,11 +12,6 @@ Last updated: 2026-10-28.
 The goal of this phase is a walking skeleton: every project exists, builds, is wired for observability, and is covered by the gates CI runs, before any payment feature lands.
 Each row is one commit and one push; a guide overlay in `.claude/skills/` lands with the code it describes, so the overlays only ever state facts.
 
-### T13. Frontend scaffold
-
-- `frontend/` from `create-next-app` (Next.js 16, TypeScript strict, Tailwind v4, ESLint, App Router, `src/`), Prettier, `server-only`.
-- Gate: `npx tsc --noEmit`, `npx eslint . --max-warnings 0`, `npx next build`.
-
 ### T14. Frontend shell
 
 - Semantic design tokens with `light-dark()`, the app layout and header, a server-only API module with timeouts, and an API status badge; the frontend Dockerfile and compose service.
