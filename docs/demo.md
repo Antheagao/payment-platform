@@ -230,6 +230,9 @@ In **Traces**, the `POST /api/v1/payments` row spans two resources, `payment-api
 
 ![The payment's trace in the Aspire dashboard, from the API request through the worker's outbox dispatch to the webhook delivery and its HTTP POST, correlation.id demo-outbox](images/aspire-outbox-trace.png)
 
+A move made from the dashboard starts one step earlier.
+Capture INV-1025 from its page (step 2), and **Traces** gains a `payment-dashboard: POST` row spanning `payment-dashboard`, `payment-api`, and `payment-worker`: the Server Action on the dashboard's server, its call to `POST /api/v1/payments/{id}/capture`, and the worker's dispatch and delivery of `payment.captured`, all one trace.
+
 The worker polls the outbox and the deliveries every second, but those runs are not traces of their own: a trace a second would bury everything else, so only the events it handles are traced, each under the request that caused it ([ADR 005](decisions/005-observability-on-opentelemetry.md)).
 To see the queue itself (in Git Bash on Windows, put `MSYS_NO_PATHCONV=1` in front, or it rewrites the container path):
 

@@ -412,3 +412,9 @@ Update this file when a task lands; keep the present and future notes in sync.
   - CI's `stack` job runs it after `scripts/check-stack.sh`, with its report kept on failure.
   - Green three times running on the local stack; with the worker stopped it failed at the webhook step, as it should.
 - The dashboard's OpenTelemetry, which T29 was to fold in, is its own row now (T29b), so this one stayed the golden path.
+
+## 2026-10-29: traces that start at the dashboard's server (T29b)
+
+- `frontend: trace the dashboard's server, joined to the API's traces`: `src/instrumentation.ts` with `@vercel/otel` 2.1.3 and its OpenTelemetry 2.x peers at exact versions (each at least two weeks old; `npm audit` clean), OTLP/HTTP to the Aspire dashboard's port 18890 in compose; `traceparent` only to `API_ORIGIN` and `WORKER_ORIGIN`; health probes left out.
+- Checked on the composed stack after the golden path: the capture and the refund are each one trace of `payment-dashboard` (13 spans), `payment-api` (12), and `payment-worker` (5), from the Server Action to the webhook delivery; page renders join the API's `/me` and list calls.
+- In Azure the dashboard needs an OTLP endpoint (a collector or Azure Monitor's OTLP ingestion); recorded in `infra/README.md`.

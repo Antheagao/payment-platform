@@ -21,6 +21,7 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 
 ## What exists
 
+- `src/instrumentation.ts` (ADR 005): `@vercel/otel`, exporting over OTLP/HTTP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (compose: the Aspire dashboard's port 18890); `traceparent` only to `API_ORIGIN` and `WORKER_ORIGIN`, and no spans for the health probes.
 - `src/proxy.ts` (ADR 009): a nonce per page request and the policy that requires it (`contentSecurityPolicy`), the nonce and the path passed on as `x-nonce` and `x-pathname`, and a redirect to `/login?next=...` for a browser with no `pp_session` cookie (optimistic only: data reads check the token with the API).
 - Sign-in (ADR 004): `src/lib/session.ts` (`readToken`, `saveToken` with `HttpOnly`, `Secure`, `SameSite=Strict` and the token's expiry, `clearToken`), `src/lib/auth-api.ts` (`signIn` and `getCurrentUser`, by problem-details `code`, never throwing), `src/lib/redirect-target.ts` (`safeRedirectTarget`: a path on this site or `/`), `src/app/login/` (`page.tsx`, `actions.ts` with `signInAction` and `signOutAction`), `src/components/login-form.tsx` (`useActionState`, the field at fault with `aria-invalid` and `aria-describedby`, a mounted `role="alert"` that takes no space while empty), and `src/components/user-menu.tsx` (the merchant from `/me` and Sign out; it never redirects, and stays empty on `/login`). `DEMO_LOGIN_HINT=true` (compose) shows the demo login.
 - Payments (T27): `src/lib/payments-api.ts` (`requireToken`, which sends a browser without a session to sign in and back; `listPayments`, which turns the API's `401` into a sign-in with `reason=expired`, returns its field codes for a `400`, and throws `PaymentsUnavailableError` for the segment's `error.tsx` otherwise), `src/lib/money.ts` (`formatMoney` and `toMinorUnits` per currency, on digits rather than floating point), `src/lib/payment-filters.ts` (`parseFilters`, `pageHref`), `src/app/payments/` (`page.tsx`, which redirects a request with empty fields to its clean address, `error.tsx`), `src/components/payments/` (`PaymentFiltersForm`, a `GET` form inside a `<details>` that opens when a filter is set or wrong; `PaymentsResults`, a table from `lg` and cards below it, both in the DOM, so tests pick the visible one), `src/components/main-nav.tsx` (the sections beside the brand from `sm` up, `aria-current="page"` on the section itself and `"true"` within it).
@@ -47,7 +48,7 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 
 ## Known gaps
 
-- No OpenTelemetry in the dashboard yet, so traces start at the API; `instrumentation.ts` with OTLP export is a follow-up.
+- In Azure the dashboard's traces need an OTLP endpoint (a collector, or Azure Monitor's OTLP ingestion): `@vercel/otel` speaks OTLP, not the Application Insights connection string the site is given (infra/README.md).
 
 ## Visual QA routine
 

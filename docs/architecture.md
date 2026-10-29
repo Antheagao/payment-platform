@@ -125,7 +125,7 @@ sequenceDiagram
 | Signal | What is emitted | Where it goes |
 | --- | --- | --- |
 | Logs | JSON lines with timestamp, level, category, message template, and scope properties: `CorrelationId`, `TraceId`, `SpanId`, `MerchantId`, `PaymentId` (PascalCase, the .NET logging convention) | Console (collected by the platform) and OTLP |
-| Traces | ASP.NET Core, HttpClient, and SQL client spans, plus custom spans for the acquirer call and each worker job run | OTLP |
+| Traces | The dashboard's page renders, Server Actions, and calls to the API (`src/instrumentation.ts`); ASP.NET Core, HttpClient, and SQL client spans, plus custom spans for the acquirer call, each outbox dispatch, and each webhook delivery, all in one trace from the dashboard's server to the merchant's endpoint | OTLP |
 | Metrics | RED metrics from the ASP.NET Core and HttpClient meters (health probes excluded); `PaymentPlatform.Payments` (`payments.transitions`, by the status left and entered, counted once a save commits); `PaymentPlatform.Outbox` (`webhook.delivery.attempts` by outcome, and gauges for outbox depth and oldest age, deliveries due and their lag, retries, dead letters, and the settlement backlog, measured every 10 s by the worker); `PaymentPlatform.Worker` (job durations and failures) | OTLP |
 | Health | `/health/live` (the process answers) and `/health/ready` (the database answers and the schema is current) on the API and the worker | Load balancer and orchestrator probes |
 | Audit | One `PaymentEvents` row per transition: actor, time, from, to, correlation id | SQL Server, shown on the dashboard's payment page |
