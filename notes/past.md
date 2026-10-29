@@ -183,3 +183,12 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `persistence: keep a healthy start free of warnings`: `PaymentsDbContext` stops scanning for configurations while there are none; T19's first slice now names restoring `ApplyConfigurationsFromAssembly` with the first configuration.
   `Startup/StartupTests` starts the API the way compose does (migrating at startup) with fake logging and asserts nothing at Warning or above; it failed on exactly this warning before the change.
 - Gate: locked restore, format, Release build, 172 tests; in compose, a fresh Aspire dashboard and a rebuilt API show no warning in the container logs or the structured-log view.
+
+## 2026-10-28: demo guide and the sample-data plan (T35)
+
+- `docs: add a demo guide and plan the sample data`: `docs/demo.md` walks the running stack in seven steps (one command; the dashboard; problem details with a correlation id; the same request's trace, logs, and metrics in the Aspire dashboard; a database outage and recovery, then an API outage; the tests and CI; what comes next), linked from the README and requirement O4.
+- Every step was run against the composed stack in this session: the 404 and 405 bodies and headers; `/traces/detail/<trace_id>` opens the request's trace; the structured logs show `Database migrated at startup`; the Metrics page lists `http.server.request.duration`, Kestrel, and the runtime for `payment-api`; the outage gives `503` at the deadline, "API not ready", and recovery in about 15 s; the backend tests take 27.6 s.
+- Sample data needs the payment tables, which do not exist yet, so it is planned rather than faked: the T19 row now specifies the `Demo:Seed` switch (compose only, refused in Production, idempotent by fixed ids, demo login shown in Development), T20 seeds payments in every status through the domain so each has a real audit trail, T21 routes the seed through capture and refund, T22 seeds enough rows to page, and every feature row updates `docs/demo.md`.
+  Requirement O4 is Scaffolded until then.
+- Checked in a real browser (`chrome-devtools-axi`): the dashboard at 1440 light and 360 dark, and the Aspire trace, structured-log, and metrics pages.
+  The Aspire "Endpoint is unsecured" banner is expected for a local, anonymous dashboard bound to 127.0.0.1; the guide says so instead of adding a public API key that would protect nothing.

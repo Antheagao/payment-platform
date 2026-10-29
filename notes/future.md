@@ -21,20 +21,21 @@ First slice, ready to start:
 - `PaymentsDbContext.OnModelCreating` gains `ApplyConfigurationsFromAssembly` with the first `IEntityTypeConfiguration` (it was removed while there were none, because EF Core warns on every start; `StartupTests` keeps a healthy start free of warnings).
 - `Application/Auth/LogIn.cs`: ASP.NET Core Identity's `PasswordHasher`, a dummy-hash comparison for unknown emails, one "email or password is incorrect" error, a JWT per ADR 004 (HS256 pinned, 30 minutes, issuer, audience, `sub`, `merchant_id`, `jti`).
 - `Api/Endpoints/AuthEndpoints.cs`: `POST /api/v1/auth/login`, rate limited per email and per address with `Retry-After`; JwtBearer validation registered for the `/api/v1` group.
-- A development seed (one demo merchant and user) applied with the startup migration, never in production.
+- A development seed (one demo merchant and user) applied with the startup migration, never in production: `Demo:Seed` on in compose only, refused at startup when the environment is Production, idempotent by fixed ids; the demo login's email and password are shown on the login page in Development (T26) and in `docs/demo.md`.
 - Gate: integration tests for success, wrong password, unknown email (same response and similar timing), malformed body, rate limit, an expired token, a tampered token, and a token with another algorithm; the gates in `AGENTS.md`.
 
 ### Then
 
-- **T20. Create and read payments.** Payments and payment-event (audit) tables, `POST /api/v1/payments` with `Idempotency-Key`, `GET /api/v1/payments/{id}`, merchant scoping (another merchant's payment is a 404), card tokenization at the edge with the simulated vault, the simulated authorization, and the log-capture test that proves no card number or CVV is logged.
-- **T21. Capture and refund.** `POST /payments/{id}/capture` and `/refund`, idempotent, every transition audited with actor, time, and correlation id.
-- **T22. List and search.** Filters by status, date range, amount, and reference; keyset pagination with an opaque cursor; the indexes that serve it.
+- **T20. Create and read payments.** The demo seed gains payments in every status, created through the domain (`Payment.Authorize`, `Capture`, and the rest) so each carries a real audit trail, spread over the last 90 days with deterministic amounts and references. Payments and payment-event (audit) tables, `POST /api/v1/payments` with `Idempotency-Key`, `GET /api/v1/payments/{id}`, merchant scoping (another merchant's payment is a 404), card tokenization at the edge with the simulated vault, the simulated authorization, and the log-capture test that proves no card number or CVV is logged.
+- **T21. Capture and refund.** `POST /payments/{id}/capture` and `/refund`, idempotent, every transition audited with actor, time, and correlation id; the demo seed's captured and refunded payments now go through these use cases.
+- **T22. List and search.** Filters by status, date range, amount, and reference; keyset pagination with an opaque cursor; the indexes that serve it; enough seeded payments (a few hundred) that paging shows in the demo.
 - **T23. Outbox and webhook delivery.** Outbox rows written in the same transaction as the state change, a dispatcher claiming rows with `READPAST`, HMAC-signed webhooks, exponential backoff with jitter, a dead-letter state, SSRF rules for merchant URLs, and trace context carried across the hop; the worker's first integration tests.
 - **T24. Settlement.** A scheduled batch that settles captured payments through a T-SQL stored procedure, with reconciliation counts.
 - **T25. Domain and queue metrics.** Payments created, captured, refunded, failed by state; outbox depth, oldest-pending lag, retries, dead letters.
 - **T26. Dashboard login.** Login form, the JWT held in an HttpOnly cookie on the Next.js server, sign-out, expiry handling, and a nonce-based CSP from `proxy.ts`.
 - **T27. Payments list.** Filters and search bound to the URL, pagination, empty and error states.
 - **T28. Payment detail.** Amounts, status, and the audit timeline.
+- Every feature row also updates `docs/demo.md` with the step that shows it, verified against the composed stack.
 - **T29. End-to-end golden path.** Playwright: log in, find a payment, open its timeline; CI job against the composed stack.
 - **T30. Documentation complete.** Tradeoffs, assumptions, production considerations, and future improvements rewritten against what was actually built.
 - **T31. Load test.** A k6 script in a container against the composed stack, with the numbers and the bottleneck written down.

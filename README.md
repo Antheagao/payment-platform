@@ -21,6 +21,7 @@ The payment features are next, in the order the exercise weighs them; [requireme
 | The worker's job runner, the simulated acquirer | Domain and queue metrics |
 | The dashboard shell with accessible design tokens | Sign-in, the payments list, and the payment timeline |
 | 172 backend tests, 16 frontend unit tests, 12 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
+| One command to run it all, tested in CI on every push, and a [demo guide](docs/demo.md) | Sample data: a demo merchant and payments in every status, loaded on startup |
 
 ## Run it
 
@@ -43,6 +44,8 @@ To run it in the background instead, use `docker compose up --build -d --wait`, 
 | <http://localhost:5080/openapi/v1.json> | The API's OpenAPI document |
 | <http://localhost:5080/health/ready> and <http://localhost:5081/health/ready> | API and worker readiness |
 | <http://localhost:18888> | The Aspire dashboard: traces, metrics, and structured logs from every service |
+
+For a guided tour of what to show and what each step proves, follow the [demo guide](docs/demo.md).
 
 `docker compose down` stops everything and keeps the database; `docker compose down -v` deletes it too.
 Every port binds to 127.0.0.1, and each can move: if one is taken, copy `.env.example` to `.env` and set its variable, such as `DASHBOARD_PORT=3090`.
@@ -150,6 +153,7 @@ The API owns every rule and writes each state change, its audit row, and its out
 
 ## Documentation
 
+- [Demo guide](docs/demo.md): a ten-minute walkthrough of the running stack, step by step.
 - [Requirements traceability](docs/requirements.md): every requirement, where it lives, and its status.
 - [Architecture](docs/architecture.md): components, flows, observability, security, scaling, and the Azure mapping.
 - [Assumptions](docs/assumptions.md): what we decided where the brief was open.

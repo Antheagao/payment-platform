@@ -55,7 +55,7 @@ Added by the repository's owner on 2026-10-28, for demos and for reviewers who d
 | O1 | One command starts everything, with no setup | `docker compose up --build`; passwords and ports have defaults; the CI `stack` job runs it on a clean runner | T33 | Done |
 | O2 | Every download it needs is listed | README, Prerequisites: to run, Git and Docker; to develop, the .NET SDK, Node.js 22, Playwright's Chromium, and optionally Bicep; each with its official page and a verified `winget` and Homebrew command | T34 | Done |
 | O3 | Fully functional without any paid service | README, Free to run: every piece and its cost, with Docker Desktop's license limit and the free Docker Engine; every package license checked | T34 | Done |
-| O4 | Loads sample data and sample dashboards for a demo | A demo guide for what runs today; sample payments arrive with the payment features | T35 | Planned |
+| O4 | Loads sample data and sample dashboards for a demo | [demo.md](demo.md) walks the running stack and its Aspire dashboard today; a development seed loads a demo merchant (T19) and payments in every status with their audit trails (T20 to T22), applied on startup in compose and never in production | T35, T19 to T22 | Scaffolded |
 
 ## Documentation deliverables
 
