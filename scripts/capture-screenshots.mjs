@@ -161,6 +161,15 @@ async function dashboardStills(browser) {
   await cards.getByRole("main").getByRole("listitem").first().waitFor();
   await shoot(cards, "dashboard-payments-mobile.png");
   await listNarrow.close();
+
+  // One payment's page, opened from its row: INV-1004 has walked the whole lifecycle, settlement included.
+  const detailWide = await signedIn(browser, { ...desktop, colorScheme: "light", reducedMotion: "reduce" });
+  const detail = await detailWide.newPage();
+  await detail.goto(`${dashboard}/payments?reference=INV-1004`);
+  await detail.getByRole("main").getByRole("link", { name: "INV-1004" }).click();
+  await detail.getByRole("region", { name: "History" }).getByRole("listitem").nth(4).waitFor();
+  await shoot(detail, "dashboard-payment-detail.png", { fullPage: true });
+  await detailWide.close();
 }
 
 /** Stops the database, then the API, recording the first and taking a still of each. */

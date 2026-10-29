@@ -2,30 +2,17 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { formatMoney } from "@/lib/money";
+import { brandName, formatInstant } from "@/lib/payment-display";
 import { pageHref, type ParsedFilters } from "@/lib/payment-filters";
 import { paymentStatusDisplay } from "@/lib/payment-status";
-import { listPayments, type CardBrand, type PaymentSummary } from "@/lib/payments-api";
-
-const brandNames: Record<CardBrand, string> = {
-  visa: "Visa",
-  mastercard: "Mastercard",
-  amex: "Amex",
-  discover: "Discover",
-};
-
-// UTC, written out, so a time reads the same on every machine and matches the API's.
-const timeFormat = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "UTC",
-});
+import { listPayments, type PaymentSummary } from "@/lib/payments-api";
 
 function created(payment: PaymentSummary): string {
-  return `${timeFormat.format(new Date(payment.createdAt))} UTC`;
+  return formatInstant(payment.createdAt);
 }
 
 function card(payment: PaymentSummary): string {
-  return `${brandNames[payment.card.brand] ?? payment.card.brand} •••• ${payment.card.last4}`;
+  return `${brandName(payment.card.brand)} •••• ${payment.card.last4}`;
 }
 
 type Props = {
@@ -97,10 +84,16 @@ export async function PaymentsResults({ parsed, cursor, returnTo }: Props) {
           </thead>
           <tbody>
             {page.payments.map((payment) => (
-              <tr key={payment.id} className="border-b border-border last:border-0">
+              <tr key={payment.id} className="group relative border-b border-border last:border-0">
                 <td className="py-3 pr-4 whitespace-nowrap text-muted">{created(payment)}</td>
                 <td className="max-w-56 truncate py-3 pr-4 font-medium">
-                  {payment.merchantReference ?? "No reference"}
+                  {/* The row's link; its overlay makes the whole row a target, and the reference names it. */}
+                  <Link
+                    href={`/payments/${payment.id}`}
+                    className="underline-offset-4 group-hover:underline after:absolute after:inset-0"
+                  >
+                    {payment.merchantReference ?? "No reference"}
+                  </Link>
                 </td>
                 <td className="py-3 pr-4 whitespace-nowrap">{card(payment)}</td>
                 <td className="py-3 pr-4">
@@ -119,11 +112,17 @@ export async function PaymentsResults({ parsed, cursor, returnTo }: Props) {
 
       <ul className="space-y-3 lg:hidden">
         {page.payments.map((payment) => (
-          <li key={payment.id} className="rounded-lg border border-border bg-surface p-4">
+          <li
+            key={payment.id}
+            className="relative rounded-lg border border-border bg-surface p-4 hover:bg-surface-2"
+          >
             <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 truncate font-medium">
+              <Link
+                href={`/payments/${payment.id}`}
+                className="min-w-0 truncate font-medium after:absolute after:inset-0"
+              >
                 {payment.merchantReference ?? "No reference"}
-              </p>
+              </Link>
               <Badge tone={paymentStatusDisplay[payment.status].tone}>
                 {paymentStatusDisplay[payment.status].label}
               </Badge>
@@ -132,7 +131,7 @@ export async function PaymentsResults({ parsed, cursor, returnTo }: Props) {
               {formatMoney(payment.amountMinor, payment.currency)}
             </p>
             <p className="mt-1 text-sm text-muted">
-              {card(payment)} · {created(payment)}
+              {card(payment)} · <span className="whitespace-nowrap">{created(payment)}</span>
             </p>
           </li>
         ))}

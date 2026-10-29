@@ -20,16 +20,17 @@ The backend is complete against the exercise's requirements; the dashboard signs
 
 | Built | Planned next |
 | --- | --- |
-| The payment lifecycle state machine with every transition tested | A payment's detail page with its audit timeline |
-| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | The service status behind an operator role, and the client's address forwarded to the API |
-| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile | An end-to-end golden path through the composed stack |
-| List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | A load test |
-| A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | The documentation rewritten against what was built |
+| The payment lifecycle state machine with every transition tested | The service status behind an operator role, and the client's address forwarded to the API |
+| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | An end-to-end golden path through the composed stack |
+| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile; from the API or from a payment's page in the dashboard | A load test |
+| List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | The documentation rewritten against what was built |
+| A payment's page in the dashboard: its details and its audit timeline, each change with who made it, when, and its correlation id | |
+| A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | |
 | Settlement through a T-SQL stored procedure, every minute in compose | |
 | Merchant login with 30-minute HS256 tokens and rate limits; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy | |
 | JSON logs, OpenTelemetry traces from the request through the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes | |
 | RFC 9457 problem details for every error | |
-| 547 backend tests, 121 frontend unit tests, 49 browser runs, CI, CodeQL, containers, Bicep | |
+| 547 backend tests, 147 frontend unit tests, 70 browser runs, CI, CodeQL, containers, Bicep | |
 | One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
 
 ## Run it
@@ -87,6 +88,10 @@ The same page on a phone, in both color schemes; the design tokens follow the op
 | Light | Dark |
 | --- | --- |
 | <img src="docs/images/dashboard-mobile-light.png" alt="The dashboard at phone width in the light scheme" width="300"> | <img src="docs/images/dashboard-mobile-dark.png" alt="The dashboard at phone width in the dark scheme" width="300"> |
+
+A payment's own page, opened from the list: its card and references beside its audit trail, each change with who made it (here the `settlement` job among them), when, and its correlation id; an authorized payment offers **Capture**, a captured or settled one **Refund…**, each sent with an idempotency key.
+
+![INV-1004's page: its details beside a timeline of five changes, from created as pending through settled by the settlement job to refunded](docs/images/dashboard-payment-detail.png)
 
 A payment followed into the Aspire dashboard: one trace runs from the API request (its saves and the `acquirer authorize` call) into the worker, which dispatched the payment's `payment.authorized` event from the transactional outbox and delivered it, signed, to the stack's webhook receiver, all under the correlation id the client sent (`demo-outbox`).
 

@@ -22,7 +22,8 @@ export async function MainNav() {
             <li key={href}>
               <Link
                 href={href}
-                aria-current={current ? "page" : undefined}
+                // "page" on the section itself; within it, such as on one payment, the link is the current section.
+                aria-current={pathname === href ? "page" : current ? "true" : undefined}
                 className={classNames(
                   "rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-2",
                   current ? "bg-surface-2 text-fg" : "text-muted",

@@ -9,6 +9,11 @@
 //   GET  /api/v1/payments     30 fixed payments, newest first, 25 to a page, filtered by status, currency,
 //                             and reference prefix; "expired" is token_expired, "empty" has no payments,
 //                             "down" makes the API answer 503
+//   GET  /api/v1/payments/{id}           one of them with its card's expiry and its history; "down" is 503
+//   POST /api/v1/payments/{id}/capture   and /refund move it as the lifecycle allows, separately for each
+//                             token, so tests that sign in with their own token never see each other's
+//                             moves; a key sent again replays the first answer. A token that starts with
+//                             "stub-decline" has every move declined, "stub-acquirer-down" the network down
 
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
@@ -25,19 +30,111 @@ const problem = (status, code) => ({ type: "about:blank", title: code, status, c
 
 const statuses = ["authorized", "captured", "settled", "failed", "refunded", "pending"];
 const currencies = ["USD", "EUR", "JPY"];
+// How each status was reached, from creation, as the seeded demo walks it (DemoPayments.Build).
+const paths = {
+  pending: ["pending"],
+  authorized: ["pending", "authorized"],
+  captured: ["pending", "authorized", "captured"],
+  settled: ["pending", "authorized", "captured", "settled"],
+  failed: ["pending", "failed"],
+  refunded: ["pending", "authorized", "captured", "refunded"],
+};
+const user = { kind: "merchant_user", id: "019a2c00-0000-7000-8000-0000000000d2" };
+const settlement = { kind: "system", id: "settlement" };
+const moves = {
+  capture: { from: ["authorized"], to: "captured" },
+  refund: { from: ["captured", "settled"], to: "refunded" },
+};
+
+// Each change to a payment comes this long after the one before it.
+const step = 20 * 60_000;
+const after = (iso, steps) => new Date(Date.parse(iso) + steps * step).toISOString();
+
 const payments = Array.from({ length: 30 }, (_, index) => {
   const created = new Date(Date.UTC(2026, 9, 29, 12) - index * 3_600_000).toISOString();
+  const status = statuses[index % statuses.length];
   return {
     id: `019a2c00-0000-7000-8000-${String(2000 + index).padStart(12, "0")}`,
-    status: statuses[index % statuses.length],
+    status,
     amount_minor: currencies[index % 3] === "JPY" ? 7600 + index : 1000 + index * 125,
     currency: currencies[index % 3],
     merchant_reference: `INV-${3000 + index}`,
     card: { brand: index % 2 ? "mastercard" : "visa", last4: index % 2 ? "4444" : "4242" },
     created_at: created,
-    updated_at: created,
+    updated_at: after(created, paths[status].length - 1),
   };
 });
+
+// Per token: the payments it has moved, by id, and its answers, by idempotency key.
+const sessions = new Map();
+function stateOf(token) {
+  if (!sessions.has(token)) sessions.set(token, { moved: new Map(), answers: new Map() });
+  return sessions.get(token);
+}
+
+// A payment as this token sees it: its status and last change after the token's own moves.
+function asMovedBy(payment, token) {
+  const moved = stateOf(token).moved.get(payment.id);
+  return moved
+    ? { ...payment, status: moved.status, updated_at: moved.history.at(-1).occurred_at }
+    : payment;
+}
+
+function detailOf(payment, token) {
+  const moved = stateOf(token).moved.get(payment.id);
+  const steps = paths[payment.status];
+  const history = steps.map((to, index) => ({
+    from: index ? steps[index - 1] : null,
+    to,
+    actor: to === "settled" ? settlement : user,
+    occurred_at: after(payment.created_at, index),
+    reason: to === "failed" ? "card_declined" : null,
+    correlation_id: to === "settled" ? null : `0af7651916cd43dd8448eb211c80319${index}`,
+  }));
+  const authorized = steps.includes("authorized");
+  return {
+    ...asMovedBy(payment, token),
+    card: { ...payment.card, exp_month: 12, exp_year: 2028 },
+    authorization_reference: authorized ? `sim_auth_${payment.id.replaceAll("-", "")}` : null,
+    failure_reason: payment.status === "failed" ? "card_declined" : null,
+    history: [...history, ...(moved?.history ?? [])],
+  };
+}
+
+function movePayment(payment, operation, request, token, response) {
+  const key = request.headers["idempotency-key"];
+  if (!key) return send(response, 400, problem(400, "idempotency_key_required"));
+  const state = stateOf(token);
+  const replay = state.answers.get(`${payment.id}/${operation}/${key}`);
+  if (replay) return send(response, 200, replay, { "idempotent-replayed": "true" });
+
+  const detail = detailOf(payment, token);
+  const { from, to } = moves[operation];
+  if (!from.includes(detail.status)) {
+    const code = operation === "capture" ? "payment_not_capturable" : "payment_not_refundable";
+    return send(response, 409, problem(409, code));
+  }
+  if (token.startsWith("stub-decline")) {
+    return send(response, 422, problem(422, `${operation}_declined`));
+  }
+  if (token.startsWith("stub-acquirer-down")) {
+    return send(response, 503, problem(503, "acquirer_unavailable"), { "retry-after": "5" });
+  }
+
+  const earlier = state.moved.get(payment.id)?.history ?? [];
+  const change = {
+    from: detail.status,
+    to,
+    actor: user,
+    occurred_at: new Date().toISOString(),
+    reason: null,
+    correlation_id: randomUUID().replaceAll("-", ""),
+  };
+  state.moved.set(payment.id, { status: to, history: [...earlier, change] });
+  const answer = detailOf(payment, token);
+  state.answers.set(`${payment.id}/${operation}/${key}`, answer);
+  send(response, 200, answer);
+}
 
 function listPayments(url, token, response) {
   if (token === "down") return send(response, 503, problem(503, "service_unavailable"));
@@ -47,12 +144,14 @@ function listPayments(url, token, response) {
   const matching =
     token === "empty"
       ? []
-      : payments.filter(
-          (payment) =>
-            (!wanted.length || wanted.includes(payment.status)) &&
-            (!currency || payment.currency === currency) &&
-            (!reference || payment.merchant_reference.startsWith(reference)),
-        );
+      : payments
+          .map((payment) => asMovedBy(payment, token))
+          .filter(
+            (payment) =>
+              (!wanted.length || wanted.includes(payment.status)) &&
+              (!currency || payment.currency === currency) &&
+              (!reference || payment.merchant_reference.startsWith(reference)),
+          );
   const start = Number(url.searchParams.get("cursor") ?? 0);
   const page = matching.slice(start, start + 25);
   const next = start + 25 < matching.length ? String(start + 25) : null;
@@ -91,6 +190,17 @@ createServer((request, response) => {
   if (request.method === "GET" && url.pathname === "/api/v1/payments") {
     if (token === "expired" || !token) return send(response, 401, problem(401, "token_expired"));
     return listPayments(url, token, response);
+  }
+
+  const one = url.pathname.match(/^\/api\/v1\/payments\/([0-9a-f-]{36})(?:\/(capture|refund))?$/);
+  if (one && (request.method === "GET" ? !one[2] : request.method === "POST" && one[2])) {
+    if (token === "expired" || !token) return send(response, 401, problem(401, "token_expired"));
+    if (token === "down") return send(response, 503, problem(503, "service_unavailable"));
+    const payment = token === "empty" ? undefined : payments.find(({ id }) => id === one[1]);
+    if (!payment) return send(response, 404, problem(404, "not_found"));
+    return one[2]
+      ? movePayment(payment, one[2], request, token, response)
+      : send(response, 200, detailOf(payment, token));
   }
 
   if (request.method === "GET" && request.url === "/api/v1/me") {

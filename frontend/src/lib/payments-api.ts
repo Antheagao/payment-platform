@@ -112,3 +112,136 @@ function fieldErrors(body: unknown): Record<string, string[]> {
     ]),
   );
 }
+
+export type PaymentHistoryEntry = {
+  from: PaymentStatus | null;
+  to: PaymentStatus;
+  actor: { kind: "merchant_user" | "system"; id: string };
+  occurredAt: string;
+  reason: string | null;
+  correlationId: string | null;
+};
+
+export type PaymentDetail = Omit<PaymentSummary, "card"> & {
+  card: { brand: CardBrand; last4: string; expMonth: number; expYear: number };
+  authorizationReference: string | null;
+  failureReason: string | null;
+  history: PaymentHistoryEntry[];
+};
+
+type ApiDetail = Omit<ApiSummary, "card"> & {
+  card: { brand: CardBrand; last4: string; exp_month: number; exp_year: number };
+  authorization_reference: string | null;
+  failure_reason: string | null;
+  history: {
+    from: PaymentStatus | null;
+    to: PaymentStatus;
+    actor: { kind: "merchant_user" | "system"; id: string };
+    occurred_at: string;
+    reason: string | null;
+    correlation_id: string | null;
+  }[];
+};
+
+function toDetail(payment: ApiDetail): PaymentDetail {
+  return {
+    id: payment.id,
+    status: payment.status,
+    amountMinor: payment.amount_minor,
+    currency: payment.currency,
+    merchantReference: payment.merchant_reference,
+    card: {
+      brand: payment.card.brand,
+      last4: payment.card.last4,
+      expMonth: payment.card.exp_month,
+      expYear: payment.card.exp_year,
+    },
+    authorizationReference: payment.authorization_reference,
+    failureReason: payment.failure_reason,
+    createdAt: payment.created_at,
+    updatedAt: payment.updated_at,
+    history: payment.history.map((entry) => ({
+      from: entry.from,
+      to: entry.to,
+      actor: entry.actor,
+      occurredAt: entry.occurred_at,
+      reason: entry.reason,
+      correlationId: entry.correlation_id,
+    })),
+  };
+}
+
+function isDetail(body: unknown): body is ApiDetail {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "id" in body &&
+    "history" in body &&
+    Array.isArray(body.history)
+  );
+}
+
+/** One of the merchant's payments with its history, or null when the merchant has none with that id. */
+export async function getPayment(id: string, returnTo: string): Promise<PaymentDetail | null> {
+  const token = await requireToken(returnTo);
+  let response: Response;
+  try {
+    response = await fetch(`${apiOrigin}/api/v1/payments/${encodeURIComponent(id)}`, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    });
+  } catch {
+    throw new PaymentsUnavailableError();
+  }
+
+  if (response.status === 401) signInAgain(returnTo);
+  if (response.status === 404) return null;
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok || !isDetail(body)) throw new PaymentsUnavailableError(response.status);
+  return toDetail(body);
+}
+
+export type MoveOperation = "capture" | "refund";
+
+export type MoveResult =
+  | { kind: "moved"; payment: PaymentDetail }
+  | { kind: "refused"; code: string; retryAfterSeconds?: number }
+  | { kind: "unavailable" };
+
+/**
+ * Captures or refunds a payment under `idempotencyKey`, so a resubmitted form replays the first answer
+ * instead of moving money twice (ADR 007). The card network's answer can take seconds, so it waits longer
+ * than a read.
+ */
+export async function movePayment(
+  id: string,
+  operation: MoveOperation,
+  idempotencyKey: string,
+  returnTo: string,
+): Promise<MoveResult> {
+  const token = await requireToken(returnTo);
+  let response: Response;
+  try {
+    response = await fetch(`${apiOrigin}/api/v1/payments/${encodeURIComponent(id)}/${operation}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "idempotency-key": idempotencyKey },
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    return { kind: "unavailable" };
+  }
+
+  if (response.status === 401) signInAgain(returnTo);
+  const body: unknown = await response.json().catch(() => null);
+  if (response.ok && isDetail(body)) return { kind: "moved", payment: toDetail(body) };
+  const code =
+    typeof body === "object" && body !== null && "code" in body && typeof body.code === "string"
+      ? body.code
+      : "unavailable";
+  const retryAfter = Number(response.headers.get("retry-after"));
+  return code === "unavailable"
+    ? { kind: "unavailable" }
+    : { kind: "refused", code, retryAfterSeconds: retryAfter > 0 ? retryAfter : undefined };
+}

@@ -7,24 +7,23 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), and the dashboard's sign-in (T26), and the payments list (T27) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), and the payment detail (T28) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T28. Payment detail
+### T26b. Client address and the operator view
 
-R13: `/payments/{id}`, a payment's amounts, card, status, and its audit timeline from `GET /api/v1/payments/{id}`, linked from every row of the list.
-- **The page.** The amount and status at the top; the card (brand, last four, expiry), the merchant reference, the authorization reference, the failure reason when it failed; the history as an ordered timeline, oldest first: each change's from and to statuses, who made it (the merchant user or the `system` job by name), when (UTC), and its correlation id, so a support question can be traced in the logs.
-- **Actions.** Capture an authorized payment and refund a captured or settled one from the page, through Server Actions that send an `Idempotency-Key` made for each submission (a resubmission of the same form reuses it), show the API's codes (`payment_not_capturable`, `capture_declined`, `acquirer_unavailable` with its retry) as messages, and confirm before a refund.
-- **States.** `not-found.tsx` for an id that is not the merchant's (the API's `404`), `error.tsx` for the API down, an ended session sent to sign in and back.
-- Gate: Vitest for the timeline's wording and the action's code mapping; Playwright against the stub (which gains a payment, its history, and the two moves) for the page, capture, refund with its confirmation, the refused move, the 404, and 360px; the browser walk-through on the composed stack with `INV-1004` (the whole lifecycle) and `INV-1025`; `docs/images/` remade with a detail screenshot; `docs/demo.md` opens a payment.
+The dashboard is the API's only browser-facing caller, so today every sign-in reaches the API from the dashboard's address and the per-address login limit is one limit for everyone (docs/tradeoffs.md); and the service status panel shows merchants the platform's internals.
+- **Client address.** The dashboard's server sends the browser's address as `X-Forwarded-For` on sign-in; the API's forwarded-headers middleware trusts it only from the dashboard's known network (compose's network locally, the dashboard's subnet in the Bicep), and the per-address limit keys on it. First check what address Next.js 16 gives a Server Action behind compose (the socket's, or a header it sets), from the running stack, not the docs alone.
+- **Operator view.** A role on the merchant user (`merchant` or `operator`) carried in the token; the service status panel on the home page for operators only; a merchant sees one "payments are delayed" banner when the API reports not ready, and nothing about the database or the worker.
+- Fold in the dead-letter replay below, which needs the operator role.
+- Gate: integration tests for a trusted and an untrusted `X-Forwarded-For` (a spoofed header from outside the known network keys on the real address), the per-address limit for two forwarded addresses, the role in the token and the replay's authorization; Vitest for the banner; Playwright against the stub for both roles; the browser walk-through on the composed stack signed in as each role; `docs/demo.md` and the images updated where the home page changes.
 
 ### Then
 
-- **T26b. Client address and the operator view.** The dashboard forwards the browser's address (`X-Forwarded-For`, trusted by the API only from the dashboard's network), so the per-address login limit applies per person; the service status panel moves behind an operator role, and merchants get a single "payments are delayed" banner (docs/tradeoffs.md).
 - Every feature row also updates `docs/demo.md` with the step that shows it, verified against the composed stack, and a row that changes what a page shows remakes `docs/images/` with `node scripts/capture-screenshots.mjs`.
 - **T29. End-to-end golden path.** Playwright: log in, find a payment, open its timeline; CI job against the composed stack.
 - **T30. Documentation complete.** Tradeoffs, assumptions, production considerations, and future improvements rewritten against what was actually built.
@@ -32,9 +31,9 @@ R13: `/payments/{id}`, a payment's amounts, card, status, and its audit timeline
 
 ## Smaller items to fold in
 
-- A replay for dead-lettered webhook deliveries (ADR 003): `POST` on a delivery that puts it back to `Pending` with its attempts reset, for an operator role; fold into T26b, which brings roles to the dashboard (the `webhook.deliveries.dead_lettered` gauge already counts what it would replay).
+- A replay for dead-lettered webhook deliveries (ADR 003): `POST` on a delivery that puts it back to `Pending` with its attempts reset, for an operator role; fold into T26b, which brings roles to the API and the dashboard (the `webhook.deliveries.dead_lettered` gauge already counts what it would replay).
 - Integration tests: migrate one template database per run and copy it for each test class (a backup and restore, or `CREATE DATABASE ... AS SNAPSHOT` where the edition allows), instead of migrating 30-odd databases; the per-class setup is now about 3.5 s and the suite about 60 s, and it grows with every migration.
-- OpenTelemetry in the dashboard (`instrumentation.ts`) so traces start at the dashboard's server; fold into T28, whose data reads and moves would show in the trace.
+- OpenTelemetry in the dashboard (`instrumentation.ts`) so traces start at the dashboard's server, and a capture from a payment's page is one trace from the click to the webhook; fold into T29, which runs on the composed stack where that trace can be checked in Aspire (T28 left it out to keep its scope to the page).
 - Update this machine's .NET SDK past 10.0.101: CI runs 10.0.403, whose analyzers caught an unused using the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]
 - Five Dependabot pull requests (#1 to #5) from the first scan: #2 groups minor and patch bumps and can merge once CI is green; #1, #3, #4, and #5 are majors the new ignore rules now hold back. [USER-GATED: merging or closing them is the owner's call.]
 

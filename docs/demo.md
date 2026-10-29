@@ -51,6 +51,20 @@ Select **View payments** (or **Payments** in the header): the 280 sample payment
 
 ![The payments list at phone width in the dark scheme](images/dashboard-payments-mobile.png)
 
+Open a payment from its row: under **Filters**, type `INV-1004` in **Reference**, apply, and select the row.
+Its page shows the amount, the status and what it means, the card (brand, last four, expiry), and the authorization reference, then its history, oldest first.
+
+![INV-1004's page: its details beside a timeline of five changes, from created as pending to refunded](images/dashboard-payment-detail.png)
+
+- Each change names its two statuses, who made it (a merchant user, or the `settlement` job by name), when in UTC, and its correlation id, the value to search for in the Aspire logs.
+- Open `INV-1025` the same way: it is authorized, so the page offers **Capture €142.00**.
+  Capture it, and the page says so and shows the new step; **Refund…** then asks once more before **Refund €142.00** sends it back.
+  Each move sends its own `Idempotency-Key`, so a form sent twice moves the money once ([ADR 007](decisions/007-idempotency-keys.md)), and the receiver at `http://localhost:8090/events` gets the signed `payment.captured` and `payment.refunded` webhooks a moment later.
+- A refusal from the API is said in words and changes nothing.
+  Open an authorized payment in two tabs and capture it in one: **Capture** in the other reads "This payment can no longer be captured: it is not authorized any more."
+  A card network that does not answer is "try again in 5 seconds", from the API's `Retry-After`.
+- An id that is not one of the merchant's, another merchant's included, is **Payment not found**, the same answer either way.
+
 **The point:** the dashboard is accessible and responsive, shows the running system honestly, and keeps the session out of reach of script in the browser.
 
 ## 3. Errors are a contract
@@ -282,7 +296,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-366 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+547 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.
@@ -296,7 +310,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 ## 9. Where it goes next
 
 - A replay for dead-lettered deliveries, and alert rules on the queue gauges.
-- A payment's own page with its timeline (T28), and the status panel behind an operator role (T26b).
+- The status panel behind an operator role, with a single "payments are delayed" banner for merchants (T26b).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 
 ## Remake the images

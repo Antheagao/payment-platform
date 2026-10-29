@@ -32,6 +32,7 @@ The decision records in [decisions/](decisions/README.md) carry the full reasoni
 | **Tokenizing test card numbers at the API edge** ([assumption 5](assumptions.md)) | Keeping the API out of PCI scope entirely | Production: hosted payment fields move tokenization into the browser and out of our systems |
 | **Public, local-only database passwords as compose defaults** | The rule that no password ever appears in a repository | Never for Azure, which has no passwords: the services use Entra managed identities; locally every port binds to 127.0.0.1 |
 | **Every dashboard page rendered per request, for a nonce-based Content-Security-Policy** ([ADR 009](decisions/009-strict-csp-with-per-request-rendering.md)) | Prerendered shells: a server render per page view, and HTML a CDN cannot cache | Next.js gives prerendered pages a policy that does not need `'unsafe-inline'` (its experimental Subresource Integrity covers the script files, not the inline data) |
+| **A payment that is not found answers `200`, marked `noindex`** | The `404` status: every page streams (ADR 009), so the status is sent before the payment is read; the redirect to sign in an ended session also happens in the browser rather than as a `307` | A client of the dashboard reads its statuses; nothing does today, and the API itself answers `404` |
 
 ## Operations and tooling
 
