@@ -69,6 +69,11 @@ internal sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<We
         builder.HasIndex(delivery => delivery.NextAttemptAt)
             .HasFilter("[Status] = 'Pending'")
             .HasDatabaseName("IX_WebhookDeliveries_Due");
+
+        // The dead letters an operator has yet to replay: counted for the queue metrics, and few.
+        builder.HasIndex(delivery => delivery.Id)
+            .HasFilter("[Status] = 'DeadLettered'")
+            .HasDatabaseName("IX_WebhookDeliveries_DeadLettered");
         builder.Property(delivery => delivery.Status).HasConversion<string>().HasMaxLength(20).IsUnicode(false);
         builder.Property(delivery => delivery.LastError).HasMaxLength(WebhookDelivery.LastErrorMaxLength);
 

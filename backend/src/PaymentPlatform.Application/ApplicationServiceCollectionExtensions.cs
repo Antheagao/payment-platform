@@ -51,6 +51,8 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddSingleton(Random.Shared);
         HttpWebhookSender.AddTo(services);
         services.AddScoped<DeliverWebhooks>();
+        services.AddSingleton<QueueMetrics>();
+        services.AddScoped<MeasureQueues>();
         services.AddOptions<SettlementOptions>()
             .BindConfiguration(SettlementOptions.Section)
             .ValidateDataAnnotations()

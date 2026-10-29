@@ -67,7 +67,7 @@ A third request the same day added:
   `frontend/Dockerfile` builds the standalone server onto distroless Node 22 (non-root); compose serves it on `http://localhost:3080`.
   Tests: Vitest 5 with Testing Library, 30 tests in 7 files beside the code (both probes with a stubbed fetch, the service tiles for every outage, `LiveUpdates` on fake timers, `Badge`, the lifecycle legend, the status table, `classNames`); Playwright, 8 golden-path checks on the production build at 1440 and 360 (16 runs) on port 3090, its own so a running compose dashboard is never reused in its place: the legend, the API-down badge, the three tiles with both services down, pause and resume, the skip link, security headers, no sideways scroll, the 404 page.
 - **CI** (`.github/`): `ci.yml` with six jobs (backend: locked and audited restore, format, Release build, every test project including the SQL Server integration tests; frontend: typecheck, lint, format, Vitest, build, `npm audit`; e2e: Playwright; repository: docs links and contrast; infra: Bicep build, lint, parameters; stack: the README's one command on a clean runner with no `.env`, then `scripts/check-stack.sh`), `codeql.yml` (C# and TypeScript, `security-extended`, weekly too), and `dependabot.yml` (NuGet, npm, Actions, Docker, compose; minor and patch grouped; deliberate majors ignored).
-  Green on `aa0455b` (run 40833872108): all six jobs; CodeQL green on the same push.
+  Green on `eab21d8` (run 40849386056): all six jobs; CodeQL green on the same push.
   Dependabot's first scan opened #1 to #5, still open for the owner (see Decisions pending).
 - **infra/** (validated, never deployed): `bicep/main.bicep` with modules for monitoring (Application Insights with local auth off), network (app and private-endpoint subnets), a reusable private endpoint with its DNS zone, Key Vault (RBAC, purge protection, private), Azure SQL (Entra-only, private, serverless `payments`), Service Bus (no shared keys, `payment-events` queue with duplicate detection, private when Premium), App Service (API, worker without inbound access, dashboard; managed identities, VNet integration, `/health/ready` probes), and role assignments; `main.bicepparam` reads the Entra group from the environment; `bicepconfig.json` makes the key linter rules errors; `sql/grant-app-identities.sql` and `README.md` describe what a deployment would add.
   The `infra` CI job runs `az bicep build`, `lint`, and `build-params`.
@@ -113,7 +113,7 @@ A third request the same day added:
 | T23b | Webhook endpoint API, and the SSRF rules for its URL | Done |
 | T23c | Signed webhook delivery, with retries, dead letters, and a local receiver | Done |
 | T24 | Settlement through a stored procedure, and moves that survive a concurrent change | Done |
-| T25 | Domain and queue metrics | Next |
+| T25 | Domain and queue metrics | In progress: checkpoint 2026-10-29, see `future.md` |
 
 The scaffold (T1 to T18) is complete; the payment slice (T19 to T31) is ranked in `future.md`.
 

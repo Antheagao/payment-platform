@@ -56,6 +56,12 @@ public sealed class PaymentEvent
 
     public string? CorrelationId { get; }
 
+    /// <summary>
+    /// Whether this row records something that happened now, rather than history loaded as data (the demo seed):
+    /// only news is counted in the <c>payments.transitions</c> metric. Not stored; set by <c>RecordChanges</c>.
+    /// </summary>
+    internal bool IsNews { get; set; }
+
     public static PaymentEvent From(PaymentStatusChanged change, string? correlationId)
     {
         ArgumentNullException.ThrowIfNull(change);

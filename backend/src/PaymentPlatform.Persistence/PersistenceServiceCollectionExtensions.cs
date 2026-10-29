@@ -34,7 +34,13 @@ public static class PersistenceServiceCollectionExtensions
                 $"ConnectionStrings:{ConnectionStringName} is not set; docker-compose.yml shows the local value.");
         }
 
-        services.AddDbContextPool<PaymentsDbContext>(options => Configure(options, connectionString));
+        services.AddSingleton<PaymentMetrics>();
+        services.AddSingleton<PaymentTransitionInterceptor>();
+        services.AddDbContextPool<PaymentsDbContext>((provider, options) =>
+        {
+            Configure(options, connectionString);
+            options.AddInterceptors(provider.GetRequiredService<PaymentTransitionInterceptor>());
+        });
 
         var probeOptions = new DbContextOptionsBuilder<PaymentsDbContext>();
         ConfigureProbe(probeOptions, connectionString);

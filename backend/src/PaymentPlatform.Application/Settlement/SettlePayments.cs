@@ -36,7 +36,7 @@ public sealed class SettlementTotal
 /// batch's correlation id and this run's trace, so their webhooks join the settlement's trace.
 /// </summary>
 public sealed partial class SettlePayments(
-    PaymentsDbContext db, IOptions<SettlementOptions> options, TimeProvider timeProvider, ILogger<SettlePayments> logger)
+    PaymentsDbContext db, PaymentMetrics metrics, IOptions<SettlementOptions> options, TimeProvider timeProvider, ILogger<SettlePayments> logger)
 {
     /// <summary>Settles one batch and returns its totals per currency; an empty list when nothing was due.</summary>
     public async Task<IReadOnlyList<SettlementTotal>> HandleAsync(CancellationToken cancellationToken)
@@ -55,6 +55,9 @@ public sealed partial class SettlePayments(
         {
             LogSettled(logger, total.Payments, total.Currency, total.AmountMinor, correlationId);
         }
+
+        // The procedure writes past EF Core, so its transitions are counted here rather than by the save interceptor.
+        metrics.RecordTransitions(Domain.Payments.PaymentStatus.Captured, Domain.Payments.PaymentStatus.Settled, CountOf(totals));
 
         return totals;
     }

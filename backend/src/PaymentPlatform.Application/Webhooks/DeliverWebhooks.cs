@@ -24,6 +24,7 @@ public sealed partial class DeliverWebhooks(
     PaymentsDbContext db,
     IServiceScopeFactory scopes,
     IWebhookSender sender,
+    QueueMetrics metrics,
     TimeProvider timeProvider,
     Random random,
     ILogger<DeliverWebhooks> logger)
@@ -159,6 +160,13 @@ public sealed partial class DeliverWebhooks(
             LogLeaseLost(logger, item.EventId, item.DeliveryId);
             return;
         }
+
+        metrics.RecordAttempt(delivery.Status switch
+        {
+            WebhookDeliveryStatus.Delivered => "delivered",
+            WebhookDeliveryStatus.DeadLettered => "dead_lettered",
+            _ => "retried",
+        });
 
         // The host only, as everywhere: the URL's path or query can hold a merchant's own token.
         var host = url.IdnHost;

@@ -429,6 +429,10 @@ namespace PaymentPlatform.Persistence.Migrations
 
                     b.HasIndex("EndpointId");
 
+                    b.HasIndex("Id")
+                        .HasDatabaseName("IX_WebhookDeliveries_DeadLettered")
+                        .HasFilter("[Status] = 'DeadLettered'");
+
                     b.HasIndex("NextAttemptAt")
                         .HasDatabaseName("IX_WebhookDeliveries_Due")
                         .HasFilter("[Status] = 'Pending'");

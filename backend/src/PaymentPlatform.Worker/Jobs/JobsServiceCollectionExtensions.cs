@@ -16,6 +16,7 @@ public static class JobsServiceCollectionExtensions
         services.AddHostedService<DispatchOutboxJob>();
         services.AddHostedService<DeliverWebhooksJob>();
         services.AddHostedService<SettlePaymentsJob>();
+        services.AddHostedService<MeasureQueuesJob>();
         return services;
     }
 }

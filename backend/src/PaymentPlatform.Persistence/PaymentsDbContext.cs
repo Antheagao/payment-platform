@@ -50,7 +50,12 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
     {
         ArgumentNullException.ThrowIfNull(payment);
         var changes = payment.DequeueEvents();
-        var rows = changes.Select(change => PaymentEvent.From(change, correlationId)).ToList();
+        var rows = changes.Select(change =>
+        {
+            var row = PaymentEvent.From(change, correlationId);
+            row.IsNews = publish;
+            return row;
+        }).ToList();
         PaymentEvents.AddRange(rows);
         if (publish)
         {
