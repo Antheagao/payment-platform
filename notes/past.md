@@ -220,3 +220,15 @@ Update this file when a task lands; keep the present and future notes in sync.
   - The first probe after `docker compose stop sqlserver` takes the full 3 s deadline (the framework logs that timeout as "threw an unhandled exception"); later probes fail in about 2 s on the connect timeout.
 - Gate: docs, contrast; every image opened and checked; the stack was left running for the remaining checks and stopped at the end.
 
+## 2026-10-28: requirement statuses re-checked (T40)
+
+- The owner asked for the requirements table to be corrected and every requirement checked for correctness as the loop works through them; this batch re-checked the three rows the comparison had flagged against the code, not the docs.
+- `backend: leave health probes out of the request metrics, and test the RED signals`:
+  - R18 (RED) was wired but untested, and wrong in one way: readiness and liveness probes were counted in `http.server.request.duration`, so the database outage showed in the Aspire dashboard as a run of 503s in the API's request metrics (the `error.type` 503 filter in the T39 screenshot). Both health endpoints now call `DisableHttpMetrics()`.
+  - `Telemetry/RequestMetricsTests` adds an in-memory exporter to the API's own OpenTelemetry pipeline (`OpenTelemetry.Exporter.InMemory` 1.20.1) and asserts 404s and 405s are recorded with status and duration, and that probes are not; the probe test failed before the fix.
+  - In compose, after a minute's export, Aspire's `http.server.request.duration` lists only the 404s and `/openapi/{documentName}.json`, with no health route, despite probes every 5 s.
+- R22 (the tracing story) is Done: ADR 005, the architecture's trace-continuity section, and production.md's sampling already tell it. R16 (log levels) is Scaffolded: the policy, the framework categories at `Warning`, `LoggerMessage` messages, and the healthy-start test exist; the business events arrive with T20 and T21.
+- The logging overlay's known gaps were stale (problem details, SQL client spans, and worker job spans exist); they now list what is actually missing. ADR 005 gains an amendment for the probe exclusion.
+- Lesson: OpenTelemetry's meter listener is process-wide, so an in-memory exporter in one `WebApplicationFactory` also sees the requests of test classes running in parallel; the first run counted three 404s for two. The tests assert lower bounds and absence by route.
+- Gate: locked restore, format, Release build, 174 tests green three runs in a row; docs.
+

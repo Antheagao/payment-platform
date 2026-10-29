@@ -33,13 +33,13 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 | --- | --- | --- | --- | --- |
 | R14 | Structured (JSON) logs | JSON console formatter with scopes in `PaymentPlatform.ServiceDefaults` | T5 | Done |
 | R15 | A correlation id carried from the API through the async workflow | `CorrelationIdMiddleware` (`X-Correlation-Id`); the id and W3C trace context stored on each outbox row | T5, T23 | Scaffolded |
-| R16 | Log levels used deliberately | `payment-platform-error-handling-logging` overlay | T5 | Planned |
+| R16 | Log levels used deliberately | The policy in [ADR 005](decisions/005-observability-on-opentelemetry.md) (`Error` needs a person, `Warning` is unexpected but handled, `Information` is a business event, `Debug` is off); framework categories at `Warning` in `appsettings.json`; every message through `LoggerMessage` at a chosen level; `StartupTests` asserts a healthy start logs nothing at `Warning` or above. Done once the payment flows log their business events (T20, T21) | T5, T20 | Scaffolded |
 | R17 | No card numbers, CVV, or secrets in logs | Tokenization at the edge, no body logging, a test that greps the captured logs | T5, T20 | Planned |
-| R18 | Request rate, error rate, and latency (RED) | ASP.NET Core and HttpClient OpenTelemetry meters | T5 | Planned |
+| R18 | Request rate, error rate, and latency (RED) | `http.server.request.duration` from the ASP.NET Core and HttpClient instrumentation: its count is the rate, `http.response.status_code` and `error.type` the errors, the histogram the latency; health probes are left out, as they are of the traces; `Telemetry/RequestMetricsTests` reads it back through the OpenTelemetry pipeline; charted in the Aspire dashboard | T5, T40 | Done |
 | R19 | Payments created, captured, refunded, and failed, by state | `PaymentPlatform.Payments` meter | T25 | Planned |
 | R20 | Queue depth, processing lag, retries, and failures for the async workflow | `PaymentPlatform.Outbox` meter | T25 | Planned |
 | R21 | A trace spanning the API request and the async work | `traceparent` persisted with the outbox row and restored by the worker | T23 | Planned |
-| R22 | A story for adopting distributed tracing in production | [ADR 005](decisions/005-observability-on-opentelemetry.md) | T2 | Planned |
+| R22 | A story for adopting distributed tracing in production | [ADR 005](decisions/005-observability-on-opentelemetry.md) (one vendor-neutral API, OTLP, the Aspire dashboard locally, the Azure Monitor distro in production), [architecture.md](architecture.md) trace continuity (the W3C `traceparent` stored on each outbox row and restored by the worker), [production.md](production.md) sampling | T2 | Done |
 | R23 | Health and readiness endpoints | `/health/live`, `/health/ready` on the API and the worker, integration-tested against live and dead databases | T5, T8, T9, T10 | Done |
 | R24 | An audit trail of every payment state change: who, when, from, to | `PaymentEvents` table written in the same transaction as the change | T20, T21 | Planned |
 | R25 | Consistent, structured error responses | RFC 9457 problem details with a stable `code`, [ADR 006](decisions/006-errors-as-problem-details.md); framework errors covered by integration tests | T8, T10 | Scaffolded |

@@ -5,6 +5,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
     <PackageReference Include="Testcontainers.MsSql" />
   </ItemGroup>
 

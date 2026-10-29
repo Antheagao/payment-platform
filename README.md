@@ -25,7 +25,7 @@ The payment features are next, in the order the exercise weighs them; [requireme
 | RFC 9457 problem details for every error | The transactional outbox, signed webhooks with retries and dead-lettering, settlement |
 | The worker's job runner, the simulated acquirer | Domain and queue metrics |
 | The dashboard: live status for the API, database, and worker, the lifecycle, accessible design tokens | Sign-in, the payments list, and the payment timeline |
-| 172 backend tests, 30 frontend unit tests, 16 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
+| 174 backend tests, 30 frontend unit tests, 16 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
 | One command to run it all, tested in CI on every push, and a [demo guide](docs/demo.md) | Sample data: a demo merchant and payments in every status, loaded on startup |
 
 ## Run it

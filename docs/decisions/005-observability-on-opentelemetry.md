@@ -37,3 +37,4 @@ The full stack is not expected, but the instrumentation seams and the production
 ## Amendments
 
 - 2026-10-28: the request id became the correlation id (`X-Correlation-Id`, `CorrelationId`), after the first run of the API showed ASP.NET Core already writes a `RequestId` into every log scope; two properties with one name would have made every log query ambiguous.
+- 2026-10-28: health probes are left out of the HTTP request metrics as they already were out of the traces (`DisableHttpMetrics()`), after the Aspire dashboard showed a database outage as a run of 503s in the API's request metrics; readiness is the signal for that, and probes arriving every few seconds from every load balancer would otherwise swamp the request rate.

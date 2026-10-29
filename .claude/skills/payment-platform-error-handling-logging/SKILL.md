@@ -11,7 +11,7 @@ ADR 005 (observability) and ADR 006 (problem details) come first; this file says
 ## What exists (`backend/src/PaymentPlatform.ServiceDefaults`)
 
 - `AddServiceDefaults()` clears the default providers and installs the JSON console formatter (UTC timestamps, scopes included) plus OpenTelemetry logging, with `TraceId`, `SpanId`, and `ParentId` added to every scope.
-- OpenTelemetry traces and metrics: every `ActivitySource` and `Meter` named `PaymentPlatform.*`, ASP.NET Core (health probes filtered out of traces), HttpClient, and runtime instrumentation; OTLP export only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+- OpenTelemetry traces and metrics: every `ActivitySource` and `Meter` named `PaymentPlatform.*`, ASP.NET Core (health probes left out of traces and, through `DisableHttpMetrics()`, out of `http.server.request.duration`), HttpClient, SQL client, and runtime instrumentation; OTLP export only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 - `UseCorrelationIds()` (`CorrelationIdMiddleware`, rules in `CorrelationIds`): keeps a caller's `X-Correlation-Id` of 1 to 64 characters from `[A-Za-z0-9-_.:]`, otherwise generates 32 hex characters; stores it for `HttpContext.GetCorrelationId()`, echoes the header, tags the span `correlation.id`, and opens a `CorrelationId` log scope.
   It must be the first middleware, so every later line carries the id.
   ASP.NET Core's own `RequestId` scope (connection id plus a counter) is a different thing and stays as it is; `CorrelationIds.BeginScope` is how the worker restores an id from an outbox row.
@@ -35,5 +35,7 @@ ADR 005 (observability) and ADR 006 (problem details) come first; this file says
 
 ## Known gaps
 
-- Problem details and the exception handler land with the API host (T8); the log-capture test for card data lands with T20.
-- SQL client instrumentation lands with Persistence (T6); worker job spans and the outbox trace hop with T9 and T23.
+- The log-capture test for card data lands with T20, and the business events logged at `Information` with T20 and T21.
+- The trace hop from a request to its outbox work (the stored `traceparent`) lands with T23; today API, SQL, and worker job spans are separate traces.
+- `PaymentPlatform.Payments` and `PaymentPlatform.Outbox` meters land with T25.
+- The health check service logs every unhealthy probe at `Error`, so an outage logs once per probe per instance; acceptable while alerting keys on readiness, revisit when alerts are wired (production.md).

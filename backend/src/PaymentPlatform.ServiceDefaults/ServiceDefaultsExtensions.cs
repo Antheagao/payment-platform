@@ -50,16 +50,19 @@ public static class ServiceDefaultsExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
 
         // MapHealthChecks answers every method; probes only GET or HEAD, so anything else is a 405.
+        // Probes are also left out of http.server.request.duration, as they are out of the traces: they
+        // arrive every few seconds from every load balancer, so counted they would swamp the request rate,
+        // and a database outage would show up as a wall of 503s in the API's error rate.
         string[] probeMethods = [HttpMethods.Get, HttpMethods.Head];
         endpoints.MapHealthChecks(LivenessPath, new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains(LiveTag),
             ResponseWriter = HealthResponseWriter.WriteAsync,
-        }).WithMetadata(new HttpMethodMetadata(probeMethods));
+        }).WithMetadata(new HttpMethodMetadata(probeMethods)).DisableHttpMetrics();
         endpoints.MapHealthChecks(ReadinessPath, new HealthCheckOptions
         {
             ResponseWriter = HealthResponseWriter.WriteAsync,
-        }).WithMetadata(new HttpMethodMetadata(probeMethods));
+        }).WithMetadata(new HttpMethodMetadata(probeMethods)).DisableHttpMetrics();
         return endpoints;
     }
 

@@ -30,6 +30,15 @@
           "Microsoft.Extensions.Telemetry.Abstractions": "10.11.0"
         }
       },
+      "OpenTelemetry.Exporter.InMemory": {
+        "type": "Direct",
+        "requested": "[1.20.1, )",
+        "resolved": "1.20.1",
+        "contentHash": "mjK/0K+cHh04GAnYWiwohu4JWKuSv44Itvt+VyW+31czYVJfcfQCc4VZVY4+gMOqox3NweUInsuJmCr0mHwzXg==",
+        "dependencies": {
+          "OpenTelemetry": "1.20.1"
+        }
+      },
       "Testcontainers.MsSql": {
         "type": "Direct",
         "requested": "[4.16.0, )",

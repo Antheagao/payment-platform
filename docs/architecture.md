@@ -124,7 +124,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Logs | JSON lines with timestamp, level, category, message template, and scope properties: `CorrelationId`, `TraceId`, `SpanId`, `MerchantId`, `PaymentId` (PascalCase, the .NET logging convention) | Console (collected by the platform) and OTLP |
 | Traces | ASP.NET Core, HttpClient, and SQL client spans, plus custom spans for the acquirer call and each worker job run | OTLP |
-| Metrics | RED metrics from the ASP.NET Core and HttpClient meters; `PaymentPlatform.Payments` (transitions by state); `PaymentPlatform.Outbox` (depth, oldest pending age, retries, dead letters) | OTLP |
+| Metrics | RED metrics from the ASP.NET Core and HttpClient meters (health probes excluded); `PaymentPlatform.Payments` (transitions by state); `PaymentPlatform.Outbox` (depth, oldest pending age, retries, dead letters) | OTLP |
 | Health | `/health/live` (the process answers) and `/health/ready` (the database answers and the schema is current) on the API and the worker | Load balancer and orchestrator probes |
 | Audit | One `PaymentEvents` row per transition: actor, time, from, to, correlation id | SQL Server, shown on the dashboard's payment page |
 
