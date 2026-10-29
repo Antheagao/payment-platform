@@ -20,11 +20,17 @@ CI runs exactly these two commands on a clean runner on every push (the `stack` 
 
 ## 2. The merchant dashboard
 
-Open <http://localhost:3080>.
+Open <http://localhost:3080>: with no session, it sends you to the sign-in page.
+
+![The dashboard's sign-in page, showing the local demo login](images/dashboard-login.png)
+
+Sign in with `demo@example.com` and `LocalOnly_Demo_2026!` (the page shows them, because compose turns the hint on).
+A wrong password says so and keeps the email; the sixth attempt for one email within five minutes is refused with how long to wait.
+The dashboard's server made the call and keeps the token in an `HttpOnly` cookie: in the browser's developer tools, `document.cookie` does not show it, and no request from the page goes to the API.
 
 ![The merchant dashboard with all three services ready](images/dashboard-light.png)
 
-- The badge in the header reads **API ready**.
+- The header names the merchant and offers **Sign out**; the badge beside it reads **API ready**.
   The dashboard's server asked the API's readiness probe; the browser never talks to the API and never sees its address or a token ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)).
 - **Service status** has a tile for the payments API, its database as the API reports it, and the background worker, each with its readiness and a measured time: the round trip from the dashboard's server, or the API's own connection and migration check.
   It asks again every 5 seconds while the tab is visible; **Pause** stops it, because content that updates itself must be stoppable (WCAG 2.2.2).
@@ -32,7 +38,9 @@ Open <http://localhost:3080>.
   It mirrors `PaymentLifecycle` in the domain project, where every one of the 36 status pairs is tested.
 - Switch the operating system between light and dark, or narrow the window to a phone's width: the design tokens follow, and a script checks their contrast in CI, including that no status pill reads louder than another.
 
-**The point:** the shell is accessible and responsive before any feature lands on it, and it already shows the running system honestly.
+- Every response carries a Content-Security-Policy with a nonce made for that request, and only scripts with it run: in the developer tools, each `<script>` has a `nonce` that changes on every reload ([ADR 009](decisions/009-strict-csp-with-per-request-rendering.md)).
+
+**The point:** the dashboard is accessible and responsive, shows the running system honestly, and keeps the session out of reach of script in the browser.
 
 ## 3. Errors are a contract
 
@@ -277,7 +285,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 ## 9. Where it goes next
 
 - A replay for dead-lettered deliveries, and alert rules on the queue gauges.
-- The dashboard's sign-in and the payment pages that show the sample data and a payment's timeline (T26 to T28).
+- The payment pages that show the sample data and a payment's timeline (T27, T28), and the status panel behind an operator role (T26b).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 
 ## Remake the images

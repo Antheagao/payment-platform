@@ -15,22 +15,22 @@ Every state change is audited, every money-moving call is idempotent, and a sing
 
 ## Status
 
-The foundation is complete: every component exists, runs, is observable, and is covered by the gates CI runs.
-The payment features are next, in the order the exercise weighs them; [requirements.md](docs/requirements.md) shows each requirement's status, and [`notes/future.md`](notes/future.md) is the ranked plan.
+The backend is complete against the exercise's requirements, and the dashboard signs merchants in; the dashboard's payment pages are next.
+[requirements.md](docs/requirements.md) shows each requirement's status, and [`notes/future.md`](notes/future.md) is the ranked plan.
 
 | Built | Planned next |
 | --- | --- |
-| The payment lifecycle state machine with every transition tested | Domain and queue metrics |
-| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | The transactional outbox and signed webhooks |
-| Capture and refund, checked against the lifecycle before the card network is called, racing requests settled by the row version | Settlement |
-| List and search: keyset pages and filters by status, date, amount, currency, and reference | Dashboard sign-in and payment pages |
-| Merchant login: 30-minute HS256 tokens, rate limits, and a seeded demo login | Dashboard sign-in |
-| JSON logs, OpenTelemetry traces and metrics, correlation ids, health and readiness probes | Payment metrics by state |
-| RFC 9457 problem details for every error | The transactional outbox, signed webhooks with retries and dead-lettering, settlement |
-| The worker's job runner, the simulated acquirer | Queue metrics |
-| The dashboard: live status for the API, database, and worker, the lifecycle, accessible design tokens | End-to-end golden path through the dashboard |
-| 366 backend tests, 30 frontend unit tests, 16 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
-| One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | Load test |
+| The payment lifecycle state machine with every transition tested | The dashboard's payments list, with filters and paging |
+| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | A payment's detail page with its audit timeline |
+| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile | The service status behind an operator role, and the client's address forwarded to the API |
+| List and search: keyset pages and filters by status, date, amount, currency, and reference | An end-to-end golden path through the composed stack |
+| A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | A load test |
+| Settlement through a T-SQL stored procedure, every minute in compose | The documentation rewritten against what was built |
+| Merchant login with 30-minute HS256 tokens and rate limits; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy | |
+| JSON logs, OpenTelemetry traces from the request through the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes | |
+| RFC 9457 problem details for every error | |
+| 547 backend tests, 72 frontend unit tests, 34 browser runs, CI, CodeQL, containers, Bicep | |
+| One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
 
 ## Run it
 

@@ -4,7 +4,7 @@ import "server-only";
 import { connection } from "next/server";
 import { cache } from "react";
 
-const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:5080";
+export const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:5080";
 const workerOrigin = process.env.WORKER_ORIGIN ?? "http://localhost:5081";
 
 /** What a readiness probe says: serving, up but not ready, or not answering at all. */

@@ -24,7 +24,7 @@ export function buttonClasses({
   className,
 }: ButtonStyle = {}): string {
   return classNames(
-    "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+    "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-60",
     variantClasses[variant],
     sizeClasses[size],
     className,

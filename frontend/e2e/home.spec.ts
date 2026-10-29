@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("dashboard shell", () => {
+  // Signed in as the stub's demo user: the proxy lets a session cookie through, and the header asks /me.
+  test.beforeEach(async ({ context, baseURL }) => {
+    await context.addCookies([{ name: "pp_session", value: "stub-e2e", url: baseURL! }]);
+  });
+
   test("renders the heading and the full lifecycle legend", async ({ page }) => {
     await page.goto("/");
 
@@ -11,7 +16,8 @@ test.describe("dashboard shell", () => {
     }
   });
 
-  test("says plainly when the API cannot be reached", async ({ page }) => {
+  test("says plainly in the header when the API cannot be reached", async ({ page, isMobile }) => {
+    test.skip(isMobile, "below sm the header leaves the API to the status panel, checked next");
     await page.goto("/");
 
     await expect(page.getByRole("status")).toHaveText("API unreachable");
@@ -62,6 +68,9 @@ test.describe("dashboard shell", () => {
     expect(headers["x-frame-options"]).toBe("DENY");
     expect(headers["x-content-type-options"]).toBe("nosniff");
     expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(headers["content-security-policy"]).toMatch(
+      /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
+    );
     expect(headers["x-powered-by"]).toBeUndefined();
   });
 

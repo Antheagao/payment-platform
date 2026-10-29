@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.Metrics.Testing;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using PaymentPlatform.Application;
 using PaymentPlatform.Application.Cards;
@@ -295,6 +296,31 @@ public sealed class DeliveryTests(SqlServerFixture sqlServer) : ApiTestBase(sqlS
         var request = Assert.Single(_receiver.Requests);
         Assert.Equal(message.EventId.ToString(), request.Id);
         Assert.Equal(WebhookSignature.Sign(WebhookSecrets.KeyOf(rotated)!, request.Id, request.Timestamp, request.Body), request.Signature);
+    }
+
+    [Fact]
+    public async Task A_dead_letter_that_needs_an_operator_is_an_error_and_one_the_merchant_caused_is_a_warning()
+    {
+        var logged = LogCapture.Attach(Api);
+        // Two merchants: a 410 disables its endpoint, which would dead-letter the other delivery too if they shared one.
+        var (failing, _) = await MerchantWithEndpointAsync("levels-failing@example.com");
+        var (gone, _) = await MerchantWithEndpointAsync("levels-gone@example.com");
+        var messages = (await SeedDeliveriesAsync(failing, count: 1)).Concat(await SeedDeliveriesAsync(gone, count: 1)).ToList();
+        _receiver.Answer = request =>
+            request.Id == messages[0].EventId.ToString() ? new WebhookAttempt(500, "HTTP 500") : new WebhookAttempt(410, "HTTP 410");
+
+        for (var attempt = 1; attempt <= WebhookRetrySchedule.MaxAttempts; attempt++)
+        {
+            await using var scope = logged.Services.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<DeliverWebhooks>().HandleAsync(Cancellation);
+            _clock.Advance(TimeSpan.FromHours(1));
+        }
+
+        var records = logged.Services.GetFakeLogCollector().GetSnapshot()
+            .Where(record => record.Category == typeof(DeliverWebhooks).FullName && record.Message.Contains("dead-lettered", StringComparison.Ordinal))
+            .ToList();
+        Assert.Equal(LogLevel.Error, Assert.Single(records, record => record.Message.Contains(messages[0].EventId.ToString(), StringComparison.Ordinal)).Level);
+        Assert.Equal(LogLevel.Warning, Assert.Single(records, record => record.Message.Contains(messages[1].EventId.ToString(), StringComparison.Ordinal)).Level);
     }
 
     [Fact]

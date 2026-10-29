@@ -359,3 +359,15 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Found on the way: the "reports nothing before it measures" assertion first passed under its mutation, because the gauges' singleton had not been made yet; the test now makes it first.
 - Found on the way: Aspire draws a counter's not-yet-exported interval as a fall to zero, which reads as a counter going backwards; the new `docs/images/aspire-webhook-metrics.png` shows the table instead.
 - Checked on a fresh compose volume: every instrument reached the Aspire dashboard; delivery attempts rose from 5 to 42 when settlement's first run sent 37 `payment.settled` webhooks.
+
+## 2026-10-29: dashboard sign-in and a nonce-based Content-Security-Policy (T26)
+
+- `frontend: sign in to the dashboard, with a nonce-based Content-Security-Policy`: R10 is done.
+  - `/login` (page, Server Action, form): the API called from the dashboard's server, the token kept in the `HttpOnly`, `Secure`, `SameSite=Strict` `pp_session` cookie for its lifetime, errors by `code`, the field at fault marked, the email kept, a return only to a path on this site; sign-out in the header, which names the merchant from `/me`.
+  - `src/proxy.ts`: a nonce per page request and a policy with no `'unsafe-inline'` scripts, and a redirect to `/login?next=...` for a browser with no session; the root layout renders every page per request (ADR 009).
+  - 42 new Vitest tests and 10 new Playwright checks against a stub API (`e2e/stub-api.mjs`); the existing shell checks sign in by cookie.
+  - Compose shows the demo login on the sign-in page; `check-stack.sh` checks `/login`; the capture script signs in once and shares the session, and adds `docs/images/dashboard-login.png`.
+- Decided on evidence: on the default Cache Components rendering, a nonce policy left 11 of 18 scripts without the request's nonce, the browser refused 9, and the page did not hydrate; with every page rendered per request, all 17 carry it and nothing is refused (ADR 009).
+- Found on the way: at 360px the signed-in header overflowed by 4 px (the brand and "Sign out" wrapped); below `sm` the header now holds only the brand and the session, and buttons never wrap. The login page showed "Sign in" in the header for an ended session; the menu now stays empty there. An always-mounted alert left a 60 px gap under the password; it now takes no space while empty.
+- Found on the way: the capture script's first run signed in six times for one email, and the API's per-email limit (5 in 5 minutes) refused the sixth, as designed.
+- R16 is done: every log message was checked against ADR 005's policy. One was wrong: a webhook dead-lettered after its retries waits for an operator, so it is now `Error`; a dead letter the merchant caused (a `410`, a disabled endpoint) stays `Warning`, and a test holds both.

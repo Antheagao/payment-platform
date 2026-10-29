@@ -175,6 +175,11 @@ public sealed partial class DeliverWebhooks(
             case WebhookDeliveryStatus.Delivered:
                 LogDelivered(logger, item.EventId, item.EventType, host, delivery.LastStatusCode, delivery.Attempts);
                 break;
+            // Retries ran out: an operator has to replay it (ADR 005: Error needs a person). A dead letter the merchant
+            // caused, with a 410 or a disabled endpoint, is theirs to act on.
+            case WebhookDeliveryStatus.DeadLettered when gone || !item.Enabled:
+                LogDeadLetteredByEndpoint(logger, item.EventId, item.EventType, host, delivery.LastError);
+                break;
             case WebhookDeliveryStatus.DeadLettered:
                 LogDeadLettered(logger, item.EventId, item.EventType, host, delivery.Attempts, delivery.LastError);
                 break;
@@ -209,8 +214,11 @@ public sealed partial class DeliverWebhooks(
     [LoggerMessage(Level = LogLevel.Warning, Message = "Webhook {EventId} ({EventType}) to {Host} failed attempt {Attempts}: {Error}; next attempt at {NextAttemptAt:O}")]
     private static partial void LogRetrying(ILogger logger, Guid eventId, string eventType, string host, int attempts, string? error, DateTimeOffset nextAttemptAt);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Webhook {EventId} ({EventType}) to {Host} dead-lettered after {Attempts} attempts: {Error}")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "Webhook {EventId} ({EventType}) to {Host} dead-lettered after {Attempts} attempts, waiting for a replay: {Error}")]
     private static partial void LogDeadLettered(ILogger logger, Guid eventId, string eventType, string host, int attempts, string? error);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Webhook {EventId} ({EventType}) to {Host} dead-lettered by its endpoint: {Error}")]
+    private static partial void LogDeadLetteredByEndpoint(ILogger logger, Guid eventId, string eventType, string host, string? error);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Webhook endpoint of merchant {MerchantId} at {Host} answered 410 Gone and is disabled")]
     private static partial void LogEndpointGone(ILogger logger, MerchantId merchantId, string host);

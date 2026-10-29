@@ -139,6 +139,8 @@ services:
       # worker's readiness probe (ADR 004).
       API_ORIGIN: http://api:8080
       WORKER_ORIGIN: http://worker:8080
+      # The login page shows the seeded demo login (DemoSeed); local-only, like the passwords above.
+      DEMO_LOGIN_HINT: "true"
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-3080}:3000"
 

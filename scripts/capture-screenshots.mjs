@@ -60,11 +60,37 @@ const tile = (page, name) =>
 
 async function waitForStatus(page, { api: apiLabel, database, worker }) {
   const wait = { timeout: settleTimeout };
-  await page.getByRole("status").filter({ hasText: apiLabel }).waitFor(wait);
+  // The header's API badge shows from the sm breakpoint; at phone width the panel's own tile says it.
+  const badge = page.getByRole("banner").getByRole("status");
+  if ((page.viewportSize()?.width ?? 0) >= 640) await badge.filter({ hasText: apiLabel }).waitFor(wait);
   await tile(page, "Database").filter({ hasText: database }).waitFor(wait);
   await tile(page, "Background worker").filter({ hasText: worker }).waitFor(wait);
 }
 const healthy = { api: "API ready", database: "Connected", worker: "Ready" };
+
+/** Signs in as the seeded demo merchant (DemoSeed's local-only login); the context keeps the session. */
+async function signIn(page) {
+  await page.goto(`${dashboard}/login`);
+  await page.getByLabel("Email").fill("demo@example.com");
+  await page.getByLabel("Password").fill("LocalOnly_Demo_2026!");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(`${dashboard}/`);
+}
+
+/**
+ * One sign-in for the whole run, shared by every context through its storage state: the API allows five
+ * sign-ins per email in five minutes, and a run with one per context would spend them all.
+ */
+let session;
+async function signedIn(browser, options) {
+  if (!session) {
+    const first = await browser.newContext(desktop);
+    await signIn(await first.newPage());
+    session = await first.storageState();
+    await first.close();
+  }
+  return browser.newContext({ ...options, storageState: session });
+}
 
 async function openDashboard(context) {
   const page = await context.newPage();
@@ -100,14 +126,21 @@ async function caption(page, text) {
 }
 
 async function dashboardStills(browser) {
+  const signedOut = await browser.newContext({ ...desktop, colorScheme: "light", reducedMotion: "reduce" });
+  const login = await signedOut.newPage();
+  await login.goto(`${dashboard}/login`);
+  await login.getByRole("banner").getByRole("status").filter({ hasText: "API ready" }).waitFor();
+  await shoot(login, "dashboard-login.png");
+  await signedOut.close();
+
   for (const colorScheme of ["light", "dark"]) {
-    const wide = await browser.newContext({ ...desktop, colorScheme, reducedMotion: "reduce" });
+    const wide = await signedIn(browser, { ...desktop, colorScheme, reducedMotion: "reduce" });
     const page = await openDashboard(wide);
     await waitForStatus(page, healthy);
     await shoot(page, `dashboard-${colorScheme}.png`, { fullPage: true });
     await wide.close();
 
-    const narrow = await browser.newContext({ ...phone, colorScheme, reducedMotion: "reduce" });
+    const narrow = await signedIn(browser, { ...phone, colorScheme, reducedMotion: "reduce" });
     const mobile = await openDashboard(narrow);
     await waitForStatus(mobile, healthy);
     await shoot(mobile, `dashboard-mobile-${colorScheme}.png`);
@@ -119,14 +152,14 @@ async function dashboardStills(browser) {
 async function outage(browser) {
   const videoDir = mkdtempSync(join(tmpdir(), "payment-platform-video-"));
   // Reduced motion stills the live dot, so frames change only when a status does.
-  const recorder = await browser.newContext({
+  const recorder = await signedIn(browser, {
     viewport: recording,
     colorScheme: "light",
     reducedMotion: "reduce",
     recordVideo: { dir: videoDir, size: recording },
   });
   const recordingStarted = Date.now();
-  const stills = await browser.newContext({ ...desktop, colorScheme: "light", reducedMotion: "reduce" });
+  const stills = await signedIn(browser, { ...desktop, colorScheme: "light", reducedMotion: "reduce" });
   try {
     const live = await openDashboard(recorder);
     const watch = await openDashboard(stills);

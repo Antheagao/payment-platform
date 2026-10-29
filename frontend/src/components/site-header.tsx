@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ApiStatus, ApiStatusFallback } from "@/components/api-status";
+import { UserMenu, UserMenuFallback } from "@/components/user-menu";
 import { Container } from "@/components/ui/container";
 
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur">
       <Container className="flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 rounded-md text-base font-semibold">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2.5 rounded-md text-base font-semibold whitespace-nowrap"
+        >
           <span
             aria-hidden="true"
             className="grid size-8 place-items-center rounded-md bg-primary text-primary-fg"
@@ -25,9 +29,17 @@ export function SiteHeader() {
           </span>
           Payment Platform
         </Link>
-        <Suspense fallback={<ApiStatusFallback />}>
-          <ApiStatus />
-        </Suspense>
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          {/* Below sm the header holds only the brand and the session; the home page's panel shows the API. */}
+          <div className="hidden sm:block">
+            <Suspense fallback={<ApiStatusFallback />}>
+              <ApiStatus />
+            </Suspense>
+          </div>
+          <Suspense fallback={<UserMenuFallback />}>
+            <UserMenu />
+          </Suspense>
+        </div>
       </Container>
     </header>
   );

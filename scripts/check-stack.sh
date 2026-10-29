@@ -62,7 +62,8 @@ failed=0
 wait_for "API ready" "$api/health/ready" 200 || failed=1
 wait_for "Worker ready" "$worker/health/ready" 200 || failed=1
 wait_for "OpenAPI document" "$api/openapi/v1.json" 200 '"openapi"' || failed=1
-wait_for "Dashboard" "$dashboard/" 200 'API ready' || failed=1
+# The dashboard's pages need a session; its login page is the one every visitor gets, and it reports the API.
+wait_for "Dashboard" "$dashboard/login" 200 'API ready' || failed=1
 # The Aspire dashboard redirects / to its first page.
 wait_for "Aspire dashboard" "$aspire/" 302 || failed=1
 wait_for "Webhook receiver" "$receiver/health" 200 || failed=1
