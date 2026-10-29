@@ -199,3 +199,13 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `frontend: balance the dark status colors and gate their spread`: dark `primary` 0.72 to 0.78 lightness (hover and soft follow), dark `danger` 0.75 to 0.79 with its soft at 0.27 like the others; light mode was already within 1.21.
   `scripts/check-contrast.mjs` now also fails when, within a scheme, the strongest pill's ratio exceeds the weakest's by more than 1.25; it fails on the old dark palette (1.47) and passes the new one (1.15).
 - Gate: `node scripts/check-contrast.mjs` (19 tokens in gamut, 36 pairs, pills balanced in both schemes).
+
+## 2026-10-28: live service status and the lifecycle flow (T38)
+
+- The first browser pass (1440 and 360, light and dark) found a clean but sparse page: a heading and one legend card, with most of a desktop screen empty, and nothing that showed the running system.
+- `frontend: show live service status and draw the lifecycle as a flow`: the home page gains a service status panel built only from real answers (the API's and the worker's readiness probes, the API's `database` check, and round trips timed by the dashboard's server), refreshed every 5 s while the tab is visible, with Pause for WCAG 2.2.2; the lifecycle becomes four steps joined by arrows (down the gap when stacked) with each terminal branch under the step it leaves.
+  `api.ts` returns the checks and timings and is `cache()`d per request; `Button` gains a 32px size; compose passes `WORKER_ORIGIN`.
+- Fixed on the way: Playwright reused any server already on port 3080, so with the stack running locally it tested the composed dashboard against a live API instead of the fresh build, and two checks failed for that reason alone; it now builds and serves on 3090.
+- Checked in a real browser: both themes at 1440 and 360 with no sideways scroll; the database stopped (Not ready, Unavailable, Not ready) and the API stopped (Unreachable, Unknown, Ready) without a reload; the streaming fallback and the answered tiles both 174px tall; focus visible on Pause after the skip link and the logo.
+- Gate: typecheck, lint, format, Vitest 30/30, build (`/` partially prerendered), `npm audit --omit=dev` clean, Playwright 16/16, contrast, docs.
+

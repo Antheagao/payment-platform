@@ -19,8 +19,8 @@ The payment features are next, in the order the exercise weighs them; [requireme
 | JSON logs, OpenTelemetry traces and metrics, correlation ids, health and readiness probes | Create, read, capture, refund, and search payments, with idempotency keys and an audit trail |
 | RFC 9457 problem details for every error | The transactional outbox, signed webhooks with retries and dead-lettering, settlement |
 | The worker's job runner, the simulated acquirer | Domain and queue metrics |
-| The dashboard shell with accessible design tokens | Sign-in, the payments list, and the payment timeline |
-| 172 backend tests, 16 frontend unit tests, 12 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
+| The dashboard: live status for the API, database, and worker, the lifecycle, accessible design tokens | Sign-in, the payments list, and the payment timeline |
+| 172 backend tests, 30 frontend unit tests, 16 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
 | One command to run it all, tested in CI on every push, and a [demo guide](docs/demo.md) | Sample data: a demo merchant and payments in every status, loaded on startup |
 
 ## Run it
@@ -58,8 +58,9 @@ SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 | `port is already allocated` (another container) or `ports are not available` (another program) | Something else uses that port: set the matching variable in `.env` (`DASHBOARD_PORT`, `API_PORT`, `WORKER_PORT`, `SQL_PORT`, `ASPIRE_DASHBOARD_PORT`, `OTLP_PORT`) |
 | `Cannot connect to the Docker daemon`, or on Windows `open //./pipe/dockerDesktopLinuxEngine` | Docker is not running: start Docker Desktop (or the Docker service) and run the command again |
 | `sqlserver` restarts or never turns healthy | Give Docker at least 4 GB of memory; on Apple silicon, turn on "Use Rosetta for x86_64/amd64 emulation" in Docker Desktop's settings |
-| The dashboard badge says "API not ready" | The API runs but its database does not answer yet: `docker compose ps -a`, then `docker compose logs sqlserver` |
+| The dashboard badge says "API not ready" and the Database tile "Unavailable" | The API runs but its database does not answer yet: `docker compose ps -a`, then `docker compose logs sqlserver` |
 | The dashboard badge says "API unreachable" | The API is not running: `docker compose logs api` |
+| The Background worker tile says "Unreachable" | The worker is not running: `docker compose logs worker` |
 | `Login failed for user 'sa'` after changing `MSSQL_SA_PASSWORD` | That password is set only when the database volume is created: `docker compose down -v`, then start again |
 
 ## Prerequisites

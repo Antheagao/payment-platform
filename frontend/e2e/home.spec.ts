@@ -17,6 +17,34 @@ test.describe("dashboard shell", () => {
     await expect(page.getByRole("status")).toHaveText("API unreachable");
   });
 
+  test("shows each service on its own, and the database as unknown while the API is down", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const tiles = page.getByRole("region", { name: "Service status" }).getByRole("listitem");
+    await expect(tiles).toHaveCount(3);
+    await expect(tiles.nth(0)).toContainText("Payments API");
+    await expect(tiles.nth(0)).toContainText("Unreachable");
+    await expect(tiles.nth(1)).toContainText("Database");
+    await expect(tiles.nth(1)).toContainText("Unknown");
+    await expect(tiles.nth(2)).toContainText("Background worker");
+    await expect(tiles.nth(2)).toContainText("Unreachable");
+  });
+
+  test("lets live updates be paused and resumed", async ({ page }) => {
+    await page.goto("/");
+
+    const panel = page.getByRole("region", { name: "Service status" });
+    await expect(panel.getByText("Live, every 5 seconds")).toBeVisible();
+
+    await panel.getByRole("button", { name: "Pause" }).click();
+    await expect(panel.getByText("Updates paused")).toBeVisible();
+
+    await panel.getByRole("button", { name: "Resume" }).click();
+    await expect(panel.getByText("Live, every 5 seconds")).toBeVisible();
+  });
+
   test("offers a skip link on the first Tab", async ({ page }) => {
     await page.goto("/");
 

@@ -112,9 +112,13 @@ services:
     depends_on:
       api:
         condition: service_started
+      worker:
+        condition: service_started
     environment:
-      # Server-side only: the browser talks to the dashboard, the dashboard talks to the API (ADR 004).
+      # Server-side only: the browser talks to the dashboard, the dashboard talks to the API and the
+      # worker's readiness probe (ADR 004).
       API_ORIGIN: http://api:8080
+      WORKER_ORIGIN: http://worker:8080
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-3080}:3000"
 

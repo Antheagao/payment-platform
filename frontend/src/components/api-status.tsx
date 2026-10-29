@@ -1,7 +1,7 @@
 import { Badge, type Tone } from "@/components/ui/badge";
-import { getApiHealth, type ApiHealth } from "@/lib/api";
+import { getApiHealth, type Readiness } from "@/lib/api";
 
-const display: Record<ApiHealth, { label: string; tone: Tone }> = {
+const display: Record<Readiness, { label: string; tone: Tone }> = {
   ready: { label: "API ready", tone: "success" },
   not_ready: { label: "API not ready", tone: "warning" },
   unreachable: { label: "API unreachable", tone: "danger" },
@@ -9,7 +9,7 @@ const display: Record<ApiHealth, { label: string; tone: Tone }> = {
 
 /** The API's readiness, asked fresh on every request; render it inside `<Suspense>` with the fallback below. */
 export async function ApiStatus() {
-  const { label, tone } = display[await getApiHealth()];
+  const { label, tone } = display[(await getApiHealth()).readiness];
   return (
     <Badge tone={tone} role="status">
       {label}

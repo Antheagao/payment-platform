@@ -19,14 +19,15 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 
 ## What exists
 
-- `src/lib/api.ts`: `import "server-only"`; reads the server-only `API_ORIGIN` (default `http://localhost:5080`); `getApiHealth()` never throws, uses `cache: "no-store"` and a 5 s `AbortSignal.timeout`, longer than the API's 3 s readiness deadline so a database outage shows as not ready.
+- `src/lib/api.ts`: `import "server-only"`; reads the server-only `API_ORIGIN` and `WORKER_ORIGIN` (defaults `http://localhost:5080` and `5081`); `getApiHealth()` and `getWorkerHealth()` are React `cache()`d per request, never throw, `await connection()` before timing the round trip, use `cache: "no-store"` and a 5 s `AbortSignal.timeout` (longer than the 3 s readiness deadline, so a database outage shows as not ready), and keep only the checks the health writer can send.
   New API calls go here (or in `src/lib/<feature>-api.ts` when it grows) and parse problem details in one place, switching on `code`.
+- `src/lib/service-status.ts`: `serviceRows()` turns the two readiness answers into the status panel's tiles (the database is the API's `database` check, and unknown, never down, when the API does not answer) and `pendingServiceRows` for the fallback.
 - `src/lib/payment-status.ts`: the `PaymentStatus` union as the API spells it, `paymentStatusDisplay` (label, tone, meaning) as a `Record` over the union, and `lifecycleOrder`.
-- `src/components/ui/`: `Badge` (tone pill with a dot and a text label), `Button` and `buttonClasses()` (primary, secondary; `type="button"` unless overridden), `Container` (the one page column).
-- `src/components/`: `SiteHeader` (sticky, product mark, `ApiStatus` in `<Suspense>`), `ApiStatus` and `ApiStatusFallback`, `PaymentLifecycle` (the status legend).
-- `src/app/`: root layout with Geist, the skip link, and `<main id="main">`; `page.tsx`; `error.tsx` (client, shows the digest, `retry()`); `global-error.tsx` (own `<html>` and `<body>`, imports the tokens); `not-found.tsx`.
+- `src/components/ui/`: `Badge` (tone pill with a dot and a text label), `Button` and `buttonClasses({ variant, size, className })` (primary, secondary; `md` 40px and `sm` 32px; `type="button"` unless overridden), `Container` (the one page column).
+- `src/components/`: `SiteHeader` (sticky, product mark, `ApiStatus` in `<Suspense>`), `ApiStatus` and `ApiStatusFallback`, `ServiceStatus` and `ServiceStatusFallback` (three tiles, same size while streaming), `LiveUpdates` (client; `router.refresh()` every 5 s while the tab is visible, with Pause, which WCAG 2.2.2 requires of content that updates itself), `PaymentLifecycle` (the four steps as a flow with arrows, stacked below `lg`, and the two terminal branches under the step they leave).
+- `src/app/`: root layout with Geist, the skip link, and `<main id="main">`; `page.tsx` (the heading, the service status section, the lifecycle); `error.tsx` (client, shows the digest, `retry()`); `global-error.tsx` (own `<html>` and `<body>`, imports the tokens); `not-found.tsx`.
 - `next.config.ts`: standalone output only when `NEXT_OUTPUT=standalone` (the Dockerfile sets it; `next start` does not support standalone), no `X-Powered-By`, and headers on every response: `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `nosniff`, `X-Frame-Options: DENY`, `strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`.
-- `frontend/Dockerfile`: `npm ci` and `next build` on Node 22, then the standalone server on distroless `nodejs22-debian12:nonroot`; compose runs it with `API_ORIGIN=http://api:8080`.
+- `frontend/Dockerfile`: `npm ci` and `next build` on Node 22, then the standalone server on distroless `nodejs22-debian12:nonroot`; compose runs it with `API_ORIGIN=http://api:8080` and `WORKER_ORIGIN=http://worker:8080`.
 
 ## Design tokens
 

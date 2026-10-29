@@ -10,7 +10,7 @@ export default function NotFound() {
       <p className="mt-2 max-w-prose text-pretty text-muted">
         Nothing lives at this address. Check the link, or start again from the dashboard.
       </p>
-      <Link href="/" className={buttonClasses("secondary", "mt-6")}>
+      <Link href="/" className={buttonClasses({ variant: "secondary", className: "mt-6" })}>
         Back to the dashboard
       </Link>
     </Container>

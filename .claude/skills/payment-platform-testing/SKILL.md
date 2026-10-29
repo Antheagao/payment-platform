@@ -28,7 +28,7 @@ The gate commands live in `AGENTS.md`; `dotnet test` from `backend/` runs everyt
 
 - `vitest.config.mts` resolves the `@/*` alias natively and maps `server-only` to `test/empty-module.ts`, so server modules such as `src/lib/api.ts` are unit-testable; stub `fetch` with `vi.stubGlobal` (globals and mocks are restored after each test).
 - Async server components are covered end to end, not with Testing Library.
-- Playwright builds and starts the production server itself (`next build`, then `next start -p 3080`) with `API_ORIGIN` on a closed port, so the shell is tested with the API down; flows that need data run against the composed stack (T29).
+- Playwright builds and starts the production server itself (`next build`, then `next start -p 3090`, a port of its own so a running compose stack is never reused in its place) with `API_ORIGIN` and `WORKER_ORIGIN` on a closed port, so the shell is tested with both down; flows that need data run against the composed stack (T29).
 - Locators are roles and names; assertions are web-first (`toBeVisible`, `toHaveText`); no fixed waits.
 
 ## Backend harness (`PaymentPlatform.IntegrationTests/Support/`)

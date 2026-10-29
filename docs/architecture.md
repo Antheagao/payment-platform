@@ -21,7 +21,7 @@ flowchart LR
 
 | Component | Responsibility |
 | --- | --- |
-| **Dashboard** (`frontend/`) | Merchant-facing UI: log in, list and search payments, view a payment and its history. Holds the login token in an HttpOnly cookie on its own server and calls the API from server code only. |
+| **Dashboard** (`frontend/`) | Merchant-facing UI: log in, list and search payments, view a payment and its history. Holds the login token in an HttpOnly cookie on its own server and calls the API from server code only; its server also asks the worker's readiness probe for the home page's service status. |
 | **API** (`backend/src/PaymentPlatform.Api`) | Authenticates merchants, owns every business rule, and writes each state change, its audit entry, and its outbox message in one transaction. |
 | **Worker** (`backend/src/PaymentPlatform.Worker`) | Runs the asynchronous work: dispatches outbox messages into webhook deliveries, delivers webhooks with retries, settles captured payments, and reconciles payments stuck in `Pending`. |
 | **SQL Server** | The single source of truth: payments, the audit trail, idempotency records, the outbox, and webhook deliveries. |
