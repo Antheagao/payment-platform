@@ -121,7 +121,7 @@ The simulated vault accepts only test cards, and each one takes a branch:
 
 A mistyped number (`4242 4242 4242 4241`) is `400` with `"errors":{"card.number":["card_number_invalid"]}`.
 
-The demo merchant also starts with thirty sample payments from the last 90 days, in every status, each walked through the domain so its history is real (correlation id `demo-seed`).
+The demo merchant also starts with 280 sample payments from the last 90 days (thirty named ones and 250 generated from a fixed hash), in every status, each walked through the domain so its history is real (correlation id `demo-seed`).
 Their ids are fixed, so these read back the same on every machine:
 
 | Payment | Shows |
@@ -131,6 +131,17 @@ Their ids are fixed, so these read back the same on every machine:
 | `019a2c00-0000-7000-8000-000000001025` (`INV-1025`) | `authorized`, ready to capture |
 | `019a2c00-0000-7000-8000-000000001006` (`INV-1006`) | `failed` with `card_declined` |
 | `019a2c00-0000-7000-8000-000000001023` (`INV-1023`) | `pending`: the acquirer never answered |
+
+List them, newest first, a page at a time, and filter:
+
+```sh
+curl -s "http://localhost:5080/api/v1/payments?limit=5" -H "Authorization: Bearer <access_token>"
+curl -s "http://localhost:5080/api/v1/payments?limit=5&cursor=<next_cursor>" -H "Authorization: Bearer <access_token>"
+curl -s "http://localhost:5080/api/v1/payments?status=refunded,failed&currency=USD" -H "Authorization: Bearer <access_token>"
+```
+
+Each page is `{"data":[...],"next_cursor":"..."}` with summaries (no history); follow `next_cursor` until it is `null` and every one of the 280 payments appears exactly once.
+Filters combine: `status` (one or more), `created_from` and `created_to`, `amount_min_minor` and `amount_max_minor`, `currency`, and a `reference` prefix such as `INV-11`; a bad value is a `400` naming the parameter, such as `"errors":{"limit":["invalid_limit"]}`.
 
 Capture the authorized one, then refund it:
 
@@ -209,7 +220,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-340 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+366 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.
@@ -222,7 +233,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- List and search (T22), the outbox and webhooks (T23), settlement (T24), and the payment pages that show the sample data (T27, T28).
+- The outbox and webhooks (T23), settlement (T24), domain metrics (T25), and the dashboard's sign-in and payment pages that show the sample data (T26 to T28).
   The startup seed will load a demo merchant and payments in every status, each with its audit trail, so this guide can then log in and walk a payment's timeline.
 - The asynchronous workflow: the outbox, signed webhooks with retries and dead-lettering, and settlement (T23, T24).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).

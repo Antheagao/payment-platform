@@ -10,6 +10,8 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 {
     public const string RowVersion = "RowVersion";
 
+    private const string Sequence = PaymentsDbContext.PaymentSequence;
+
     public void Configure(EntityTypeBuilder<Payment> builder)
     {
         builder.ToTable("Payments", table =>
@@ -20,9 +22,16 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         });
 
         // GUIDs do not sort by time in SQL Server, so the primary key is nonclustered and the table clusters on
-        // the access path every list takes: one merchant's payments, newest first (database overlay).
+        // the access path every list takes: one merchant's payments, newest first (database overlay). The tiebreak
+        // for payments created at the same instant is an identity column, not the id: a bigint compares the same
+        // way in SQL and in C#, where a uniqueidentifier does not, so the list's keyset stays plain LINQ.
         builder.HasKey(payment => payment.Id).IsClustered(false);
-        builder.HasIndex(payment => new { payment.MerchantId, payment.CreatedAt, payment.Id }).IsUnique().IsClustered();
+        builder.Property<long>(Sequence).UseIdentityColumn();
+        builder.HasIndex(nameof(Payment.MerchantId), nameof(Payment.CreatedAt), Sequence).IsUnique().IsClustered();
+
+        // The list's common filters: one status (or a few) newest first, and a merchant reference by prefix.
+        builder.HasIndex(nameof(Payment.MerchantId), nameof(Payment.Status), nameof(Payment.CreatedAt), Sequence);
+        builder.HasIndex(payment => new { payment.MerchantId, payment.MerchantReference });
 
         builder.Property(payment => payment.Id)
             .HasConversion(id => id.Value, value => new PaymentId(value))

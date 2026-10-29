@@ -39,7 +39,8 @@ ADR 006 (errors) and ADR 007 (idempotency) come first.
 - `POST /payments`, `/payments/{id}/capture`, and `/payments/{id}/refund` require `Idempotency-Key` (ADR 007 and its amendment); a replay carries `Idempotent-Replayed: true`.
   `PaymentEndpoints.RunIdempotentAsync` is the one path for all three: validate first (a refused request stores nothing), claim, run the use case, store and send a success (the first answer and every replay go through the same `Send`, so they are identical), release on anything else. Capture and refund fingerprint the method, path, and payment id.
 - `POST /api/v1/payments/{id}/capture` and `/refund` take no body and answer `200` with the payment; `ProblemFor` maps the use cases' codes: `not_found` 404, `payment_not_*` 409, `*_declined` and `card_not_accepted` 422, `acquirer_unavailable` 503 with `Retry-After: 5`.
-- Lists: `?limit=` (default 25, maximum 100; out of range is `400 invalid_limit`), an opaque base64url `cursor` over `(created_at, id)`, `next_cursor` null on the last page, results wrapped as `{"data": [...], "next_cursor": ...}`.
+- Lists: `?limit=` (default 25, maximum 100; out of range is `400 invalid_limit`), an opaque base64url `cursor` over `(created_at, sequence)` (the payments' shadow identity column, because a `uniqueidentifier` compares differently in SQL Server and in C#), `next_cursor` null on the last page, results wrapped as `{"data": [...], "next_cursor": ...}`.
+  Built for `GET /api/v1/payments`: query values bind as text (`ListPaymentsParameters`) and `ListPaymentsRequest.Parse` turns each bad one into a field code; filters `status` (repeat or comma list), `created_from` (inclusive) and `created_to` (exclusive), `amount_min_minor` and `amount_max_minor`, `currency`, and `reference` (a prefix); list items are summaries without history.
 - Another merchant's payment is `404 not_found`, indistinguishable from a missing one.
 
 ## Checklist for a new endpoint

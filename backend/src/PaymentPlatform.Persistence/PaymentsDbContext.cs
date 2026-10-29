@@ -15,6 +15,12 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
 {
     public const string Schema = "payments";
 
+    /// <summary>
+    /// The payments' shadow identity column: it orders payments created at the same instant, as the list's keyset
+    /// and its clustered index do. Read it in a query with <c>EF.Property&lt;long&gt;(payment, PaymentSequence)</c>.
+    /// </summary>
+    public const string PaymentSequence = "Sequence";
+
     public DbSet<Merchant> Merchants => Set<Merchant>();
 
     public DbSet<MerchantUser> MerchantUsers => Set<MerchantUser>();

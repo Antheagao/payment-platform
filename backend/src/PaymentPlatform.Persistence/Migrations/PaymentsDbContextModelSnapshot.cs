@@ -105,6 +105,12 @@ namespace PaymentPlatform.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<long>("Sequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Sequence"));
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -170,10 +176,14 @@ namespace PaymentPlatform.Persistence.Migrations
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
 
-                    b.HasIndex("MerchantId", "CreatedAt", "Id")
+                    b.HasIndex("MerchantId", "MerchantReference");
+
+                    b.HasIndex("MerchantId", "CreatedAt", "Sequence")
                         .IsUnique();
 
-                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("MerchantId", "CreatedAt", "Id"));
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex("MerchantId", "CreatedAt", "Sequence"));
+
+                    b.HasIndex("MerchantId", "Status", "CreatedAt", "Sequence");
 
                     b.ToTable("Payments", "payments", t =>
                         {

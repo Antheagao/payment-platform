@@ -12,6 +12,7 @@ using PaymentPlatform.Application.Payments;
 using PaymentPlatform.Domain;
 using PaymentPlatform.Domain.Payments;
 using PaymentPlatform.ServiceDefaults;
+using FromQueryAttribute = Microsoft.AspNetCore.Mvc.FromQueryAttribute;
 
 namespace PaymentPlatform.Api.Endpoints;
 
@@ -37,6 +38,10 @@ public static class PaymentEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+        group.MapGet("/payments", ListAsync)
+            .WithName("ListPayments")
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
         group.MapGet("/payments/{id:guid}", GetAsync)
             .WithName("GetPayment")
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -102,6 +107,36 @@ public static class PaymentEndpoints
     }
 
     public sealed record CardResponse(CardBrand Brand, string Last4, int ExpMonth, int ExpYear);
+
+    /// <summary>
+    /// The list's query string. Every value binds as text and is parsed by <see cref="ListPaymentsRequest"/>, so a
+    /// bad one is a field code rather than the binder's bare 400; <c>status</c> may repeat or hold a comma list.
+    /// </summary>
+    public sealed record ListPaymentsParameters(
+        [property: FromQuery(Name = "limit")] string? Limit,
+        [property: FromQuery(Name = "cursor")] string? Cursor,
+        [property: FromQuery(Name = "status")] string[]? Status,
+        [property: FromQuery(Name = "created_from")] string? CreatedFrom,
+        [property: FromQuery(Name = "created_to")] string? CreatedTo,
+        [property: FromQuery(Name = "amount_min_minor")] string? AmountMinMinor,
+        [property: FromQuery(Name = "amount_max_minor")] string? AmountMaxMinor,
+        [property: FromQuery(Name = "currency")] string? Currency,
+        [property: FromQuery(Name = "reference")] string? Reference);
+
+    /// <summary>One page, newest first; <c>next_cursor</c> is null on the last page.</summary>
+    public sealed record PaymentListResponse(IReadOnlyList<PaymentSummaryResponse> Data, string? NextCursor);
+
+    public sealed record PaymentSummaryResponse(
+        Guid Id,
+        PaymentStatus Status,
+        long AmountMinor,
+        string Currency,
+        string? MerchantReference,
+        CardSummaryResponse Card,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
+
+    public sealed record CardSummaryResponse(CardBrand Brand, string Last4);
 
     public sealed record PaymentHistoryResponse(
         PaymentStatus? From, PaymentStatus To, ActorResponse Actor, DateTimeOffset OccurredAt, string? Reason, string? CorrelationId);
@@ -309,6 +344,44 @@ public static class PaymentEndpoints
         }
 
         return TypedResults.Text(response.Body, "application/json", Encoding.UTF8, response.Status);
+    }
+
+    private static async Task<Results<Ok<PaymentListResponse>, ValidationProblem>> ListAsync(
+        [AsParameters] ListPaymentsParameters parameters,
+        ClaimsPrincipal caller,
+        ListPayments listPayments,
+        CancellationToken cancellationToken)
+    {
+        var request = new ListPaymentsRequest(
+            parameters.Limit,
+            parameters.Cursor,
+            parameters.Status,
+            parameters.CreatedFrom,
+            parameters.CreatedTo,
+            parameters.AmountMinMinor,
+            parameters.AmountMaxMinor,
+            parameters.Currency,
+            parameters.Reference);
+        var (query, errors) = request.Parse();
+        if (query is null)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        var page = await listPayments.HandleAsync(caller.GetMerchantId(), query, cancellationToken);
+        return TypedResults.Ok(new PaymentListResponse(
+            page.Data
+                .Select(payment => new PaymentSummaryResponse(
+                    payment.Id.Value,
+                    payment.Status,
+                    payment.AmountMinor,
+                    payment.Currency,
+                    payment.MerchantReference,
+                    new CardSummaryResponse(payment.CardBrand, payment.CardLast4),
+                    payment.CreatedAt,
+                    payment.UpdatedAt))
+                .ToList(),
+            page.NextCursor));
     }
 
     private static async Task<Results<Ok<PaymentResponse>, ProblemHttpResult>> GetAsync(

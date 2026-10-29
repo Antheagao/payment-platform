@@ -34,6 +34,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<GetCurrentUser>();
         services.AddScoped<CreatePayment>();
         services.AddScoped<GetPayment>();
+        services.AddScoped<ListPayments>();
         services.AddScoped<CapturePayment>();
         services.AddScoped<RefundPayment>();
         services.AddScoped<IdempotencyStore>();

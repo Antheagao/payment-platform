@@ -35,10 +35,11 @@ public static class DemoPayments
     public sealed record Spec(int Number, long AmountMinor, string Currency, string Reference, string Card, Path Path, double DaysAgo);
 
     /// <summary>
-    /// Thirty payments: ten settled, five captured, four authorized, two refunded from each of captured and
-    /// settled, two declined, two for insufficient funds, and three left pending by a silent acquirer.
+    /// Thirty named payments (docs/demo.md picks from these): ten settled, five captured, four authorized, two
+    /// refunded from each of captured and settled, two declined, two for insufficient funds, and three left
+    /// pending by a silent acquirer.
     /// </summary>
-    public static readonly IReadOnlyList<Spec> All =
+    public static readonly IReadOnlyList<Spec> Named =
     [
         new(1, 2_599, "USD", "INV-1001", "4242424242424242", Path.Settled, 88.2),
         new(2, 18_000, "USD", "INV-1002", "5555555555554444", Path.Settled, 84.6),
@@ -71,6 +72,12 @@ public static class DemoPayments
         new(29, 31_900, "USD", "INV-1029", "4242424242424242", Path.Authorized, 0.3),
         new(30, 4_400, "GBP", "INV-1030", "4000000000000119", Path.LeftPending, 0.1),
     ];
+
+    /// <summary>How many generated payments follow the named ones, so the list has pages to turn.</summary>
+    public const int GeneratedCount = 250;
+
+    /// <summary>Every seeded payment: the named thirty, then the generated ones.</summary>
+    public static readonly IReadOnlyList<Spec> All = [.. Named, .. Generate(GeneratedCount)];
 
     /// <summary>A seeded payment's id: fixed, so docs/demo.md can name one.</summary>
     public static PaymentId IdOf(int number) =>
@@ -113,6 +120,67 @@ public static class DemoPayments
         }
 
         return payment;
+    }
+
+    /// <summary>
+    /// Payments 31 onward, from a fixed hash of each number: the same list on every machine, spread over the last
+    /// 90 days with roughly the mix a real merchant sees (most settled, some captured or authorized, a few refunded,
+    /// declined, or pending). A path that would put an event in the future is shortened to one that does not.
+    /// </summary>
+    private static IEnumerable<Spec> Generate(int count)
+    {
+        string[] currencies = ["USD", "USD", "USD", "USD", "EUR", "GBP", "CAD", "AUD", "JPY"];
+        string[] approved = ["4242424242424242", "5555555555554444", "378282246310005", "6011111111111117"];
+        for (var index = 0; index < count; index++)
+        {
+            var number = Named.Count + 1 + index;
+            var hash = Mix((uint)number);
+            var daysAgo = Math.Round((89.5 * (count - index) / count) + ((hash >> 20) % 100 / 1000.0), 3);
+            var path = (hash % 20) switch
+            {
+                < 9 or 19 => Path.Settled,
+                < 12 => Path.Captured,
+                < 14 => Path.Authorized,
+                14 => Path.RefundedAfterSettlement,
+                15 => Path.RefundedAfterCapture,
+                16 => Path.Declined,
+                17 => Path.InsufficientFunds,
+                _ => Path.LeftPending,
+            };
+            if (daysAgo < 2.5 && path is Path.Settled or Path.RefundedAfterSettlement or Path.RefundedAfterCapture)
+            {
+                path = Path.Captured;
+            }
+
+            var card = path switch
+            {
+                Path.Declined => "4000000000000002",
+                Path.InsufficientFunds => "4000000000009995",
+                Path.LeftPending => "4000000000000119",
+                _ => approved[(hash >> 5) % (uint)approved.Length],
+            };
+            yield return new Spec(
+                number,
+                500 + ((hash >> 12) % 150_000),
+                currencies[(hash >> 8) % (uint)currencies.Length],
+                string.Create(CultureInfo.InvariantCulture, $"INV-{1000 + number}"),
+                card,
+                path,
+                daysAgo);
+        }
+    }
+
+    // A small integer hash (a multiply-xorshift mix), so the list is fixed without a random number generator.
+    private static uint Mix(uint value)
+    {
+        unchecked
+        {
+            value *= 2654435761u;
+            value ^= value >> 16;
+            value *= 0x45d9f3bu;
+            value ^= value >> 16;
+            return value;
+        }
     }
 
     // A spec that walks an illegal path is a bug in the list above; fail the seed rather than write it.

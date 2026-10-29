@@ -290,3 +290,15 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Checked against compose as the demo merchant: `INV-1025` captured (and the same key replayed), then refunded; the settled `INV-1001` refunded; capturing the captured `INV-1016` or the failed `INV-1006` was `409 payment_not_capturable`; no startup warnings after the rebuild.
 - Gate: format, Release build, 340 backend tests green three runs in a row (the capture tests five more times alone).
 
+## 2026-10-29: list and search payments (T22)
+
+- `backend: list and search payments with keyset pages`: R6 is done.
+  - `Application/Payments/ListPayments.cs` (`ListPaymentsRequest.Parse`, `PageCursor`, `ListPayments`) and `GET /api/v1/payments`: newest first, `limit` 1 to 100, an opaque base64url cursor, filters by status, creation time, amount, currency, and reference prefix, every bad value a field code.
+  - Migration `PaymentListKeyset`: a shadow `bigint` identity `Sequence` on `Payments`, the clustered index moved to `(MerchantId, CreatedAt, Sequence)`, and indexes for the status and reference filters.
+  - `DemoPayments` grows to 280 (250 generated from a fixed hash, a path shortened where it would end in the future), so the demo has pages to turn.
+  - 26 new integration tests; a mutation that dropped the same-instant tiebreak lost payments between pages and failed the ties test.
+- Decided while building: the tiebreak is an identity column, not the GUID id. SQL Server orders `uniqueidentifier` by its own byte order, EF cannot translate `<` on the value-converted id, and the raw-SQL keyset that would have kept the id failed: EF Core 10 names complex-type columns by their defaults (`Amount_AmountMinor`) when a query composes over `FromSql`, a 500 on every second page that the tests caught.
+- Found on the way: after `dotnet ef migrations remove` of a migration already applied to the compose database (`PaymentListIndexes`, applied while debugging), the API crashed at startup on its replacement (`index ... already exists`). A removed migration is gone from the code but not from a database it touched; the local volume was reset. Nothing pushed ever carried it.
+- Checked on a fresh compose volume: five migrations applied, 282 demo records seeded, all 280 payments paged once in six pages of 50, `status=refunded,failed&currency=USD` returned only those, `limit=0` named the parameter; `SHOWPLAN_TEXT` shows the list, status, and reference queries as a backward clustered seek on `MerchantId`.
+- Gate: format, locked restore, Release build, 366 backend tests green three runs in a row; `check-stack.sh` with no startup warnings.
+

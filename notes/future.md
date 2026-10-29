@@ -5,26 +5,24 @@ Move items to `past.md` as they land and update `present.md`.
 Task IDs match the task board in `present.md`.
 This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-loop/SKILL.md`): rows are taken top to bottom, and a `[USER-GATED: ...]` or `[BLOCKED: ...]` tag means skip it until the condition after the colon is met.
 
-Last updated: 2026-10-28.
+Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), and capture and refund (T21) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), and list and search (T22) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T22. List and search payments
+### T23. Outbox and webhook delivery
 
-First slice, ready to start:
-- `GET /api/v1/payments` scoped to the caller's merchant, newest first, `{"data": [...], "next_cursor": ...}` (api-design overlay): `limit` 1 to 100 (default 25; anything else `400 invalid_limit`), an opaque base64url cursor over `(created_at, id)` that keyset-paginates (never `OFFSET`), and filters `status` (one or more), `created_from` and `created_to` (ISO 8601), `amount_min_minor` and `amount_max_minor`, `currency`, and `reference` (the merchant reference, exact or prefix); each filter's bad value is a `400` with a field code.
-- List items are a summary (no history); the existing clustered index `(MerchantId, CreatedAt, Id)` serves the default order, and an index on `(MerchantId, Status, CreatedAt, Id)` and one on `(MerchantId, MerchantReference)` serve the common filters; the query plan is checked for a seek on each.
-- The demo seed grows to a few hundred payments (deterministic, still idempotent) so paging shows, and `docs/demo.md` gains the step.
-- Gate: paging through every seeded payment returns each exactly once in order, with ties on `created_at` broken by id; every filter alone and combined; another merchant's payments never appear; a tampered cursor is `400 invalid_cursor`.
+The asynchronous workflow (R9, R15, R20, R21, R27; ADR 003). Two slices:
+- **T23a. The outbox.** An `OutboxMessages` table written in the same transaction as every status change (`RecordChanges` adds one per `PaymentStatusChanged`: event type `payment.<status>`, the payment's public JSON, the correlation id, and the W3C `traceparent` of the request), and a worker job that claims due rows with `UPDATE TOP (@n) ... WITH (UPDLOCK, READPAST, ROWLOCK) OUTPUT inserted.*`, restores the correlation id and trace context for each, and hands it to the delivery step; the seed's history writes no outbox rows (its events are history, not news).
+- **T23b. Signed webhook delivery.** A merchant's webhook endpoint and signing secret (a table, managed by a small API), deliveries signed with HMAC-SHA256 over the timestamp and raw body, retries with exponential backoff and full jitter from 10 seconds to 1 hour, a dead-letter state after the last attempt, SSRF rules for merchant URLs (security overlay), and a local receiver in compose so the demo shows deliveries arriving.
+- Gate: a status change and its outbox row commit or roll back together; two workers never claim one row; a trace runs from `POST /payments` through the worker's delivery; retries back off and dead-letter; signatures verify; a private or loopback URL is refused.
 
 ### Then
 
-- **T23. Outbox and webhook delivery.** Outbox rows written in the same transaction as the state change, a dispatcher claiming rows with `READPAST`, HMAC-signed webhooks, exponential backoff with jitter, a dead-letter state, SSRF rules for merchant URLs, and trace context carried across the hop; the worker's first integration tests.
 - **T24. Settlement.** A scheduled batch that settles captured payments through a T-SQL stored procedure, with reconciliation counts.
 - **T25. Domain and queue metrics.** Payments created, captured, refunded, failed by state; outbox depth, oldest-pending lag, retries, dead letters.
 - **T26. Dashboard login.** Login form, the JWT held in an HttpOnly cookie on the Next.js server, sign-out, expiry handling, and a nonce-based CSP from `proxy.ts`; the home page's service status moves behind an operator role, and merchants get a single banner when payments are delayed (docs/tradeoffs.md).
