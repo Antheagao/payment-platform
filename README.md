@@ -87,9 +87,9 @@ The same page on a phone, in both color schemes; the design tokens follow the op
 | --- | --- |
 | <img src="docs/images/dashboard-mobile-light.png" alt="The dashboard at phone width in the light scheme" width="300"> | <img src="docs/images/dashboard-mobile-dark.png" alt="The dashboard at phone width in the dark scheme" width="300"> |
 
-One request followed into the Aspire dashboard: its span carries the correlation id the client sent (`demo-1`), the status code, and the route.
+A payment followed into the Aspire dashboard: one trace runs from the API request (its saves and the `acquirer authorize` call) into the worker, which dispatched the payment's `payment.authorized` event from the transactional outbox under the correlation id the client sent (`demo-outbox`).
 
-![The Aspire trace detail for GET /api/v1/payments/123, with the span's attributes: correlation.id demo-1 and status 404](docs/images/aspire-trace.png)
+![The Aspire trace of POST /api/v1/payments across payment-api and payment-worker, with the worker's outbox dispatch span selected: kind Consumer, correlation.id demo-outbox, event.type payment.authorized](docs/images/aspire-outbox-trace.png)
 
 The outage above in the structured logs, each failed check linked to its trace, and the API's request durations as a chart.
 

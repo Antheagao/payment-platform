@@ -64,7 +64,7 @@ public static partial class DemoSeed
         {
             var payment = DemoPayments.Build(spec, vault, user, now);
             db.Payments.Add(payment);
-            db.RecordChanges(payment, DemoPayments.CorrelationId);
+            db.RecordChanges(payment, DemoPayments.CorrelationId, publish: false);
             added++;
         }
 

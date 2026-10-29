@@ -31,15 +31,34 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
 
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
+
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
+
     /// <summary>
-    /// Turns the payment's unsaved status changes into audit rows, stamped with the correlation id of the request
-    /// or job making them, so the next save writes the change and its trail in one transaction.
+    /// Turns the payment's unsaved status changes into audit rows and, for each change after creation, an outbox
+    /// message (ADR 003), all stamped with the correlation id of the request or job making them, so the next save
+    /// writes the change, its trail, and its event in one transaction.
     /// </summary>
-    public IReadOnlyList<PaymentEvent> RecordChanges(Payment payment, string? correlationId)
+    /// <param name="publish">
+    /// False only for history that is not news, such as the demo seed's sample payments: their audit rows are
+    /// written, and no webhook goes out for events that never happened.
+    /// </param>
+    public IReadOnlyList<PaymentEvent> RecordChanges(Payment payment, string? correlationId, bool publish = true)
     {
         ArgumentNullException.ThrowIfNull(payment);
-        var rows = payment.DequeueEvents().Select(change => PaymentEvent.From(change, correlationId)).ToList();
+        var changes = payment.DequeueEvents();
+        var rows = changes.Select(change => PaymentEvent.From(change, correlationId)).ToList();
         PaymentEvents.AddRange(rows);
+        if (publish)
+        {
+            OutboxMessages.AddRange(changes
+                .Select(change => OutboxMessage.For(payment, change, correlationId, change.OccurredAt))
+                .OfType<OutboxMessage>());
+        }
+
         return rows;
     }
 

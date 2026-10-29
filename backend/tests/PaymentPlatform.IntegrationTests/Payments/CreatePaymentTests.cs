@@ -242,7 +242,9 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
         var payments = await db.Database.SqlQuery<string>($"SELECT (SELECT * FROM payments.Payments FOR JSON PATH) AS [Value]").ToListAsync(Cancellation);
         var events = await db.Database.SqlQuery<string>($"SELECT (SELECT * FROM payments.PaymentEvents FOR JSON PATH) AS [Value]").ToListAsync(Cancellation);
-        var rows = string.Join('\n', payments.Concat(events));
+        var outbox = await db.Database.SqlQuery<string>($"SELECT (SELECT * FROM payments.OutboxMessages FOR JSON PATH) AS [Value]").ToListAsync(Cancellation);
+        Assert.Contains(outbox, json => json?.Contains("payment.authorized", StringComparison.Ordinal) == true);
+        var rows = string.Join('\n', payments.Concat(events).Concat(outbox));
         Assert.Contains("4242", rows, StringComparison.Ordinal);
         Assert.DoesNotContain(number, rows, StringComparison.Ordinal);
         AssertNoJsonValue(cvv, rows);

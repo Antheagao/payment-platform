@@ -10,6 +10,7 @@
 // the stills only. To show the outage states it stops and starts the sqlserver and api containers,
 // and starts them again even when a step fails. Honors the port variables check-stack.sh honors.
 import { execFileSync, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -179,6 +180,17 @@ function toGif(video, path, trimStart) {
   saved.push(path);
 }
 
+/** A JSON POST to the API that must succeed; returns the parsed body. */
+async function postJson(path, body, headers = {}) {
+  const response = await fetch(`${api}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`POST ${path} answered ${response.status}`);
+  return response.json();
+}
+
 /** One request with a correlation id, followed into Aspire's trace, error logs, and metrics. */
 async function observability(browser) {
   const response = await fetch(`${api}/api/v1/payments/123`, {
@@ -205,6 +217,39 @@ async function observability(browser) {
   await span.click();
   await page.getByText("correlation.id").waitFor();
   await shoot(page, "aspire-trace.png");
+
+  // A payment sent with a trace id chosen here, so its trace can be opened directly; the worker's
+  // dispatch of its payment.authorized event joins that trace about a second later (ADR 003).
+  const paymentTraceId = randomBytes(16).toString("hex");
+  const { access_token: token } = await postJson("/api/v1/auth/login", {
+    email: "demo@example.com",
+    password: "LocalOnly_Demo_2026!", // DemoSeed's local-only demo login
+  });
+  await postJson(
+    "/api/v1/payments",
+    {
+      amount_minor: 4999,
+      currency: "USD",
+      merchant_reference: "screenshot",
+      card: { number: "4242 4242 4242 4242", exp_month: 12, exp_year: 2030, cvv: "123" },
+    },
+    {
+      Authorization: `Bearer ${token}`,
+      "Idempotency-Key": `screenshot-${paymentTraceId}`,
+      "X-Correlation-Id": "demo-outbox",
+      traceparent: `00-${paymentTraceId}-${randomBytes(8).toString("hex")}-01`,
+    },
+  );
+  const dispatch = page.getByRole("gridcell", { name: /payment-worker.*: outbox dispatch/ }).first();
+  for (let attempt = 0; attempt < 15 && !(await dispatch.isVisible()); attempt += 1) {
+    await page.goto(`${aspire}/traces/detail/${paymentTraceId}`);
+    await dispatch.waitFor({ timeout: 2_000 }).catch(() => {});
+  }
+  await dispatch.click();
+  await page.getByText("messaging.message.id").waitFor();
+  // The details pane narrows the grid under the pointer; parked, it draws no hover label over a row.
+  await page.mouse.move(0, 0);
+  await shoot(page, "aspire-outbox-trace.png");
 
   await page.goto(`${aspire}/structuredlogs/resource/payment-api?logLevel=error`);
   await page.getByText(/Health check database/).first().waitFor();

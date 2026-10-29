@@ -302,3 +302,15 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Checked on a fresh compose volume: five migrations applied, 282 demo records seeded, all 280 payments paged once in six pages of 50, `status=refunded,failed&currency=USD` returned only those, `limit=0` named the parameter; `SHOWPLAN_TEXT` shows the list, status, and reference queries as a backward clustered seek on `MerchantId`.
 - Gate: format, locked restore, Release build, 366 backend tests green three runs in a row; `check-stack.sh` with no startup warnings.
 
+
+## 2026-10-29: the transactional outbox (T23a)
+
+- `backend: write payment events to a transactional outbox and dispatch them`: R21 is done; R9 and R15 are scaffolded until signed delivery (T23b).
+  - `OutboxMessages`, `WebhookEndpoints`, and `WebhookDeliveries` (migration `Outbox`); `RecordChanges` writes a `payment.<status>` event for every status change after creation, in the change's own transaction, with the correlation id, the request's `traceparent`, and a snake_case payload that holds no card data; the demo seed writes none.
+  - `DispatchOutboxMessages` and the `dispatch-outbox` job (every second, draining full batches): `SELECT TOP (100) ... WITH (UPDLOCK, READPAST, ROWLOCK)` in the transaction that writes one delivery per enabled endpoint and marks the messages dispatched; each event gets an `outbox dispatch` `Consumer` span parented to its request, with `correlation.id`.
+  - ADR 003 amended: transaction-held locks instead of a lease for dispatch, because dispatch does no network work; deliveries keep the lease.
+  - 16 new tests (7 outbox, 1 model mapping, 5 sampler, 3 worker); mutations that dropped the lock hints, `READPAST`, the trace parent, the `Enabled` filter, the outbox write, the seed's opt-out, the sampler, its parent-based wrapper, and the dispatcher's opt-out each failed a test.
+- Found on the way: the first `Outbox` migration had no `OccurredAt` or `CreatedAt` columns. EF Core maps a get-only property only when a configuration names it and skips any other one without a warning; `ModelMappingTests` now fails on any public property of a stored type without a column.
+- Found on the way: the Aspire dashboard showed the every-second dispatcher as a trace a second (266 in a few minutes), burying the request traces. `TraceSampling` (ServiceDefaults, ADR 005 amended) drops a root span tagged `sampling.priority` `0` with its children; `PeriodicJob.TraceRuns => false` sets it, and the events a run dispatches stay traced under their requests. After the change, twenty seconds of the stack made five traces.
+- Checked on the compose stack, upgraded from the T22 volume: the migration applied, events dispatched 0.4 to 0.5 s after the change, no deliveries without an endpoint and one `Pending` delivery with one, no outbox rows from the seed, and the payment's trace in Aspire running from `POST /api/v1/payments` into the worker's span (`docs/images/aspire-outbox-trace.png`, now in the README and the demo guide).
+- Gate: locked restore, format, Release build, 382 backend tests green three runs in a row; `check-stack.sh` with no startup warnings; docs links.

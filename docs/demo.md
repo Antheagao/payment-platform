@@ -156,7 +156,7 @@ Each answers `200` with the payment and one more history row.
 Repeat the capture with the same key and it replays (`Idempotent-Replayed: true`); repeat it with a new key and it is `409 payment_not_capturable`, because the lifecycle is the second line of defense.
 Capturing `INV-1006` (failed) or `INV-1016` (already captured) is the same `409`; refunding `INV-1001` (settled) works.
 These change the sample data; `docker compose down -v` and a fresh start bring it back.
-In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`.
+In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`, and step 6 follows it into the worker.
 
 **The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
 The payment is saved before the card network is called, so an outage leaves a visible `pending` payment rather than a charge with no record, and every status change writes its audit row in the same transaction.
@@ -167,6 +167,21 @@ Open `http://localhost:18888/traces/detail/` followed by the `trace_id` from ste
 The trace shows the `payment-api` span and how long it took; select it for its attributes, among them `correlation.id`, the status code, and the path.
 
 ![The span's attributes in the Aspire dashboard, with correlation.id demo-1](images/aspire-trace.png)
+
+Now the payment from step 5.
+Its status change wrote a `payment.authorized` event to the outbox in the same transaction, with the request's `traceparent`, and within about a second the worker dispatched it.
+In **Traces**, the `POST /api/v1/payments` row spans two resources, `payment-api` and `payment-worker`; open it and select `outbox dispatch`, a `Consumer` span of the worker whose parent is the API's request span, with the same `correlation.id`, the event type, and the event id.
+
+![The payment's trace in the Aspire dashboard, from the API request into the worker's outbox dispatch, correlation.id demo-outbox](images/aspire-outbox-trace.png)
+
+The worker polls the outbox every second, but those runs are not traces of their own: a trace a second would bury everything else, so only the events it dispatches are traced, each under the request that caused it ([ADR 005](decisions/005-observability-on-opentelemetry.md)).
+To see the queue itself (in Git Bash on Windows, put `MSYS_NO_PATHCONV=1` in front, or it rewrites the container path):
+
+```sh
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -U sa -P 'LocalOnly_Admin_2026!' -d payments -Q "SELECT EventType, CorrelationId, DATEDIFF(millisecond, OccurredAt, DispatchedAt) AS lag_ms FROM payments.OutboxMessages ORDER BY Id DESC"
+```
+
+Every status change after creation is a row, dispatched within about a second (`lag_ms`); the 280 sample payments wrote none, because their history is not news.
 
 Then open **Structured logs**: each line is JSON with its trace id and scopes, and the API's startup reports `Database migrated at startup`.
 **Metrics** shows `http.server.request.duration`, Kestrel's connections, and the .NET runtime for `payment-api` and `payment-worker`.
@@ -233,9 +248,8 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- The outbox and webhooks (T23), settlement (T24), domain metrics (T25), and the dashboard's sign-in and payment pages that show the sample data (T26 to T28).
-  The startup seed will load a demo merchant and payments in every status, each with its audit trail, so this guide can then log in and walk a payment's timeline.
-- The asynchronous workflow: the outbox, signed webhooks with retries and dead-lettering, and settlement (T23, T24).
+- Signed webhook delivery with retries and dead-lettering, and a local receiver that shows deliveries arriving (T23b); settlement (T24); domain and queue metrics (T25).
+- The dashboard's sign-in and the payment pages that show the sample data and a payment's timeline (T26 to T28).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 
 ## Remake the images

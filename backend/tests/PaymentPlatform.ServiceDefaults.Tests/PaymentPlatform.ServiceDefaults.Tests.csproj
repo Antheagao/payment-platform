@@ -5,6 +5,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\PaymentPlatform.ServiceDefaults\PaymentPlatform.ServiceDefaults.csproj" />
   </ItemGroup>
 

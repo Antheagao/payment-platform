@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using PaymentPlatform.Persistence;
+using PaymentPlatform.ServiceDefaults;
 
 namespace PaymentPlatform.Worker.Jobs;
 
@@ -17,10 +18,22 @@ public abstract partial class PeriodicJob(
     IServiceScopeFactory scopes, TimeProvider timeProvider, WorkerTelemetry telemetry, ILogger logger)
     : BackgroundService
 {
+    // Asks the sampler to drop a run's span and everything under it (TraceSampling).
+    private static readonly KeyValuePair<string, object?>[] UntracedRunTags = [new(TraceSampling.PriorityTag, 0)];
+
+    // Checked until it holds, then trusted: a new migration only ever arrives with a new build.
+    private bool _schemaCurrent;
+
     /// <summary>A short kebab-case name, used in spans, metrics, and logs: <c>deliver-webhooks</c>.</summary>
     public abstract string Name { get; }
 
     public abstract TimeSpan Interval { get; }
+
+    /// <summary>
+    /// Whether each run is a trace of its own. A job that runs every few seconds turns it off: its runs still log,
+    /// count, and time themselves, and the work they do for another trace is traced there.
+    /// </summary>
+    protected virtual bool TraceRuns => true;
 
     /// <summary>One unit of work, such as claiming and processing one batch.</summary>
     /// <param name="services">The run's own scope: resolve the <c>DbContext</c> and use cases from it.</param>
@@ -39,14 +52,15 @@ public abstract partial class PeriodicJob(
 
     internal async Task RunGuardedAsync(CancellationToken stoppingToken)
     {
-        using var activity = WorkerTelemetry.ActivitySource.StartActivity($"job {Name}");
+        using var activity = WorkerTelemetry.ActivitySource.StartActivity(
+            $"job {Name}", ActivityKind.Internal, parentContext: default, tags: TraceRuns ? null : UntracedRunTags);
         activity?.SetTag("job.name", Name);
         var started = timeProvider.GetTimestamp();
         var failed = false;
         try
         {
             await using var scope = scopes.CreateAsyncScope();
-            if (!await SchemaIsCurrentAsync(scope.ServiceProvider, stoppingToken))
+            if (!_schemaCurrent && !(_schemaCurrent = await SchemaIsCurrentAsync(scope.ServiceProvider, stoppingToken)))
             {
                 LogSchemaNotCurrent(logger, Name);
                 return;

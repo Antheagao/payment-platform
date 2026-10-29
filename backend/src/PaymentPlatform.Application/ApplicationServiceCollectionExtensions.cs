@@ -6,6 +6,7 @@ using PaymentPlatform.Application.Auth;
 using PaymentPlatform.Application.Cards;
 using PaymentPlatform.Application.Idempotency;
 using PaymentPlatform.Application.Payments;
+using PaymentPlatform.Application.Webhooks;
 using PaymentPlatform.Domain.Merchants;
 
 namespace PaymentPlatform.Application;
@@ -39,6 +40,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<RefundPayment>();
         services.AddScoped<IdempotencyStore>();
         services.AddScoped<DeleteExpiredIdempotencyKeys>();
+        services.AddScoped<DispatchOutboxMessages>();
         return services;
     }
 }

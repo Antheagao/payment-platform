@@ -7,19 +7,21 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), and list and search (T22) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), and the transactional outbox (T23a) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T23. Outbox and webhook delivery
+### T23b. Signed webhook delivery
 
-The asynchronous workflow (R9, R15, R20, R21, R27; ADR 003). Two slices:
-- **T23a. The outbox.** An `OutboxMessages` table written in the same transaction as every status change (`RecordChanges` adds one per `PaymentStatusChanged`: event type `payment.<status>`, the payment's public JSON, the correlation id, and the W3C `traceparent` of the request), and a worker job that claims due rows with `UPDATE TOP (@n) ... WITH (UPDLOCK, READPAST, ROWLOCK) OUTPUT inserted.*`, restores the correlation id and trace context for each, and hands it to the delivery step; the seed's history writes no outbox rows (its events are history, not news).
-- **T23b. Signed webhook delivery.** A merchant's webhook endpoint and signing secret (a table, managed by a small API), deliveries signed with HMAC-SHA256 over the timestamp and raw body, retries with exponential backoff and full jitter from 10 seconds to 1 hour, a dead-letter state after the last attempt, SSRF rules for merchant URLs (security overlay), and a local receiver in compose so the demo shows deliveries arriving.
-- Gate: a status change and its outbox row commit or roll back together; two workers never claim one row; a trace runs from `POST /payments` through the worker's delivery; retries back off and dead-letter; signatures verify; a private or loopback URL is refused.
+The rest of the asynchronous workflow (R9, R15, R27; ADR 003 and its 2026-10-29 amendment). The outbox, the dispatcher, and the `WebhookEndpoints` and `WebhookDeliveries` tables landed in T23a.
+- **Endpoint management.** `PUT /api/v1/webhook-endpoint` (URL; the secret generated on first set and returned once), `GET` (the URL and whether it is enabled, never the secret), `DELETE`, and `POST .../rotate-secret`; one endpoint per merchant (assumption 11); merchant-scoped and idempotent like the other writes.
+- **SSRF rules** for merchant URLs (security overlay): `https` only outside Development, no user info, and every resolved address public, checked when the URL is set and again at connect time (a `SocketsHttpHandler.ConnectCallback` that refuses loopback, private, link-local, and metadata ranges), so DNS rebinding cannot reach the network; redirects not followed. The compose receiver is allowed by an explicit Development-only allow list, not by relaxing the rule.
+- **The delivery job.** Claims due `Pending` deliveries with `UPDATE TOP (@n) ... WITH (UPDLOCK, READPAST, ROWLOCK) ... OUTPUT inserted.*` and a lease (`LeasedUntil`), posts the payload with `Webhook-Id`, `Webhook-Timestamp`, and `Webhook-Signature` (HMAC-SHA256 over `id.timestamp.body`) and the correlation id, a 10 s timeout; `2xx` delivered, `410` disables the endpoint, anything else retries with exponential backoff and full jitter from 10 s to 1 h, dead-lettered after 12 attempts; a `delivery` span under the dispatch span.
+- **A local receiver** in compose that verifies signatures and logs what it gets, so the demo shows deliveries arriving and a forced failure retrying.
+- Gate: signatures verify byte for byte (a test vector in the docs); a private, loopback, or rebinding URL is refused; retries back off on a fake clock and dead-letter; two delivery workers never send one delivery at once; a lease that expires is taken over; the trace runs from `POST /payments` through dispatch into delivery in the Aspire dashboard.
 
 ### Then
 

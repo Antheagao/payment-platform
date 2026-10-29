@@ -255,6 +255,63 @@ namespace PaymentPlatform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PaymentPlatform.Persistence.OutboxMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset?>("DispatchedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<Guid>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("PaymentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TraceParent")
+                        .HasMaxLength(55)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(55)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("Id")
+                        .HasDatabaseName("IX_OutboxMessages_Undispatched")
+                        .HasFilter("[DispatchedAt] IS NULL");
+
+                    b.HasIndex("PaymentId");
+
+                    b.ToTable("OutboxMessages", "payments");
+                });
+
             modelBuilder.Entity("PaymentPlatform.Persistence.PaymentEvent", b =>
                 {
                     b.Property<long>("Id")
@@ -318,6 +375,104 @@ namespace PaymentPlatform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PaymentPlatform.Persistence.WebhookDelivery", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("EndpointId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("LastStatusCode")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("LeasedUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("OutboxMessageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EndpointId");
+
+                    b.HasIndex("NextAttemptAt")
+                        .HasDatabaseName("IX_WebhookDeliveries_Due")
+                        .HasFilter("[Status] = 'Pending'");
+
+                    b.HasIndex("OutboxMessageId", "EndpointId")
+                        .IsUnique();
+
+                    b.ToTable("WebhookDeliveries", "payments", t =>
+                        {
+                            t.HasCheckConstraint("CK_WebhookDeliveries_Status", "[Status] IN ('Pending', 'Delivered', 'DeadLettered')");
+                        });
+                });
+
+            modelBuilder.Entity("PaymentPlatform.Persistence.WebhookEndpoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Secret")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MerchantId")
+                        .IsUnique();
+
+                    b.ToTable("WebhookEndpoints", "payments");
+                });
+
             modelBuilder.Entity("PaymentPlatform.Domain.Merchants.MerchantUser", b =>
                 {
                     b.HasOne("PaymentPlatform.Domain.Merchants.Merchant", null)
@@ -345,11 +500,44 @@ namespace PaymentPlatform.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PaymentPlatform.Persistence.OutboxMessage", b =>
+                {
+                    b.HasOne("PaymentPlatform.Domain.Payments.Payment", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("PaymentPlatform.Persistence.PaymentEvent", b =>
                 {
                     b.HasOne("PaymentPlatform.Domain.Payments.Payment", null)
                         .WithMany()
                         .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PaymentPlatform.Persistence.WebhookDelivery", b =>
+                {
+                    b.HasOne("PaymentPlatform.Persistence.WebhookEndpoint", null)
+                        .WithMany()
+                        .HasForeignKey("EndpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PaymentPlatform.Persistence.OutboxMessage", null)
+                        .WithMany()
+                        .HasForeignKey("OutboxMessageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PaymentPlatform.Persistence.WebhookEndpoint", b =>
+                {
+                    b.HasOne("PaymentPlatform.Domain.Merchants.Merchant", null)
+                        .WithMany()
+                        .HasForeignKey("MerchantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

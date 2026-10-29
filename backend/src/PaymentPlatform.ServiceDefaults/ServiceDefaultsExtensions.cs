@@ -93,6 +93,7 @@ public static class ServiceDefaultsExtensions
         var telemetry = builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService(serviceName: serviceName, serviceNamespace: "payment-platform"))
             .WithTracing(tracing => tracing
+                .SetSampler(TraceSampling.Create())
                 .AddSource($"{TelemetryPrefix}.*")
                 .AddAspNetCoreInstrumentation(options => options.Filter = IsNotHealthProbe)
                 .AddHttpClientInstrumentation()
