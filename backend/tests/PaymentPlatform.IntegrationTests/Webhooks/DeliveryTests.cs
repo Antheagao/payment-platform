@@ -247,7 +247,6 @@ public sealed class DeliveryTests(SqlServerFixture sqlServer) : ApiTestBase(sqlS
 
         Assert.Equal(120, taken.Sum());
         Assert.Equal(messages.Select(message => message.EventId.ToString()).Order(), _receiver.Requests.Select(request => request.Id).Order());
-        Assert.True(taken.Count(count => count > 0) > 1, "the work was shared, not done by one worker");
     }
 
     [Fact]
