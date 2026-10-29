@@ -263,6 +263,20 @@ async function observability(browser) {
   // The chart draws after its data arrives.
   await page.waitForTimeout(2_000);
   await shoot(page, "aspire-metrics.png");
+
+  // The worker's webhook delivery attempts by outcome (R20). Metrics reach Aspire with the next export, up to a
+  // minute after the deliveries, so the table is polled until it has a row. The table, not the graph: the graph
+  // draws the interval not yet exported as a fall to zero, which reads as a counter going backwards.
+  const attempts = (view) =>
+    `${aspire}/metrics/resource/payment-worker?meter=PaymentPlatform.Outbox&instrument=webhook.delivery.attempts&duration=5&view=${view}`;
+  const exported = page.getByRole("gridcell", { name: /\d{1,2}\/\d{1,2}\/\d{4}/ }).first();
+  for (let attempt = 0; attempt < 20 && !(await exported.isVisible()); attempt += 1) {
+    await page.goto(attempts("Table"));
+    await exported.waitFor({ timeout: 5_000 }).catch(() => {});
+  }
+  await page.getByText("Webhook delivery attempts, by how they ended").waitFor();
+  await page.mouse.move(0, 0);
+  await shoot(page, "aspire-webhook-metrics.png");
   await context.close();
 }
 

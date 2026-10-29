@@ -349,3 +349,13 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Found on the way: the idempotent migration script, the production deploy path, would not have applied. `CREATE PROCEDURE` cannot sit inside the script's `IF NOT EXISTS (...)` block, so the migration runs it through `EXEC`; and `sqlcmd` without `-I` failed on the T23a filtered indexes (`QUOTED_IDENTIFIER`). The full script now applies twice to an empty database.
 - Found on the way: the first race test hung on the fake clock, because the simulated acquirer's latency runs on the injected `TimeProvider`; the test now waits for the refund's acquirer span, settles, and then advances the clock.
 - Checked on the compose stack, upgraded from the T23c volume: the first run settled all 37 seeded captured payments in one batch (totals logged per currency) and their 37 webhooks arrived verified with the run's `traceparent`; `INV-1025`, captured live, settled 80 s later by `system` `settlement`, and its `payment.settled` webhook followed 2 s after.
+
+## 2026-10-29: domain and queue metrics (T25)
+
+- `backend: add payment and queue metrics` (checkpoint `e8d631c`, paused by the owner) and `backend: test and document the payment and queue metrics`: R19 and R20 are done.
+  - `PaymentPlatform.Payments`: `payments.transitions` by `payment.status.from` and `payment.status.to`, counted by `PaymentTransitionInterceptor` once a save commits, only for audit rows `RecordChanges` marked as news (the seed's are not), plus settlement's count per batch, which the procedure writes past EF.
+  - `PaymentPlatform.Outbox`: `webhook.delivery.attempts` by `webhook.outcome`, and gauges for outbox depth and oldest age, deliveries due and their lag, retries, dead letters (a new filtered index, migration `DeadLetterIndex`), and the settlement backlog, over a snapshot the worker's `measure-queues` job takes every 10 s.
+  - 6 new integration tests with `MetricCollector` on each host's own meter factory; mutations that counted before the commit, counted the seed, dropped settlement's count, called a dead letter a retry, or reported zeros before the first measurement each failed a test.
+- Found on the way: the "reports nothing before it measures" assertion first passed under its mutation, because the gauges' singleton had not been made yet; the test now makes it first.
+- Found on the way: Aspire draws a counter's not-yet-exported interval as a fall to zero, which reads as a counter going backwards; the new `docs/images/aspire-webhook-metrics.png` shows the table instead.
+- Checked on a fresh compose volume: every instrument reached the Aspire dashboard; delivery attempts rose from 5 to 42 when settlement's first run sent 37 `payment.settled` webhooks.

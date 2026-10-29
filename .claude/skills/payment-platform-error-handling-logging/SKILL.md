@@ -35,9 +35,8 @@ ADR 005 (observability) and ADR 006 (problem details) come first; this file says
 
 ## Known gaps
 
-- The log-capture test for card data lands with T20, and the business events logged at `Information` with T20 and T21.
-- The trace hop from a request to its outbox work (the stored `traceparent`) lands with T23; today API, SQL, and worker job spans are separate traces.
-- `PaymentPlatform.Payments` and `PaymentPlatform.Outbox` meters land with T25.
+- Metrics (R19, R20): `Persistence/PaymentMetrics` (`payments.transitions`, fed by `PaymentTransitionInterceptor` once a save commits and only for rows recorded as news, plus settlement's batch counts) and `Application/Webhooks/QueueMetrics` (`webhook.delivery.attempts` by `webhook.outcome`, and gauges over the last `MeasureQueues` snapshot, which the worker takes every 10 s; a host that never measures reports nothing). Tests read them with `MetricCollector` on the host's own `IMeterFactory`, so no other host is heard; a gauge's singleton must exist before a test can show it reports nothing.
+- No alert rules exist locally; production.md names the ones that page a person (outbox age over 60 s, any dead letter, a settlement failure), and the gauges above are what they read.
 - `Microsoft.AspNetCore.DataProtection` is at `Error` in the API's `appsettings.json`: authentication registers Data Protection, which warns in a container about unpersisted, unencrypted keys, but the API protects nothing with it (tokens are signed with the JWT key). If the API ever protects data (cookies, antiforgery), persist the keys to Blob Storage and protect them with Key Vault instead.
 - `scripts/check-stack.sh` fails when the API or the worker logs anything at `Warning` or above before "Application started", so CI catches warnings that only appear in the Linux container (the Data Protection ones never appear on Windows).
 - The health check service logs every unhealthy probe at `Error`, so an outage logs once per probe per instance; acceptable while alerting keys on readiness, revisit when alerts are wired (production.md).

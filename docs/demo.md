@@ -210,6 +210,12 @@ Then open **Structured logs**: each line is JSON with its trace id and scopes, a
 
 ![http.server.request.duration for the API in the Aspire dashboard](images/aspire-metrics.png)
 
+For `payment-worker`, the `PaymentPlatform.Outbox` meter shows the asynchronous workflow: `webhook.delivery.attempts` by outcome (filter on `webhook.outcome` to see the `retried` ones from the `webhook-fail` payment), and gauges for what is waiting and how late it is, `outbox.messages.pending`, `webhook.deliveries.due`, `webhook.deliveries.lag`, `webhook.deliveries.retrying`, `webhook.deliveries.dead_lettered`, and `settlement.payments.due`, measured every 10 seconds.
+`PaymentPlatform.Payments` counts every status change as `payments.transitions`, by the status left and entered (`none` to `pending` is a new payment); the 280 seeded payments do not count, because their history is data, not activity.
+Metrics reach the dashboard about once a minute.
+
+![webhook.delivery.attempts for the worker in the Aspire dashboard, rising with each export, filtered by delivered and retried](images/aspire-webhook-metrics.png)
+
 The yellow "Endpoint is unsecured" banner is expected: the dashboard runs without a login because it is local only and bound to 127.0.0.1; a shared environment would use its login token.
 
 **The point:** logs, traces, and metrics share one id from the first request, through OpenTelemetry and OTLP ([ADR 005](decisions/005-observability-on-opentelemetry.md)); in Azure the same export goes to Application Insights.
@@ -270,7 +276,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- Settlement (T24); domain and queue metrics, among them the delivery queue's depth, lag, retries, and dead letters (T25); a replay for dead-lettered deliveries.
+- A replay for dead-lettered deliveries, and alert rules on the queue gauges.
 - The dashboard's sign-in and the payment pages that show the sample data and a payment's timeline (T26 to T28).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -8,6 +9,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Microsoft.Extensions.Time.Testing;
 using PaymentPlatform.Application;
 using PaymentPlatform.Application.Cards;
@@ -293,6 +295,113 @@ public sealed class DeliveryTests(SqlServerFixture sqlServer) : ApiTestBase(sqlS
         var request = Assert.Single(_receiver.Requests);
         Assert.Equal(message.EventId.ToString(), request.Id);
         Assert.Equal(WebhookSignature.Sign(WebhookSecrets.KeyOf(rotated)!, request.Id, request.Timestamp, request.Body), request.Signature);
+    }
+
+    [Fact]
+    public async Task Each_attempt_is_counted_by_how_it_ended()
+    {
+        var (user, _) = await MerchantWithEndpointAsync("outcomes@example.com");
+        var messages = await SeedDeliveriesAsync(user, count: 3);
+        var answers = new Dictionary<string, WebhookAttempt>
+        {
+            [messages[0].EventId.ToString()] = new(200, null),
+            [messages[1].EventId.ToString()] = new(500, "HTTP 500"),
+            [messages[2].EventId.ToString()] = new(410, "HTTP 410"),
+        };
+        _receiver.Answer = request => answers[request.Id];
+        using var attempts = new MetricCollector<long>(Api.Services.GetRequiredService<IMeterFactory>(), QueueMetrics.MeterName, "webhook.delivery.attempts");
+
+        await DeliverAsync();
+
+        Assert.Equal(
+            ["dead_lettered:1", "delivered:1", "retried:1"],
+            attempts.GetMeasurementSnapshot().Select(measurement => $"{measurement.Tags[QueueMetrics.OutcomeTag]}:{measurement.Value}").Order());
+    }
+
+    [Fact]
+    public async Task The_queue_gauges_report_the_last_measurement_and_match_the_tables()
+    {
+        // The gauges exist (their singleton is made) but have nothing to report until the first measurement.
+        var meters = Api.Services.GetRequiredService<IMeterFactory>();
+        Assert.Null(Api.Services.GetRequiredService<QueueMetrics>().Last);
+        using var due = new MetricCollector<long>(meters, QueueMetrics.MeterName, "webhook.deliveries.due");
+        Assert.NotNull(due.Instrument);
+        due.RecordObservableInstruments();
+        Assert.Empty(due.GetMeasurementSnapshot());
+
+        // Deliveries in each state, an event the dispatcher has not reached, and a captured payment past its delay.
+        var (user, _) = await MerchantWithEndpointAsync("gauges@example.com");
+        var messages = await SeedDeliveriesAsync(user, count: 4);
+        _receiver.Answer = request =>
+            request.Id == messages[0].EventId.ToString() ? new WebhookAttempt(500, "HTTP 500")
+            : request.Id == messages[1].EventId.ToString() ? new WebhookAttempt(410, "HTTP 410")
+            : new WebhookAttempt(200, null);
+        await SetNextAttemptAsync(messages[2], _clock.GetUtcNow().AddMinutes(5));
+        await DeliverAsync();
+        await SeedUndispatchedAsync(user);
+        _clock.Advance(TimeSpan.FromSeconds(90));
+
+        QueueSnapshot snapshot;
+        await using (var scope = Api.Services.CreateAsyncScope())
+        {
+            snapshot = await scope.ServiceProvider.GetRequiredService<MeasureQueues>().HandleAsync(Cancellation);
+        }
+
+        var now = _clock.GetUtcNow();
+        var expected = await ExpectedSnapshotAsync(now);
+        Assert.Equal(expected, snapshot);
+        Assert.True(snapshot.OutboxPending >= 1 && snapshot.DeliveriesRetrying >= 1 && snapshot.DeliveriesDeadLettered >= 1, snapshot.ToString());
+        Assert.True(snapshot.OutboxOldestAge >= TimeSpan.FromSeconds(90), snapshot.ToString());
+
+        due.RecordObservableInstruments();
+        Assert.Equal(snapshot.DeliveriesDue, due.LastMeasurement!.Value);
+        using var lag = new MetricCollector<double>(meters, QueueMetrics.MeterName, "webhook.deliveries.lag");
+        lag.RecordObservableInstruments();
+        Assert.Equal(snapshot.DeliveryLag.TotalSeconds, lag.LastMeasurement!.Value);
+        using var deadLettered = new MetricCollector<long>(meters, QueueMetrics.MeterName, "webhook.deliveries.dead_lettered");
+        deadLettered.RecordObservableInstruments();
+        Assert.Equal(snapshot.DeliveriesDeadLettered, deadLettered.LastMeasurement!.Value);
+    }
+
+    /// <summary>The snapshot written as plain SQL, independently of <see cref="MeasureQueues"/>.</summary>
+    private async Task<QueueSnapshot> ExpectedSnapshotAsync(DateTimeOffset now)
+    {
+        await using var scope = Api.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        async Task<long> Count(FormattableString sql) => (await db.Database.SqlQuery<long>(sql).ToListAsync(Cancellation)).Single();
+        async Task<TimeSpan> Age(FormattableString sql) =>
+            (await db.Database.SqlQuery<DateTimeOffset?>(sql).ToListAsync(Cancellation)).Single() is { } at && now > at ? now - at : TimeSpan.Zero;
+        var capturedBefore = now - TimeSpan.FromDays(1);
+        return new QueueSnapshot(
+            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.OutboxMessages WHERE DispatchedAt IS NULL"),
+            await Age($"SELECT MIN(OccurredAt) AS [Value] FROM payments.OutboxMessages WHERE DispatchedAt IS NULL"),
+            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.WebhookDeliveries WHERE Status = 'Pending' AND NextAttemptAt <= {now}"),
+            await Age($"SELECT MIN(NextAttemptAt) AS [Value] FROM payments.WebhookDeliveries WHERE Status = 'Pending' AND NextAttemptAt <= {now}"),
+            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.WebhookDeliveries WHERE Status = 'Pending' AND Attempts > 0"),
+            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.WebhookDeliveries WHERE Status = 'DeadLettered'"),
+            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.Payments WHERE Status = 'Captured' AND UpdatedAt < {capturedBefore}"));
+    }
+
+    private async Task SeedUndispatchedAsync(TestUser user)
+    {
+        await using var scope = Api.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var vault = scope.ServiceProvider.GetRequiredService<ICardVault>();
+        var now = _clock.GetUtcNow();
+        var card = vault.Tokenize(new CardInput("4242424242424242", 12, now.Year + 2, "123")).Value;
+        var payment = Payment.Create(PaymentId.New(now), user.MerchantId, Money.Create(100, "USD").Value, card, null, Actor.MerchantUser(user.UserId.Value), now);
+        payment.Authorize("sim_auth_undispatched", Actor.MerchantUser(user.UserId.Value), now);
+        db.Payments.Add(payment);
+        db.RecordChanges(payment, "seeded-undispatched");
+        await db.SaveChangesAsync(Cancellation);
+    }
+
+    private async Task SetNextAttemptAsync(OutboxMessage message, DateTimeOffset nextAttemptAt)
+    {
+        await using var scope = Api.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().WebhookDeliveries
+            .Where(delivery => delivery.OutboxMessageId == message.Id)
+            .ExecuteUpdateAsync(update => update.SetProperty(delivery => delivery.NextAttemptAt, nextAttemptAt), Cancellation);
     }
 
     private async Task<int> DeliverAsync()

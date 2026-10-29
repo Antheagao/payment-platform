@@ -7,28 +7,24 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), and settlement (T24) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), and the domain and queue metrics (T25) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T25. Domain and queue metrics
+### T26. Dashboard sign-in
 
-R19 and R20 (ADR 005): the numbers an operator watches, read back through the OpenTelemetry pipeline in tests and shown in the Aspire dashboard.
-
-**Checkpoint (2026-10-29, paused by the owner).** Committed so far, building, with the existing 540 tests green, but with no tests of its own yet:
-- `Persistence/PaymentMetrics` (meter `PaymentPlatform.Payments`, counter `payments.transitions` tagged `payment.status.from`, `none` for a new payment, and `payment.status.to`) and `PaymentTransitionInterceptor`, registered on the pooled context, which counts the `PaymentEvents` rows a save adds once it commits, only those `RecordChanges` marked as news (`PaymentEvent.IsNews`, not stored), so the seed is not counted; `SettlePayments` adds settlement's count, since the procedure writes past EF.
-- `Application/Webhooks/QueueMetrics` (meter `PaymentPlatform.Outbox`: counter `webhook.delivery.attempts` by `webhook.outcome`, recorded in `DeliverWebhooks`; gauges `outbox.messages.pending`, `outbox.messages.oldest_age`, `webhook.deliveries.due`, `webhook.deliveries.lag`, `webhook.deliveries.retrying`, `webhook.deliveries.dead_lettered`, `settlement.payments.due` over the last snapshot) and `MeasureQueues`, run every 10 s by the worker's `measure-queues` job (untraced); migration `DeadLetterIndex` (filtered `IX_WebhookDeliveries_DeadLettered`) for the dead-letter count.
-- Next, in order: tests with `MetricCollector` on each host's `IMeterFactory` (create, decline, capture, refund, settle, a seed that counts nothing, a race retry counted once; each delivery outcome; every gauge against a direct query, and nothing reported before the first measurement); mutation checks (count before commit, count the seed, drop settlement's count); the compose check in the Aspire dashboard and a metrics screenshot; `docs/architecture.md`'s observability table, the error-handling overlay, R19 and R20, `demo.md`; the past-file entry.
-- **`PaymentPlatform.Payments` meter.** `payments.transitions` (counter, by `from` and `to` status) recorded after a save commits, from the changes `RecordChanges` turned into rows, plus settlement's count per batch from the procedure's totals; `payments.amount` (histogram of minor units by currency and status) only if it stays cheap.
-- **`PaymentPlatform.Outbox` meter.** Observable gauges from one small query every collection, cached for a few seconds: undispatched outbox depth and the oldest one's age, pending deliveries due now and the oldest due one's age (lag), and dead letters in total; counters for delivery attempts by outcome (`delivered`, `retried`, `dead_lettered`, `gone`) and for settlement batches.
-- Gate: each instrument read back through the in-memory exporter after the action that moves it (create, capture, refund, settle, a failed and a dead-lettered delivery); the gauges match a direct query; names and units follow the OpenTelemetry conventions; a screenshot of the queue lag in the Aspire dashboard; `docs/architecture.md`'s observability table matches what exists.
+R10 (ADR 004): the merchant dashboard's login, the first page behind it, and the security headers the brief's frontend needs. Load the `payment-platform-frontend-ui` and `payment-platform-security` overlays, then the global guides, and read `frontend/node_modules/next/dist/docs/` for the installed Next.js 16 before using an API.
+- **Sign-in.** A `/login` page (email and password, `useActionState`, labels, `autoComplete`, errors by `code` from the API's problem details, the demo login shown only in Development); a Server Action that calls `POST /api/v1/auth/login` from the Next.js server and keeps the token in an `HttpOnly`, `Secure` outside Development, `SameSite=Lax` cookie that expires with the token; sign-out clears it; an expired or refused token sends the browser back to `/login` with the page it wanted.
+- **Guard.** `proxy.ts` sends a request without the cookie to `/login` (optimistic only); every server read checks the session itself, and the API's `401` is handled where the data is read.
+- **Headers.** A nonce-based Content Security Policy set in `proxy.ts` (no `unsafe-inline` for scripts), the existing security headers kept.
+- **Home page.** The service status panel stays for an operator; a merchant sees a single banner when payments are delayed (docs/tradeoffs.md), driven by the API's readiness.
+- Gate: Vitest for the action and the cookie rules; Playwright for sign-in, a wrong password, sign-out, an expired token, and the CSP header at 1440 and 360; the browser walk-through in both schemes; `docs/images/` remade; `docs/demo.md` signs in.
 
 ### Then
 
-- **T26. Dashboard login.** Login form, the JWT held in an HttpOnly cookie on the Next.js server, sign-out, expiry handling, and a nonce-based CSP from `proxy.ts`; the home page's service status moves behind an operator role, and merchants get a single banner when payments are delayed (docs/tradeoffs.md).
 - **T27. Payments list.** Filters and search bound to the URL, pagination, empty and error states.
 - **T28. Payment detail.** Amounts, status, and the audit timeline.
 - Every feature row also updates `docs/demo.md` with the step that shows it, verified against the composed stack, and a row that changes what a page shows remakes `docs/images/` with `node scripts/capture-screenshots.mjs`.
@@ -38,7 +34,7 @@ R19 and R20 (ADR 005): the numbers an operator watches, read back through the Op
 
 ## Smaller items to fold in
 
-- A replay for dead-lettered webhook deliveries (ADR 003): `POST` on a delivery that puts it back to `Pending` with its attempts reset, for an operator role; fold into T26, which brings roles to the dashboard, and count dead letters with T25.
+- A replay for dead-lettered webhook deliveries (ADR 003): `POST` on a delivery that puts it back to `Pending` with its attempts reset, for an operator role; fold into T26, which brings roles to the dashboard (the `webhook.deliveries.dead_lettered` gauge already counts what it would replay).
 - Integration tests: migrate one template database per run and copy it for each test class (a backup and restore, or `CREATE DATABASE ... AS SNAPSHOT` where the edition allows), instead of migrating 30-odd databases; the per-class setup is now about 3.5 s and the suite about 60 s, and it grows with every migration.
 - OpenTelemetry in the dashboard (`instrumentation.ts`) so traces start at the browser request; fold into T26.
 - Update this machine's .NET SDK past 10.0.101: CI runs 10.0.403, whose analyzers caught an unused using the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]

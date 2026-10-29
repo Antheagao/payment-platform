@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Microsoft.Extensions.Time.Testing;
 using PaymentPlatform.Application;
 using PaymentPlatform.Application.Acquiring;
@@ -198,6 +200,8 @@ public sealed class SettlementTests(SqlServerFixture sqlServer) : ApiTestBase(sq
         };
         ActivitySource.AddActivityListener(listener);
 
+        using var transitions = new MetricCollector<long>(slow.Services.GetRequiredService<IMeterFactory>(), PaymentMetrics.MeterName, "payments.transitions");
+
         var refund = PaymentRequests.MoveAsync(client, id.Value, "refund");
         await waiting.Task.WaitAsync(TimeSpan.FromSeconds(10), Cancellation);
         Assert.Equal(1, SettlePayments.CountOf(await SettleAsync(slow)));
@@ -210,6 +214,28 @@ public sealed class SettlementTests(SqlServerFixture sqlServer) : ApiTestBase(sq
         Assert.Equal(
             ["pending", "authorized", "captured", "settled", "refunded"],
             body.RootElement.GetProperty("history").EnumerateArray().Select(entry => entry.GetProperty("to").GetString()));
+
+        // The refund's first save failed on the row version; only the save that committed is counted.
+        Assert.Equal(
+            ["captured->settled:1", "settled->refunded:1"],
+            transitions.GetMeasurementSnapshot()
+                .Select(measurement => $"{measurement.Tags[PaymentMetrics.FromTag]}->{measurement.Tags[PaymentMetrics.ToTag]}:{measurement.Value}")
+                .Order());
+    }
+
+    [Fact]
+    public async Task Each_batch_counts_its_settled_payments()
+    {
+        var user = await Merchants.CreateUserAsync(Api, "settle-counted@example.com");
+        await SeedAsync(user, PaymentStatus.Captured, count: 3, amount: 100, currency: "USD", age: Delay * 2);
+        await SeedAsync(user, PaymentStatus.Captured, count: 2, amount: 100, currency: "EUR", age: Delay * 2);
+        using var transitions = new MetricCollector<long>(Api.Services.GetRequiredService<IMeterFactory>(), PaymentMetrics.MeterName, "payments.transitions");
+
+        await SettleAsync();
+        await SettleAsync();
+
+        var measurement = Assert.Single(transitions.GetMeasurementSnapshot());
+        Assert.Equal((5L, "captured", "settled"), (measurement.Value, measurement.Tags[PaymentMetrics.FromTag], measurement.Tags[PaymentMetrics.ToTag]));
     }
 
     [Fact]
