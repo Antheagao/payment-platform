@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
+using PaymentPlatform.Persistence;
 
 namespace PaymentPlatform.Worker.Jobs;
 
@@ -44,6 +46,12 @@ public abstract partial class PeriodicJob(
         try
         {
             await using var scope = scopes.CreateAsyncScope();
+            if (!await SchemaIsCurrentAsync(scope.ServiceProvider, stoppingToken))
+            {
+                LogSchemaNotCurrent(logger, Name);
+                return;
+            }
+
             await RunOnceAsync(scope.ServiceProvider, stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -63,6 +71,16 @@ public abstract partial class PeriodicJob(
         }
     }
 
+    /// <summary>
+    /// A job runs only against the schema this build carries, the rule readiness applies to traffic: at a fresh
+    /// start the API may still be migrating, and a deployment migrates before the new build takes over.
+    /// </summary>
+    private static async Task<bool> SchemaIsCurrentAsync(IServiceProvider services, CancellationToken cancellationToken)
+    {
+        var db = services.GetService<PaymentsDbContext>();
+        return db is null || !(await db.Database.GetPendingMigrationsAsync(cancellationToken)).Any();
+    }
+
     private static async Task<bool> WaitForNextTickAsync(PeriodicTimer timer, CancellationToken stoppingToken)
     {
         try
@@ -77,6 +95,9 @@ public abstract partial class PeriodicJob(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Job {JobName} started, every {Interval}")]
     private static partial void LogStarted(ILogger logger, string jobName, TimeSpan interval);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Job {JobName} skipped this run: the database has migrations to apply")]
+    private static partial void LogSchemaNotCurrent(ILogger logger, string jobName);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Job {JobName} run failed; the next run is on schedule")]
     private static partial void LogRunFailed(ILogger logger, string jobName, Exception exception);

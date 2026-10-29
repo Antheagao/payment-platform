@@ -16,9 +16,8 @@ Ranked by what the exercise grades most: the lifecycle and its audit trail, idem
 
 ### T20. Create and read payments
 
-T20a (create and read, the audit trail, tokenization) is done; two slices remain, each its own commit:
-- **T20b. Idempotency for create (ADR 007).** `Idempotency-Key` required on `POST /payments` (`400 idempotency_key_required` without it); an `IdempotencyKeys` table keyed by `(MerchantId, Key)` with a hash of the request body, the stored status and response, and an expiry 24 hours out; the first request claims the key in its own transaction before tokenizing, a replay returns the stored response with `Idempotent-Replayed: true`, a retry while the first is still running gets `409 idempotency_key_in_use`, and the same key with a different body gets `422 idempotency_key_reused`; a claim whose request crashed is released after a timeout so a retry can finish it. Gate: concurrent retries (parallel requests with one key create one payment), replay after success and after a decline, the body mismatch, the expiry, and that the stored response holds no card data.
-- **T20c. Sample payments.** The demo seed gains payments in every status, created through the domain so each carries a real audit trail, spread over the last 90 days with deterministic amounts and references; `docs/demo.md` gains the step that reads one.
+T20a (create and read, the audit trail, tokenization) and T20b (idempotency keys) are done; one slice remains:
+- **T20c. Sample payments.** The demo seed gains payments in every status, created through the domain so each carries a real audit trail (`Payment.Create`, `Authorize`, `Capture`, `Settle`, `Refund`, `Fail`, each recorded with `RecordChanges` under a fixed `demo-seed` correlation id), spread over the last 90 days with fixed ids, amounts, references, and test cards so seeding again adds nothing; the demo user is the actor, except settlement, which is the system. `docs/demo.md` gains the step that reads one. Gate: seeding twice leaves the same rows, every status is present, every history is a legal path through `PaymentLifecycle`, and nothing seeds in Production.
 
 ### Then
 

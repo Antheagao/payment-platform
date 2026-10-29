@@ -261,3 +261,15 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Checked against the composed stack as the demo merchant: every test card (authorized, `card_declined`, `insufficient_funds`, `pending` for the silent acquirer, `422` for `4111 1111 1111 1111`), a JPY payment read back with its history, and in the Aspire dashboard each create is one trace of `POST /api/v1/payments` with the insert, `acquirer authorize`, and the second save as children (the silent-acquirer trace has no second save).
 - Gate: format, locked restore, Release build, 306 backend tests green three runs in a row; `check-stack.sh` with no startup warnings; docs.
 
+## 2026-10-28: idempotency keys for create (T20b)
+
+- `backend: make payment creation idempotent with Idempotency-Key`: R26 is done for create (capture and refund reuse it in T21).
+  - Persistence `IdempotencyKey` and its migration; Application `Idempotency/` (`IdempotencyStore`, `DeleteExpiredIdempotencyKeys`); `CreatePayment` attaches its payment to the key in the transaction that first saves it and resumes a taken-over payment; `CreatePaymentRequest.Fingerprint()`; the endpoint validates, claims, works, and stores the exact bytes it sends; Worker `DeleteExpiredIdempotencyKeysJob`; ADR 007 gains an amendment for what was decided while building it.
+  - 18 new integration tests; mutations that skipped the fingerprint check and skipped the resume each failed a test.
+- Decided while building, against the ADR as first written: the fingerprint leaves out the card number and CVV (their hash would be card data), and a request refused before any work stores nothing (Stripe's rule), so a corrected request may reuse the key.
+- Found on the way:
+  - The worker's first job runs at startup, while compose's API may still be migrating; on an empty volume it could have queried a table that did not exist yet and logged an error the startup gate would catch. `PeriodicJob` now skips a run while the database has migrations to apply, the rule readiness already applies to traffic.
+  - `RequestMetricsTests` failed about once in ten full runs: OpenTelemetry listens to a meter by name across the process, so other test hosts' `Microsoft.AspNetCore.Hosting` meters interfered with the points this one recorded. The class now runs in a collection with parallelization off; eight full runs in a row were green after.
+- Checked against a fresh compose volume: the startup gate green for both services, the worker's job started; no key `400`, a retry replayed byte for byte with `Idempotent-Replayed: true`, a different amount `422`, and eight parallel requests with one key made one payment (six `409`, the first `201`, one replay).
+- Gate: format, locked restore, Release build, 324 backend tests green eight runs in a row; docs.
+

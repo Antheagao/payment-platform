@@ -97,12 +97,17 @@ With the token from step 4 (on Windows PowerShell 5.1, keep `curl.exe` and put t
 ```sh
 curl -s -i -X POST http://localhost:5080/api/v1/payments \
   -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json" \
-  -H "X-Correlation-Id: demo-pay" \
+  -H "Idempotency-Key: order-1001-attempt-1" -H "X-Correlation-Id: demo-pay" \
   -d '{"amount_minor":2599,"currency":"USD","merchant_reference":"order-1001","card":{"number":"4242 4242 4242 4242","exp_month":12,"exp_year":2030,"cvv":"123"}}'
 ```
 
 The answer is `201 Created` with a `Location` header and the payment: `"status":"authorized"`, `"card":{"brand":"visa","last4":"4242",...}` with no number and no token, the acquirer's `authorization_reference`, and a `history` of two rows (`null` to `pending`, `pending` to `authorized`), each with the demo user as the actor and `demo-pay` as the correlation id.
 `curl` the `Location` with the same token to read it back; a different merchant's token gets `404`, the same answer as an id that does not exist.
+
+Now the retry a timeout would cause: send the exact same command again.
+The answer is the same `201`, byte for byte, with the same `Location` and an `Idempotent-Replayed: true` header, and no second payment exists.
+Change the amount and keep the key, and it is `422 idempotency_key_reused`; leave the header out, and it is `400 idempotency_key_required`.
+Fire the command several times at once and one request does the work while the others get `409 idempotency_request_in_progress`.
 
 The simulated vault accepts only test cards, and each one takes a branch:
 
@@ -117,7 +122,7 @@ The simulated vault accepts only test cards, and each one takes a branch:
 A mistyped number (`4242 4242 4242 4241`) is `400` with `"errors":{"card.number":["card_number_invalid"]}`.
 In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`.
 
-**The point:** the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
+**The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
 The payment is saved before the card network is called, so an outage leaves a visible `pending` payment rather than a charge with no record, and every status change writes its audit row in the same transaction.
 
 ## 6. Follow the request in the Aspire dashboard
@@ -179,7 +184,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-306 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+324 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.
@@ -192,7 +197,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- Idempotency keys on create (T20b), then sample payments in every status beside the demo merchant (T20c), capture and refund (T21), and search (T22).
+- Sample payments in every status beside the demo merchant (T20c), then capture and refund with the same idempotency keys (T21), and search (T22).
   The startup seed will load a demo merchant and payments in every status, each with its audit trail, so this guide can then log in and walk a payment's timeline.
 - The asynchronous workflow: the outbox, signed webhooks with retries and dead-lettering, and settlement (T23, T24).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).

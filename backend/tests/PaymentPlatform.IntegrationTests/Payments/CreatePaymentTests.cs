@@ -1,6 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +23,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         using var client = Clients.For(Factory, user);
         client.DefaultRequestHeaders.Add("X-Correlation-Id", "create-approved");
 
-        using var response = await client.PostAsJsonAsync(PaymentsPath, Body("4242 4242 4242 4242", amount: 1_250, reference: "order-1001"), Cancellation);
+        using var response = await PaymentRequests.CreateAsync(client, Body("4242 4242 4242 4242", amount: 1_250, reference: "order-1001"));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using var body = await ReadAsync(response);
@@ -66,7 +64,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         var user = await Merchants.CreateUserAsync(Factory, $"declined-{reason}@example.com");
         using var client = Clients.For(Factory, user);
 
-        using var response = await client.PostAsJsonAsync(PaymentsPath, Body(number), Cancellation);
+        using var response = await PaymentRequests.CreateAsync(client, Body(number));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using var body = await ReadAsync(response);
@@ -83,7 +81,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         var user = await Merchants.CreateUserAsync(Factory, "silent-acquirer@example.com");
         using var client = Clients.For(Factory, user);
 
-        using var response = await client.PostAsJsonAsync(PaymentsPath, Body("4000000000000119"), Cancellation);
+        using var response = await PaymentRequests.CreateAsync(client, Body("4000000000000119"));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using var body = await ReadAsync(response);
@@ -103,7 +101,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         var user = await Merchants.CreateUserAsync(Factory, $"brand-{brand}@example.com");
         using var client = Clients.For(Factory, user);
 
-        using var response = await client.PostAsJsonAsync(PaymentsPath, Body(number, cvv: cvv, currency: "eur"), Cancellation);
+        using var response = await PaymentRequests.CreateAsync(client, Body(number, cvv: cvv, currency: "eur"));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         using var body = await ReadAsync(response);
@@ -160,7 +158,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         var user = await Merchants.CreateUserAsync(Factory, $"invalid-{Guid.NewGuid():N}@example.com");
         using var client = Clients.For(Factory, user);
 
-        using var response = await client.PostAsync(PaymentsPath, new StringContent(json, Encoding.UTF8, "application/json"), Cancellation);
+        using var response = await PaymentRequests.CreateRawAsync(client, json);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var problem = await Problems.ReadAsync(response);
@@ -177,7 +175,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         var user = await Merchants.CreateUserAsync(Factory, "real-card@example.com");
         using var client = Clients.For(Factory, user);
 
-        using var response = await client.PostAsJsonAsync(PaymentsPath, Body("4111111111111111"), Cancellation);
+        using var response = await PaymentRequests.CreateAsync(client, Body("4111111111111111"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Equal("card_not_accepted", await Problems.ReadCodeAsync(response));
@@ -189,7 +187,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
     {
         using var client = Factory.CreateClient();
 
-        using var response = await client.PostAsJsonAsync(PaymentsPath, Body("4242424242424242"), Cancellation);
+        using var response = await PaymentRequests.CreateAsync(client, Body("4242424242424242"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("unauthorized", await Problems.ReadCodeAsync(response));
@@ -203,7 +201,7 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         using var client = Clients.For(Factory, user);
         var json = $$$"""{"amount_minor":500,"currency":"USD","merchant_id":"{{{other.MerchantId}}}","card":{"number":"4242424242424242","exp_month":12,"exp_year":{{{ExpiryYear}}},"cvv":"123"}}""";
 
-        using var response = await client.PostAsync(PaymentsPath, new StringContent(json, Encoding.UTF8, "application/json"), Cancellation);
+        using var response = await PaymentRequests.CreateRawAsync(client, json);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(1, await CountPaymentsAsync(user.MerchantId));
@@ -219,9 +217,9 @@ public sealed class CreatePaymentTests(SqlServerFixture sqlServer) : ApiTestBase
         var user = await Merchants.CreateUserAsync(factory, "pci@example.com");
         using var client = Clients.For(factory, user);
 
-        using var response = await client.PostAsJsonAsync(PaymentsPath, Body("4242 4242 4242 4242", cvv: cvv), Cancellation);
+        using var response = await PaymentRequests.CreateAsync(client, Body("4242 4242 4242 4242", cvv: cvv));
         var returned = await response.Content.ReadAsStringAsync(Cancellation);
-        using var invalid = await client.PostAsJsonAsync(PaymentsPath, Body("4242 4242 4242 4241", cvv: cvv), Cancellation);
+        using var invalid = await PaymentRequests.CreateAsync(client, Body("4242 4242 4242 4241", cvv: cvv));
         var problem = await invalid.Content.ReadAsStringAsync(Cancellation);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

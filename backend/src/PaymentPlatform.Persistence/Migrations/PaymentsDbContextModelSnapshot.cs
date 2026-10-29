@@ -185,6 +185,66 @@ namespace PaymentPlatform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PaymentPlatform.Persistence.IdempotencyKey", b =>
+                {
+                    b.Property<Guid>("MerchantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(255)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(255)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<DateTimeOffset>("ClaimedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("Fingerprint")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<Guid?>("PaymentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ResponseBody")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResponseLocation")
+                        .HasMaxLength(200)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("ResponseStatus")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("MerchantId", "Key");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("IdempotencyKeys", "payments", t =>
+                        {
+                            t.HasCheckConstraint("CK_IdempotencyKeys_Status", "[Status] IN ('InProgress', 'Completed')");
+                        });
+                });
+
             modelBuilder.Entity("PaymentPlatform.Persistence.PaymentEvent", b =>
                 {
                     b.Property<long>("Id")
@@ -258,6 +318,15 @@ namespace PaymentPlatform.Persistence.Migrations
                 });
 
             modelBuilder.Entity("PaymentPlatform.Domain.Payments.Payment", b =>
+                {
+                    b.HasOne("PaymentPlatform.Domain.Merchants.Merchant", null)
+                        .WithMany()
+                        .HasForeignKey("MerchantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PaymentPlatform.Persistence.IdempotencyKey", b =>
                 {
                     b.HasOne("PaymentPlatform.Domain.Merchants.Merchant", null)
                         .WithMany()

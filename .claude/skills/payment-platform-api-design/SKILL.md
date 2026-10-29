@@ -36,7 +36,8 @@ ADR 006 (errors) and ADR 007 (idempotency) come first.
 
 ## Payments-specific rules
 
-- `POST /payments`, `/payments/{id}/capture`, and `/payments/{id}/refund` require `Idempotency-Key` (ADR 007); a replay carries `Idempotent-Replayed: true`.
+- `POST /payments`, `/payments/{id}/capture`, and `/payments/{id}/refund` require `Idempotency-Key` (ADR 007 and its amendment); a replay carries `Idempotent-Replayed: true`.
+  Built for create: validate first (a refused request stores nothing), then `IdempotencyStore.ClaimAsync`, then the use case with the claim, then `CompleteAsync` with the exact response bytes; any failure calls `ReleaseAsync`. The first answer and every replay go through the same `Send`, so they are identical. Capture and refund follow the same shape.
 - Lists: `?limit=` (default 25, maximum 100; out of range is `400 invalid_limit`), an opaque base64url `cursor` over `(created_at, id)`, `next_cursor` null on the last page, results wrapped as `{"data": [...], "next_cursor": ...}`.
 - Another merchant's payment is `404 not_found`, indistinguishable from a missing one.
 

@@ -13,9 +13,12 @@ namespace PaymentPlatform.IntegrationTests.Telemetry;
 /// registration, read back through an in-memory exporter instead of OTLP.
 /// </summary>
 /// <remarks>
-/// OpenTelemetry listens to a meter by name across the process, so the exporter also sees the requests of
-/// test classes running in parallel; counts are therefore lower bounds, and absence is asserted by route.
+/// OpenTelemetry listens to a meter by name across the process, so another API host's
+/// <c>Microsoft.AspNetCore.Hosting</c> meter, created or disposed while these tests run, could add to or interfere
+/// with the points this host records (one run waited out its five seconds for points that never came). The class
+/// therefore runs alone; counts stay lower bounds and absence is asserted by route.
 /// </remarks>
+[Collection(nameof(RequestMetricsTests))]
 public sealed class RequestMetricsTests(SqlServerFixture sqlServer) : ApiTestBase(sqlServer)
 {
     private const string RequestDuration = "http.server.request.duration";
@@ -127,3 +130,7 @@ public sealed class RequestMetricsTests(SqlServerFixture sqlServer) : ApiTestBas
 
     private sealed record RequestPoint(int? Status, string? Route, long Count, double Sum);
 }
+
+/// <summary>Runs <see cref="RequestMetricsTests"/> with no other test class alongside it.</summary>
+[CollectionDefinition(nameof(RequestMetricsTests), DisableParallelization = true)]
+public sealed class RequestMetricsRunAlone;

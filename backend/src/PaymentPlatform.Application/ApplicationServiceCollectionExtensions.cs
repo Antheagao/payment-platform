@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using PaymentPlatform.Application.Acquiring;
 using PaymentPlatform.Application.Auth;
 using PaymentPlatform.Application.Cards;
+using PaymentPlatform.Application.Idempotency;
 using PaymentPlatform.Application.Payments;
 using PaymentPlatform.Domain.Merchants;
 
@@ -33,6 +34,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<GetCurrentUser>();
         services.AddScoped<CreatePayment>();
         services.AddScoped<GetPayment>();
+        services.AddScoped<IdempotencyStore>();
+        services.AddScoped<DeleteExpiredIdempotencyKeys>();
         return services;
     }
 }

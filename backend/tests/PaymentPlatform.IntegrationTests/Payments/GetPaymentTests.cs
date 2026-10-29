@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using PaymentPlatform.IntegrationTests.Support;
 
@@ -12,7 +11,7 @@ public sealed class GetPaymentTests(SqlServerFixture sqlServer) : ApiTestBase(sq
     {
         var user = await Merchants.CreateUserAsync(Factory, "reader-pay@example.com");
         using var client = Clients.For(Factory, user);
-        using var created = await client.PostAsJsonAsync("/api/v1/payments", CreatePaymentTests.Body("4242424242424242", reference: "inv-7"), Cancellation);
+        using var created = await PaymentRequests.CreateAsync(client, CreatePaymentTests.Body("4242424242424242", reference: "inv-7"));
         var createdBody = await created.Content.ReadAsStringAsync(Cancellation);
 
         using var read = await client.GetAsync(created.Headers.Location, Cancellation);
@@ -29,7 +28,7 @@ public sealed class GetPaymentTests(SqlServerFixture sqlServer) : ApiTestBase(sq
         var owner = await Merchants.CreateUserAsync(Factory, "owner-pay@example.com");
         var stranger = await Merchants.CreateUserAsync(Factory, "stranger-pay@example.com", merchantName: "Elsewhere");
         using var ownerClient = Clients.For(Factory, owner);
-        using var created = await ownerClient.PostAsJsonAsync("/api/v1/payments", CreatePaymentTests.Body("4242424242424242"), Cancellation);
+        using var created = await PaymentRequests.CreateAsync(ownerClient, CreatePaymentTests.Body("4242424242424242"));
         using var strangerClient = Clients.For(Factory, stranger);
 
         using var someoneElses = await strangerClient.GetAsync(created.Headers.Location, Cancellation);

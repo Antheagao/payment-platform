@@ -32,3 +32,12 @@ State checks alone are not enough for create, which has no prior state to check.
 
 - Every money-moving request costs one extra insert and one update.
 - Stored responses are payment bodies, which hold no card number or CVV by construction (assumption 5 in [assumptions.md](../assumptions.md)).
+
+## Amendments
+
+- 2026-10-28, as built for create (T20b):
+  - **The fingerprint never covers the card number or CVV.** A SHA-256 of a body that holds a card number is card data in itself: a number has few enough candidates once its first digits are known to brute-force. The fingerprint is a JSON array of the path, amount, currency, merchant reference, and the card's brand, last four, and expiry; two requests that differ only in the middle digits of the card would replay each other, which can never charge twice.
+  - **Requests refused before any work are not stored.** A request that fails validation is answered before the key is claimed, and one the vault refuses (`card_not_accepted`) releases the key; nothing was created, the same request gets the same answer, and a corrected request may use the same key (as Stripe does). Every request that created a payment, authorized, declined, or left pending, stores its `201` and replays it.
+  - **A claim whose request died is taken over.** The key names the payment it created, in the same transaction that first saves the payment; a claim older than 30 seconds (three times the request timeout) is abandoned, and the next retry takes it over and finishes that payment, authorizing a `Pending` one again under the same payment id, instead of creating a second. A failure releases the key the same way: deleted if nothing was created, otherwise marked abandoned. Takeovers race on a row version, so one retry wins.
+  - **An expired key is a new key**; the worker's `delete-expired-idempotency-keys` job removes expired rows hourly, in batches of 1,000, and leaves a key still in use alone.
+  - Codes as built: `400 idempotency_key_required` and `idempotency_key_invalid`, `409 idempotency_request_in_progress`, `422 idempotency_key_reused`.

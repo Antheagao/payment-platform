@@ -23,6 +23,8 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
 
     public DbSet<PaymentEvent> PaymentEvents => Set<PaymentEvent>();
 
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
+
     /// <summary>
     /// Turns the payment's unsaved status changes into audit rows, stamped with the correlation id of the request
     /// or job making them, so the next save writes the change and its trail in one transaction.
