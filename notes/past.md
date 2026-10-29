@@ -405,3 +405,10 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Checked on the composed stack: 22 sign-ins from the host, each with a different forged `X-Forwarded-For`, were refused from the 21st; the same sign-in replayed from another address on the compose network got its own limit while the host's was spent; no key warnings.
 - Not checked locally: the Bicep build and lint, because this machine has no Azure CLI and downloading the Bicep binary was refused by the session's permissions; CI's infra job runs them.
 - T26b's operator view and banner moved to their own row, T26c.
+
+## 2026-10-29: the golden path through the composed stack (T29)
+
+- `test: walk the golden path through the composed stack in CI`: `frontend/e2e-stack/golden-path.spec.ts` with `playwright.stack.config.ts` (`npm run e2e:stack`), one test in steps against the real dashboard, API, SQL Server, worker, and receiver: sign in, INV-1004's five-step history with the settlement job, capture and refund of whichever payment is authorized (so a used volume passes too), the worker's signed `payment.captured` and `payment.refunded` at the receiver, not found, and sign-out.
+  - CI's `stack` job runs it after `scripts/check-stack.sh`, with its report kept on failure.
+  - Green three times running on the local stack; with the worker stopped it failed at the webhook step, as it should.
+- The dashboard's OpenTelemetry, which T29 was to fold in, is its own row now (T29b), so this one stayed the golden path.

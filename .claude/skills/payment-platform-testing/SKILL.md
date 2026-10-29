@@ -25,10 +25,11 @@ The gate commands live in `AGENTS.md`; `dotnet test` from `backend/` runs everyt
 | --- | --- | --- |
 | Unit and component | `src/**/*.test.ts(x)`, beside the code | `npm test` (Vitest 5, jsdom, Testing Library, jest-dom matchers) |
 | Browser end to end | `e2e/*.spec.ts` | `npm run e2e` (Playwright, Chromium, `desktop` 1440x900 and `mobile` 360x780 projects) |
+| The golden path on the real stack | `e2e-stack/*.spec.ts` | `npm run e2e:stack` against a running `docker compose up --build --wait` (`playwright.stack.config.ts`, one worker, one sign-in); CI's `stack` job runs it |
 
 - `vitest.config.mts` resolves the `@/*` alias natively and maps `server-only` to `test/empty-module.ts`, so server modules such as `src/lib/api.ts` are unit-testable; stub `fetch` with `vi.stubGlobal` (globals and mocks are restored after each test).
 - Async server components are covered end to end, not with Testing Library.
-- Playwright builds and starts the production server itself (`next build`, then `next start -p 3090`, a port of its own so a running compose stack is never reused in its place) with `API_ORIGIN` and `WORKER_ORIGIN` on a closed port, so the shell is tested with both down; flows that need data run against the composed stack (T29).
+- Playwright builds and starts the production server itself (`next build`, then `next start -p 3090`, a port of its own so a running compose stack is never reused in its place) with `API_ORIGIN` and `WORKER_ORIGIN` on a closed port, so the shell is tested with both down; flows that need the real API run against the composed stack in `e2e-stack/`: one test, in steps, that signs in, reads INV-1004's history, captures and refunds whichever payment is authorized (so it passes on a used volume), and polls the webhook receiver for both signed events. With the worker stopped it fails at that last step, as it should.
 - Locators are roles and names; assertions are web-first (`toBeVisible`, `toHaveText`); no fixed waits.
 
 ## Backend harness (`PaymentPlatform.IntegrationTests/Support/`)

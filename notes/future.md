@@ -7,7 +7,7 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), and the client's address per person (T26b) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), the client's address per person (T26b), and the golden path through the composed stack (T29) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
@@ -25,7 +25,7 @@ The service status panel shows every merchant the platform's internals (the data
 ### Then
 
 - Every feature row also updates `docs/demo.md` with the step that shows it, verified against the composed stack, and a row that changes what a page shows remakes `docs/images/` with `node scripts/capture-screenshots.mjs`.
-- **T29. End-to-end golden path.** Playwright: log in, find a payment, open its timeline; CI job against the composed stack.
+- **T29b. Traces that start at the dashboard's server.** `instrumentation.ts` with OTLP export to the Aspire dashboard (compose) and Application Insights (Azure), the API calls carrying `traceparent`, so a capture from a payment's page is one trace from the Server Action through the API, the outbox, and the worker to the webhook; gate: the trace found in Aspire on the composed stack, and the golden path still green.
 - **T30. Documentation complete.** Tradeoffs, assumptions, production considerations, and future improvements rewritten against what was actually built.
 - **T31. Load test.** A k6 script in a container against the composed stack, with the numbers and the bottleneck written down.
 
@@ -33,7 +33,6 @@ The service status panel shows every merchant the platform's internals (the data
 
 - A replay for dead-lettered webhook deliveries (ADR 003): `POST` on a delivery that puts it back to `Pending` with its attempts reset, for an operator role; fold into T26c, which brings roles to the API and the dashboard (the `webhook.deliveries.dead_lettered` gauge already counts what it would replay).
 - Integration tests: migrate one template database per run and copy it for each test class (a backup and restore, or `CREATE DATABASE ... AS SNAPSHOT` where the edition allows), instead of migrating 30-odd databases; the per-class setup is now about 3.5 s and the suite about 60 s, and it grows with every migration.
-- OpenTelemetry in the dashboard (`instrumentation.ts`) so traces start at the dashboard's server, and a capture from a payment's page is one trace from the click to the webhook; fold into T29, which runs on the composed stack where that trace can be checked in Aspire (T28 left it out to keep its scope to the page).
 - Update this machine's .NET SDK past 10.0.101: CI runs 10.0.403, whose analyzers caught an unused using the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]
 - Five Dependabot pull requests (#1 to #5) from the first scan: #2 groups minor and patch bumps and can merge once CI is green; #1, #3, #4, and #5 are majors the new ignore rules now hold back. [USER-GATED: merging or closing them is the owner's call.]
 

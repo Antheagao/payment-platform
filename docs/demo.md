@@ -304,7 +304,15 @@ Worth opening while they run:
 - `tests/PaymentPlatform.ArchitectureTests`: the project boundaries of [ADR 002](decisions/002-backend-project-boundaries.md), checked in each project file and in the compiled references.
 - `tests/PaymentPlatform.IntegrationTests/Health`: the readiness deadline tested against a refused port, a server that never replies, and a connection that blocks its thread.
 
-On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwright at desktop and phone widths), repository checks, Bicep validation, and the one-command stack; CodeQL scans C# and TypeScript.
+With the stack running, the golden path walks it the way a merchant would, from `frontend/` (after `npm ci` and `npx playwright install chromium`):
+
+```sh
+npm run e2e:stack
+```
+
+It signs in, reads INV-1004's history, captures and refunds an authorized payment, and waits for the worker's signed `payment.captured` and `payment.refunded` at the receiver; stop the worker (`docker compose stop worker`) and it fails at that last step.
+
+On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwright at desktop and phone widths), repository checks, Bicep validation, and the one-command stack, which ends with that golden path; CodeQL scans C# and TypeScript.
 
 **The point:** the habits a payment system needs (tests on a real database, enforced boundaries, a pipeline that proves the run instructions) are in place before the first payment.
 
