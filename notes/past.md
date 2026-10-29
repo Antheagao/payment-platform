@@ -209,3 +209,14 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Checked in a real browser: both themes at 1440 and 360 with no sideways scroll; the database stopped (Not ready, Unavailable, Not ready) and the API stopped (Unreachable, Unknown, Ready) without a reload; the streaming fallback and the answered tiles both 174px tall; focus visible on Pause after the skip link and the logo.
 - Gate: typecheck, lint, format, Vitest 30/30, build (`/` partially prerendered), `npm audit --omit=dev` clean, Playwright 16/16, contrast, docs.
 
+## 2026-10-28: screenshots and the outage GIF (T39)
+
+- `docs: show the dashboard and Aspire in captured screenshots and an outage GIF`: `scripts/capture-screenshots.mjs` captures the dashboard (1280 and 390, light and dark, database down, API down) and Aspire (the request's span, the outage's error logs, request durations) from the running stack, and records the database outage and recovery as `docs/images/outage.gif`.
+  The README opens with the dashboard (a `<picture>` that follows the reader's GitHub theme) and gains A look around and an optional FFmpeg prerequisite; `docs/demo.md` shows each step's screen and how to remake the images; requirement O5 is done.
+- `check-docs.mjs` now also resolves `src` and `srcset` in Markdown, so a renamed screenshot fails the gate; a probe file with a missing image failed it.
+- Lessons:
+  - Playwright's WebM is noisy enough that every GIF frame differed: the first GIF was 5.6 MB at 345 frames. Reduced motion (the live dot stops pulsing), a recording cropped to the status panel, and `mpdecimate` with a variable frame rate brought it to 0.5 MB in 11 frames with the timing intact.
+  - Aspire's "Endpoint is unsecured" close button is a `fluent-button` that Playwright's role queries do not match (the first run kept the banner); the script clicks it by class and waits for the banner to go.
+  - The first probe after `docker compose stop sqlserver` takes the full 3 s deadline (the framework logs that timeout as "threw an unhandled exception"); later probes fail in about 2 s on the connect timeout.
+- Gate: docs, contrast; every image opened and checked; the stack was left running for the remaining checks and stopped at the end.
+

@@ -45,4 +45,5 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 ## Visual QA routine
 
 - `docker compose up -d --build`, then `chrome-devtools-axi` with `CHROME_DEVTOOLS_AXI_SESSION=payment-platform`: `open http://localhost:3080/`, `emulate --viewport 1440x900x1 --color-scheme light`, then dark, then `360x780x2,mobile` in both, `screenshot` each, and `eval "document.documentElement.scrollWidth + ' / ' + document.documentElement.clientWidth"` for horizontal overflow.
-- Check the API-down state (`docker compose stop api`) and the first `Tab` (the skip link); `chrome-devtools-axi stop` and `docker compose down` afterwards.
+- Check the database-down and API-down states (`docker compose stop sqlserver`, then `api`; the panel follows within 5 s) and the first `Tab` (the skip link); `chrome-devtools-axi stop` and `docker compose down` afterwards.
+- Then remake the README and demo images: `node scripts/capture-screenshots.mjs` (Playwright from `frontend/`, FFmpeg for `outage.gif`), and look at every file it writes; Aspire's "Endpoint is unsecured" banner is dismissed by class, because its `fluent-button` matches no role query.

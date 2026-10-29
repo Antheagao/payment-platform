@@ -8,6 +8,11 @@ A simplified payment processing platform: a C# / .NET 10 API, a background worke
 Merchants log in, create payments, capture and refund them, and search their payment history.
 Every state change is audited, every money-moving call is idempotent, and a single payment's journey can be traced from the API request through the asynchronous settlement and webhook work.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
+  <img alt="The merchant dashboard: live readiness for the payments API, its database, and the background worker, above the payment lifecycle drawn as four steps with its two terminal branches" src="docs/images/dashboard-light.png">
+</picture>
+
 ## Status
 
 The foundation is complete: every component exists, runs, is observable, and is covered by the gates CI runs.
@@ -63,6 +68,31 @@ SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 | The Background worker tile says "Unreachable" | The worker is not running: `docker compose logs worker` |
 | `Login failed for user 'sa'` after changing `MSSQL_SA_PASSWORD` | That password is set only when the database volume is created: `docker compose down -v`, then start again |
 
+## A look around
+
+Every image here is a real capture of the composed stack, made by `node scripts/capture-screenshots.mjs`.
+
+Stopping SQL Server and starting it again: the dashboard follows on its own every 5 seconds and says which piece is down.
+The API stays up but reports not ready, so a load balancer would stop sending it traffic, and nothing restarts.
+
+![The service status panel as SQL Server stops and starts again: the API and the worker turn Not ready and the database Unavailable, then all three return to Ready](docs/images/outage.gif)
+
+The same page on a phone, in both color schemes; the design tokens follow the operating system, and a script holds every color pair to its contrast target.
+
+| Light | Dark |
+| --- | --- |
+| <img src="docs/images/dashboard-mobile-light.png" alt="The dashboard at phone width in the light scheme" width="300"> | <img src="docs/images/dashboard-mobile-dark.png" alt="The dashboard at phone width in the dark scheme" width="300"> |
+
+One request followed into the Aspire dashboard: its span carries the correlation id the client sent (`demo-1`), the status code, and the route.
+
+![The Aspire trace detail for GET /api/v1/payments/123, with the span's attributes: correlation.id demo-1 and status 404](docs/images/aspire-trace.png)
+
+The outage above in the structured logs, each failed check linked to its trace, and the API's request durations as a chart.
+
+| Structured logs | Metrics |
+| --- | --- |
+| ![Aspire structured logs filtered to the API's errors: the database health check failing during the outage](docs/images/aspire-logs.png) | ![Aspire metrics: http.server.request.duration for the API at the 50th, 90th, and 99th percentiles](docs/images/aspire-metrics.png) |
+
 ## Prerequisites
 
 To run it, only Git and Docker:
@@ -83,6 +113,7 @@ To work on the code, also:
 | [Node.js](https://nodejs.org/en/download) | 22, as CI and the image use (22 or later works) | `winget install --id OpenJS.NodeJS.22 -e` | `brew install node@22` | [Node.js downloads](https://nodejs.org/en/download) |
 | Playwright's Chromium | For `npm run e2e` | `npx playwright install chromium`, from `frontend/` | The same | `npx playwright install --with-deps chromium` |
 | [Bicep CLI](https://learn.microsoft.com/azure/azure-resource-manager/bicep/install) | Optional, to validate `infra/` | `winget install --id Microsoft.Bicep -e` | `brew install azure/bicep/bicep` | The release binary |
+| [FFmpeg](https://ffmpeg.org/download.html) | Optional, to remake the outage GIF | `winget install --id Gyan.FFmpeg -e` | `brew install ffmpeg` | Your package manager |
 
 `dotnet restore` and `npm ci` fetch the packages; the integration tests start their own SQL Server through Docker.
 
@@ -149,7 +180,7 @@ The API owns every rule and writes each state change, its audit row, and its out
 | `infra/` | Bicep for the Azure shape, validated in CI and never deployed |
 | `docs/` | Architecture, requirements, assumptions, tradeoffs, production considerations, decision records |
 | `notes/` | The rotating past, present, and future notes the work is planned from |
-| `scripts/` | The documentation and contrast checks, and the local database bootstrap |
+| `scripts/` | The documentation and contrast checks, the stack check, the screenshot capture, and the local database bootstrap |
 | `.claude/` | Agent configuration and the engineering guides the code follows |
 
 ## Documentation

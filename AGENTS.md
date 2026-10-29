@@ -35,6 +35,7 @@ Longer procedures live in `.claude/skills/`.
 - Frontend, from `frontend/`: `npm run typecheck` (typegen, then `tsc`), `npm run lint` (zero warnings), `npm run format:check`, `npm test`, `npm run build`, `npm audit --omit=dev`; `npm run e2e` (Playwright on the production build) for UI changes.
 - Repository: `node scripts/check-docs.mjs` (links, em dashes) and `node scripts/check-contrast.mjs` whenever `globals.css` changes.
 - UI work is not done until it has been checked in a real browser, light and dark, 360px to 1440px.
+  A change to what a page shows also remakes `docs/images/`: `node scripts/capture-screenshots.mjs` with the stack running (FFmpeg for the GIF).
 - Write long build and test output to a scratch file and grep it rather than printing it into the transcript.
 
 ## Guides

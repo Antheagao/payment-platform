@@ -38,6 +38,7 @@ The decision records in [decisions/](decisions/README.md) carry the full reasoni
 | Choice | What we gave up | We would revisit when |
 | --- | --- | --- |
 | **docker compose plus the standalone Aspire dashboard** instead of an Aspire AppHost | Service discovery and generated local passwords from the .NET SDK | Every reader already has the .NET SDK; today a reviewer needs only Docker |
+| **Screenshots and the GIF are committed, captured from the running stack by a script** | About 2.2 MB of images in the repository, and images that go stale until someone reruns the script; CI does not remake them | Pages change often enough that stale images slip through review; then a CI job captures them against the composed stack and fails on a visual diff |
 | **The dashboard's home shows each service's readiness, refreshed every 5 s** | A merchant view free of infrastructure words, and a steady trickle of readiness probes while a tab is open (one API and one worker probe per tab every 5 s, none while hidden or paused) | Sign-in lands (T26): the panel moves behind an operator role and merchants get a single "payments are delayed" banner |
 | **Readiness probes run on the thread pool and are abandoned at a 3 s deadline** | A thread-pool thread held for the length of a host-name lookup during an outage | SqlClient's `OpenAsync` stops resolving host names synchronously |
 | **OpenTelemetry everywhere, exported only when configured** | Zero-config telemetry in a bare `dotnet run` | Not expected; the local dashboard is one compose service away |

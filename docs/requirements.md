@@ -56,6 +56,7 @@ Added by the repository's owner on 2026-10-28, for demos and for reviewers who d
 | O2 | Every download it needs is listed | README, Prerequisites: to run, Git and Docker; to develop, the .NET SDK, Node.js 22, Playwright's Chromium, and optionally Bicep; each with its official page and a verified `winget` and Homebrew command | T34 | Done |
 | O3 | Fully functional without any paid service | README, Free to run: every piece and its cost, with Docker Desktop's license limit and the free Docker Engine; every package license checked | T34 | Done |
 | O4 | Loads sample data and sample dashboards for a demo | [demo.md](demo.md) walks the running stack and its Aspire dashboard today; a development seed loads a demo merchant (T19) and payments in every status with their audit trails (T20 to T22), applied on startup in compose and never in production | T35, T19 to T22 | Scaffolded |
+| O5 | Screenshots and GIFs of the pages; the frontend checked in a browser and its design brought up to current practice | README, A look around, and [demo.md](demo.md): nine screenshots and an outage GIF in `docs/images/`, remade by `node scripts/capture-screenshots.mjs`; the home page's live service status and lifecycle flow; status colors balanced and gated by the contrast script; checked at 360 and 1440 in both schemes | T37 to T39 | Done |
 
 ## Documentation deliverables
 
