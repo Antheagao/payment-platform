@@ -12,4 +12,8 @@
     <ProjectReference Include="..\PaymentPlatform.Domain\PaymentPlatform.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="PaymentPlatform.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

@@ -10,9 +10,12 @@ namespace PaymentPlatform.IntegrationTests.Support;
 /// </summary>
 public sealed class ApiFactory(string connectionString) : WebApplicationFactory<Program>
 {
-    /// <summary>A connection string to a port nothing listens on, for the database-down paths.</summary>
+    /// <summary>
+    /// A connection string to a port nothing listens on, for the database-down paths. It keeps the client's
+    /// default timeouts and retries, as the compose stack's does, so the probe's own deadline is what is tested.
+    /// </summary>
     public const string UnreachableDatabase =
-        "Server=127.0.0.1,1;Database=payments;User Id=sa;Password=unused;TrustServerCertificate=True;Connect Timeout=2";
+        "Server=127.0.0.1,1;Database=payments;User Id=sa;Password=unused;TrustServerCertificate=True";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

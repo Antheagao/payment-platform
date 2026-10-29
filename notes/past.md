@@ -152,3 +152,12 @@ Update this file when a task lands; keep the present and future notes in sync.
   The clone reused the existing `payment-platform_sqlserver-data` volume (same compose project name); the first-ever bootstrap on an empty volume was exercised in T12.
 - CI run 40790395009 on `83577a5`: all six jobs green, including the new Bicep job.
 - The scaffold queue (T1 to T18) is empty; the run stopped here because the owner asked for the initial structure, and `future.md` now opens on T19 with its first slice laid out.
+
+## 2026-10-28: readiness answers by its deadline (T32)
+
+- Found while rehearsing the outage demo for the one-command start: with the compose database stopped, `/health/ready` took 18 s on the first probe and 5 s on each one after, so the dashboard's 3 s timeout reported "API unreachable" instead of "API not ready".
+- Causes, measured: the check went through EF Core's retrying execution strategy (it waited out the outage it should report) with SqlClient's default 15 s connect timeout; and SqlClient resolves host names synchronously inside `OpenAsync`, which for a stopped container under Docker took 3 to 4 s (`getent ahosts sqlserver` from a sibling container), so no cancellation token could cut it short.
+- `backend: answer readiness by its deadline when the database is gone`: the check runs on its own context options (no retries, 2 s connect and command timeouts), starts on the thread pool, and stops waiting at its 3 s deadline; the dashboard waits 5 s.
+  The unreachable-database test now keeps the client's default timeouts, as compose does, and probes three times; a silent server (a listener that never replies) and a connection that blocks its thread round out the cases.
+  The blocking-thread test failed (timed out) without the thread-pool start and without the deadline, and passes with both.
+- Gate: backend format, Release build, 171 tests; frontend typecheck, lint, format, 16 unit tests; in compose, two outages in a row: the first probe answers at 3.0 s, later ones in under 1 s, the dashboard shows "API not ready", and readiness recovers within 15 s of the database starting.

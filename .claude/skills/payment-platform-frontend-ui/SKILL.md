@@ -19,7 +19,7 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 
 ## What exists
 
-- `src/lib/api.ts`: `import "server-only"`; reads the server-only `API_ORIGIN` (default `http://localhost:5080`); `getApiHealth()` never throws, uses `cache: "no-store"` and a 3 s `AbortSignal.timeout`.
+- `src/lib/api.ts`: `import "server-only"`; reads the server-only `API_ORIGIN` (default `http://localhost:5080`); `getApiHealth()` never throws, uses `cache: "no-store"` and a 5 s `AbortSignal.timeout`, longer than the API's 3 s readiness deadline so a database outage shows as not ready.
   New API calls go here (or in `src/lib/<feature>-api.ts` when it grows) and parse problem details in one place, switching on `code`.
 - `src/lib/payment-status.ts`: the `PaymentStatus` union as the API spells it, `paymentStatusDisplay` (label, tone, meaning) as a `Record` over the union, and `lifecycleOrder`.
 - `src/components/ui/`: `Badge` (tone pill with a dot and a text label), `Button` and `buttonClasses()` (primary, secondary; `type="button"` unless overridden), `Container` (the one page column).

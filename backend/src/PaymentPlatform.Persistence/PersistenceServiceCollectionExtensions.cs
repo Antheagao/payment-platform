@@ -1,4 +1,6 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,12 +31,15 @@ public static class PersistenceServiceCollectionExtensions
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                $"ConnectionStrings:{ConnectionStringName} is not set; see .env.example for the local value.");
+                $"ConnectionStrings:{ConnectionStringName} is not set; docker-compose.yml shows the local value.");
         }
 
         services.AddDbContextPool<PaymentsDbContext>(options => Configure(options, connectionString));
-        // A probe must answer quickly even when the server is gone, so the check gets its own short timeout.
-        services.AddHealthChecks().AddCheck<DatabaseHealthCheck>(HealthCheckName, timeout: TimeSpan.FromSeconds(5));
+
+        var probeOptions = new DbContextOptionsBuilder<PaymentsDbContext>();
+        ConfigureProbe(probeOptions, connectionString);
+        services.AddHealthChecks().AddCheck(
+            HealthCheckName, new DatabaseHealthCheck(probeOptions.Options), timeout: DatabaseHealthCheck.Deadline);
         return services;
     }
 
@@ -42,8 +47,25 @@ public static class PersistenceServiceCollectionExtensions
     internal static void Configure(DbContextOptionsBuilder options, string connectionString) =>
         options.UseSqlServer(connectionString, sql =>
         {
-            sql.MigrationsHistoryTable("__EFMigrationsHistory", PaymentsDbContext.Schema);
+            UseMigrationsHistory(sql);
             sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
             sql.CommandTimeout(30);
         });
+
+    /// <summary>
+    /// The readiness probe's settings: one attempt, no transient-fault retries, and connect and command
+    /// timeouts inside <see cref="DatabaseHealthCheck.Deadline"/>.
+    /// </summary>
+    internal static void ConfigureProbe(DbContextOptionsBuilder options, string connectionString)
+    {
+        var probe = new SqlConnectionStringBuilder(connectionString) { ConnectTimeout = 2, ConnectRetryCount = 0 };
+        options.UseSqlServer(probe.ConnectionString, sql =>
+        {
+            UseMigrationsHistory(sql);
+            sql.CommandTimeout(2);
+        });
+    }
+
+    private static void UseMigrationsHistory(SqlServerDbContextOptionsBuilder sql) =>
+        sql.MigrationsHistoryTable("__EFMigrationsHistory", PaymentsDbContext.Schema);
 }

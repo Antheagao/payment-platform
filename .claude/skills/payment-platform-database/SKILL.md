@@ -9,7 +9,7 @@ The global `database` guide is written for PostgreSQL and sqlx; its principles h
 
 ## What exists
 
-- `PaymentPlatform.Persistence`: `PaymentsDbContext` (default schema `payments`, configurations applied from the assembly), `AddPersistence()` (requires `ConnectionStrings:Payments`, pooled contexts, transient-fault retries, 30 s command timeout, migration history in `payments.__EFMigrationsHistory`), and the `database` readiness check (connects and has no pending migration, 5 s timeout).
+- `PaymentPlatform.Persistence`: `PaymentsDbContext` (default schema `payments`, configurations applied from the assembly), `AddPersistence()` (requires `ConnectionStrings:Payments`, pooled contexts, transient-fault retries, 30 s command timeout, migration history in `payments.__EFMigrationsHistory`), and the `database` readiness check (connects and has no pending migration; its own context options with no retries and 2 s connect and command timeouts; run on the thread pool and abandoned at its 3 s deadline, because SqlClient resolves host names synchronously inside `OpenAsync`).
 - No tables or migrations yet; the first lands with T19.
 
 ## Migrations
