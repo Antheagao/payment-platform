@@ -7,21 +7,23 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-28.
 
-The scaffold (T1 to T18) and merchant login (T19) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), and creating and reading payments (T20) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T20. Create and read payments
+### T21. Capture and refund
 
-T20a (create and read, the audit trail, tokenization) and T20b (idempotency keys) are done; one slice remains:
-- **T20c. Sample payments.** The demo seed gains payments in every status, created through the domain so each carries a real audit trail (`Payment.Create`, `Authorize`, `Capture`, `Settle`, `Refund`, `Fail`, each recorded with `RecordChanges` under a fixed `demo-seed` correlation id), spread over the last 90 days with fixed ids, amounts, references, and test cards so seeding again adds nothing; the demo user is the actor, except settlement, which is the system. `docs/demo.md` gains the step that reads one. Gate: seeding twice leaves the same rows, every status is present, every history is a legal path through `PaymentLifecycle`, and nothing seeds in Production.
+First slice, ready to start:
+- `Application/Payments/CapturePayment.cs` and `RefundPayment.cs`: load the merchant's payment (another merchant's is `404`), move it through the domain (`payment_not_capturable` or `payment_not_refundable` as `409` when the state does not allow it), call the acquirer with the stored authorization reference outside any transaction, and save the change and its audit row; an acquirer decline is `502 acquirer_declined` with the payment unchanged, and an acquirer that does not answer is `503 acquirer_unavailable`, also unchanged.
+- `POST /api/v1/payments/{id}/capture` and `/refund` with `Idempotency-Key` through the same `IdempotencyStore` (the fingerprint names the path and payment id), the second line of defense being the state check (ADR 007).
+- The seeded authorized and captured payments can then be captured and refunded live; `docs/demo.md` step 5 gains the commands.
+- Gate: the five-case checklist for both, double capture and double refund (`409` with a new key, replay with the same key), concurrent captures with one key, refund from captured and from settled, the acquirer's decline and silence leaving the payment as it was, and the audit rows for each.
 
 ### Then
 
-- **T21. Capture and refund.** `POST /payments/{id}/capture` and `/refund`, idempotent, every transition audited with actor, time, and correlation id; the demo seed's captured and refunded payments now go through these use cases.
 - **T22. List and search.** Filters by status, date range, amount, and reference; keyset pagination with an opaque cursor; the indexes that serve it; enough seeded payments (a few hundred) that paging shows in the demo.
 - **T23. Outbox and webhook delivery.** Outbox rows written in the same transaction as the state change, a dispatcher claiming rows with `READPAST`, HMAC-signed webhooks, exponential backoff with jitter, a dead-letter state, SSRF rules for merchant URLs, and trace context carried across the hop; the worker's first integration tests.
 - **T24. Settlement.** A scheduled batch that settles captured payments through a T-SQL stored procedure, with reconciliation counts.

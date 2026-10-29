@@ -120,6 +120,17 @@ The simulated vault accepts only test cards, and each one takes a branch:
 | Any other valid number, such as `4111 1111 1111 1111` | `422 card_not_accepted`, and nothing is stored |
 
 A mistyped number (`4242 4242 4242 4241`) is `400` with `"errors":{"card.number":["card_number_invalid"]}`.
+
+The demo merchant also starts with thirty sample payments from the last 90 days, in every status, each walked through the domain so its history is real (correlation id `demo-seed`).
+Their ids are fixed, so these read back the same on every machine:
+
+| Payment | Shows |
+| --- | --- |
+| `019a2c00-0000-7000-8000-000000001004` (`INV-1004`) | The whole lifecycle: `pending`, `authorized`, `captured`, `settled` by the `system` actor `settlement`, then `refunded` |
+| `019a2c00-0000-7000-8000-000000001016` (`INV-1016`) | `captured`, waiting for settlement |
+| `019a2c00-0000-7000-8000-000000001025` (`INV-1025`) | `authorized`, ready to capture |
+| `019a2c00-0000-7000-8000-000000001006` (`INV-1006`) | `failed` with `card_declined` |
+| `019a2c00-0000-7000-8000-000000001023` (`INV-1023`) | `pending`: the acquirer never answered |
 In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`.
 
 **The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
@@ -184,7 +195,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-324 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+326 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.
@@ -197,7 +208,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- Sample payments in every status beside the demo merchant (T20c), then capture and refund with the same idempotency keys (T21), and search (T22).
+- Capture and refund with the same idempotency keys (T21), so `INV-1025` can be captured live, then search (T22) and the payment pages that show the sample data (T27, T28).
   The startup seed will load a demo merchant and payments in every status, each with its audit trail, so this guide can then log in and walk a payment's timeline.
 - The asynchronous workflow: the outbox, signed webhooks with retries and dead-lettering, and settlement (T23, T24).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).

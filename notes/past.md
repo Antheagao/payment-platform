@@ -273,3 +273,11 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Checked against a fresh compose volume: the startup gate green for both services, the worker's job started; no key `400`, a retry replayed byte for byte with `Idempotent-Replayed: true`, a different amount `422`, and eight parallel requests with one key made one payment (six `409`, the first `201`, one replay).
 - Gate: format, locked restore, Release build, 324 backend tests green eight runs in a row; docs.
 
+## 2026-10-28: sample payments (T20c)
+
+- `demo: seed thirty sample payments in every status`: `Application/Demo/DemoPayments.cs` lists them (ten settled, five captured, four authorized, two refunded from each of captured and settled, two declined, two for insufficient funds, three left pending), and `DemoSeed` adds whichever are missing.
+  Each is walked through the domain (`Create`, `Authorize`, `Capture`, `Settle` as the system actor `settlement`, `Refund`, `Fail`) and recorded with `RecordChanges`, so its history is a real audit trail; ids, amounts, references, and cards are fixed, and authorized ones carry the simulated acquirer's own reference format so T21 can capture them for real.
+  `docs/demo.md` names five; requirement O4's data is done, and its merchant-dashboard half waits for T27 and T28.
+- Gate: 2 new tests (every status present, every history a legal and time-ordered path ending in the payment's status, settlement by the system actor, all within 90 days; a seeded payment read back through the API with its five-step trail), and the restart test now also counts thirty payments after two starts; 326 backend tests green three runs in a row.
+  In compose, the existing volume gained exactly thirty records and `INV-1004` reads back as pending, authorized, captured, settled by `system`, and refunded, on three different days.
+

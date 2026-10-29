@@ -2,15 +2,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PaymentPlatform.Application.Auth;
+using PaymentPlatform.Application.Cards;
+using PaymentPlatform.Domain;
 using PaymentPlatform.Domain.Merchants;
 using PaymentPlatform.Persistence;
 
 namespace PaymentPlatform.Application.Demo;
 
 /// <summary>
-/// Sample data for local runs and demos (<c>Demo:Seed</c>, on in compose only): a demo merchant and its
-/// dashboard user. The host refuses the setting in Production; the rows have fixed ids, so seeding again on every
-/// start adds nothing.
+/// Sample data for local runs and demos (<c>Demo:Seed</c>, on in compose only): a demo merchant, its dashboard
+/// user, and its payments in every status (<see cref="DemoPayments"/>). The host refuses the setting in
+/// Production; the rows have fixed ids, so seeding again on every start adds nothing.
 /// </summary>
 /// <remarks>
 /// The demo login is public on purpose, like the compose database passwords: it opens a local-only stack and
@@ -54,10 +56,22 @@ public static partial class DemoSeed
             added++;
         }
 
+        var vault = scope.ServiceProvider.GetRequiredService<ICardVault>();
+        var user = Actor.MerchantUser(UserId.Value);
+        var seeded = (await db.Payments.Where(payment => payment.MerchantId == MerchantId)
+            .Select(payment => payment.Id).ToListAsync(cancellationToken)).ToHashSet();
+        foreach (var spec in DemoPayments.All.Where(spec => !seeded.Contains(DemoPayments.IdOf(spec.Number))))
+        {
+            var payment = DemoPayments.Build(spec, vault, user, now);
+            db.Payments.Add(payment);
+            db.RecordChanges(payment, DemoPayments.CorrelationId);
+            added++;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         LogSeeded(logger, MerchantId, added);
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Demo data for merchant {MerchantId} seeded: {AddedCount} rows added")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Demo data for merchant {MerchantId} seeded: {AddedCount} records added")]
     private static partial void LogSeeded(ILogger logger, MerchantId merchantId, int addedCount);
 }
