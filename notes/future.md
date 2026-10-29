@@ -7,21 +7,20 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), and the transactional outbox (T23a) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), and the webhook endpoint API (T23b) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T23b. Signed webhook delivery
+### T23c. Signed webhook delivery
 
-The rest of the asynchronous workflow (R9, R15, R27; ADR 003 and its 2026-10-29 amendment). The outbox, the dispatcher, and the `WebhookEndpoints` and `WebhookDeliveries` tables landed in T23a.
-- **Endpoint management.** `PUT /api/v1/webhook-endpoint` (URL; the secret generated on first set and returned once), `GET` (the URL and whether it is enabled, never the secret), `DELETE`, and `POST .../rotate-secret`; one endpoint per merchant (assumption 11); merchant-scoped and idempotent like the other writes.
-- **SSRF rules** for merchant URLs (security overlay): `https` only outside Development, no user info, and every resolved address public, checked when the URL is set and again at connect time (a `SocketsHttpHandler.ConnectCallback` that refuses loopback, private, link-local, and metadata ranges), so DNS rebinding cannot reach the network; redirects not followed. The compose receiver is allowed by an explicit Development-only allow list, not by relaxing the rule.
-- **The delivery job.** Claims due `Pending` deliveries with `UPDATE TOP (@n) ... WITH (UPDLOCK, READPAST, ROWLOCK) ... OUTPUT inserted.*` and a lease (`LeasedUntil`), posts the payload with `Webhook-Id`, `Webhook-Timestamp`, and `Webhook-Signature` (HMAC-SHA256 over `id.timestamp.body`) and the correlation id, a 10 s timeout; `2xx` delivered, `410` disables the endpoint, anything else retries with exponential backoff and full jitter from 10 s to 1 h, dead-lettered after 12 attempts; a `delivery` span under the dispatch span.
-- **A local receiver** in compose that verifies signatures and logs what it gets, so the demo shows deliveries arriving and a forced failure retrying.
-- Gate: signatures verify byte for byte (a test vector in the docs); a private, loopback, or rebinding URL is refused; retries back off on a fake clock and dead-letter; two delivery workers never send one delivery at once; a lease that expires is taken over; the trace runs from `POST /payments` through dispatch into delivery in the Aspire dashboard.
+The rest of the asynchronous workflow (R9, R15, R27; ADR 003 and its 2026-10-29 amendment). The outbox and dispatcher (T23a) and the endpoint API with the set-time SSRF rules (T23b) have landed.
+- **The delivery job.** Claims due `Pending` deliveries with `UPDATE TOP (@n) ... WITH (UPDLOCK, READPAST, ROWLOCK) ... OUTPUT inserted.*` and a lease (`LeasedUntil`), posts the payload with `Webhook-Id`, `Webhook-Timestamp`, and `Webhook-Signature` (HMAC-SHA256 over `id.timestamp.body`, `v1,` and base64) and the correlation id, a 10 s timeout, no redirects; `2xx` delivered, `410` disables the endpoint and dead-letters, anything else retries with exponential backoff and full jitter from 10 s to 1 h, dead-lettered after 12 attempts; a disabled endpoint's pending deliveries are dead-lettered; a `webhook deliver` `Producer` span under the event's trace, and the job opts out of per-run traces like the dispatcher.
+- **Connect-time SSRF guard.** A named `HttpClient` whose `SocketsHttpHandler.ConnectCallback` resolves through `WebhookUrlPolicy.ResolveAllowedAsync` and connects only to an allowed address, so a name that resolves somewhere private by the time of the send reaches nothing; no proxy, no redirects, response bodies not read past a few KB.
+- **A local receiver** in compose (a small container that verifies signatures and logs what it gets, listed in `Webhooks:LocalReceiverHosts` for Development), so the demo shows deliveries arriving and a forced failure retrying.
+- Gate: signatures verify byte for byte (a test vector in the docs); a rebinding name is refused at connect time; retries back off on a fake clock and dead-letter; two delivery workers never send one delivery at once; an expired lease is taken over; the trace runs from `POST /payments` through dispatch into delivery in the Aspire dashboard.
 
 ### Then
 
@@ -37,6 +36,7 @@ The rest of the asynchronous workflow (R9, R15, R27; ADR 003 and its 2026-10-29 
 
 ## Smaller items to fold in
 
+- Integration tests: migrate one template database per run and copy it for each test class (a backup and restore, or `CREATE DATABASE ... AS SNAPSHOT` where the edition allows), instead of migrating 30-odd databases; the per-class setup is now about 3.5 s and the suite about 60 s, and it grows with every migration.
 - OpenTelemetry in the dashboard (`instrumentation.ts`) so traces start at the browser request; fold into T26.
 - Update this machine's .NET SDK past 10.0.101: CI runs 10.0.403, whose analyzers caught an unused using the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]
 - Five Dependabot pull requests (#1 to #5) from the first scan: #2 groups minor and patch bumps and can merge once CI is green; #1, #3, #4, and #5 are majors the new ignore rules now hold back. [USER-GATED: merging or closing them is the owner's call.]

@@ -41,6 +41,12 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<IdempotencyStore>();
         services.AddScoped<DeleteExpiredIdempotencyKeys>();
         services.AddScoped<DispatchOutboxMessages>();
+        services.AddOptions<WebhookOptions>().BindConfiguration(WebhookOptions.Section);
+        services.TryAddSingleton<IHostResolver, DnsHostResolver>();
+        services.AddSingleton<WebhookUrlPolicy>();
+        services.AddScoped<SetWebhookEndpoint>();
+        services.AddScoped<GetWebhookEndpoint>();
+        services.AddScoped<RotateWebhookSecret>();
         return services;
     }
 }

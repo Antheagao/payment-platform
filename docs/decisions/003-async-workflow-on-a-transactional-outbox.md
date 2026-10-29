@@ -41,5 +41,5 @@ The Azure design must map onto services the team already runs (Service Bus, Func
 - 2026-10-29: the outbox as built (T23a).
   A row holds the event id, type (`payment.<status>`), payload, correlation id, `traceparent`, and when the change happened; due times and attempts live on the deliveries, not the outbox.
   The dispatcher claims with `SELECT TOP (100) ... WITH (UPDLOCK, READPAST, ROWLOCK)` inside the transaction that writes the deliveries and marks the rows dispatched, rather than an `UPDATE ... OUTPUT` lease: dispatch does no network work and finishes in milliseconds, so the locks it holds until the commit are the lease, and a worker that dies mid-batch rolls back and frees its rows with no reclaim step.
-  Deliveries, which wait on merchants' servers, keep the lease design (T23b).
+  Deliveries, which wait on merchants' servers, keep the lease design (T23c).
   A payment's creation as `Pending` writes no event (nothing a merchant can act on has happened yet), and the demo seed's history writes none (it is history, not news).

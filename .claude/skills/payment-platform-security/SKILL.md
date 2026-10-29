@@ -41,7 +41,10 @@ ADR 004 (authentication) and `docs/assumptions.md` (card data) come first.
 
 - Every new payment route gets the no-token and another-merchant tests that `CreatePaymentTests` and `GetPaymentTests` have.
 - T26: the dashboard forwards the client address (`X-Forwarded-For` from a known proxy only), so the per-address login limit applies per person.
-- T23: webhook URLs are merchant-supplied, so delivery is an SSRF surface: `https` only, resolve the host and refuse private, loopback, and link-local ranges, follow no redirects, 10 s timeout, and sign every body with HMAC-SHA256 over the timestamp and raw bytes.
+- Webhook URLs are merchant-supplied, so delivery is an SSRF surface. When a URL is set (T23b): `https` only, no user info or fragment, and every address the host resolves to must be public (`WebhookAddresses`: the IANA special-purpose ranges, IPv4-mapped and NAT64 forms judged by the address they carry, and Azure's `168.63.129.16`); a name that mixes public and private addresses is refused. The fake `IHostResolver` keeps the tests off real DNS.
+  `Webhooks:LocalReceiverHosts` frees named hosts (the compose receiver) from the rules; both hosts refuse to start with it outside Development.
+- T23c, next: the same rules at connect time, in the delivery's `SocketsHttpHandler.ConnectCallback`, so DNS rebinding between the check and the send reaches nothing; no redirects, a 10 s timeout, and every body signed with HMAC-SHA256 over the id, timestamp, and raw bytes.
+- Webhook signing secrets are stored as issued (signing needs them), shown once, and never logged; `WebhookEndpointTests` checks every log line for them and for a token in the URL's query, which is why the URL is logged by host only.
 - T16: CodeQL for C# and TypeScript, Dependabot, and `npm audit --omit=dev` in CI.
 
 ## Review checklist additions

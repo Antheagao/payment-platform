@@ -7,6 +7,7 @@ using PaymentPlatform.Api.Endpoints;
 using PaymentPlatform.Api.Errors;
 using PaymentPlatform.Application;
 using PaymentPlatform.Application.Demo;
+using PaymentPlatform.Application.Webhooks;
 using PaymentPlatform.Persistence;
 using PaymentPlatform.ServiceDefaults;
 
@@ -38,6 +39,8 @@ builder.Services.AddApiProblemDetails();
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 builder.Services.AddOpenApi();
 
+WebhookOptions.ThrowIfLocalReceiversOutsideDevelopment(builder.Configuration, builder.Environment.IsDevelopment());
+
 var app = builder.Build();
 
 app.UseCorrelationIds();
@@ -55,7 +58,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapDefaultEndpoints();
-app.MapApiV1().MapAuthEndpoints().MapPaymentEndpoints();
+app.MapApiV1().MapAuthEndpoints().MapPaymentEndpoints().MapWebhookEndpoints();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

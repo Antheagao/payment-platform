@@ -14,7 +14,7 @@ namespace PaymentPlatform.Application.Webhooks;
 /// Several workers can run this at once: the claim takes row locks with <c>UPDLOCK, READPAST</c>, so each skips the
 /// rows another holds, and the locks last until the commit. Dispatch does no network work, so there is no lease:
 /// a worker that dies mid-batch rolls back and its rows are free again. Deliveries, which wait on merchants, use
-/// leases instead (T23b).
+/// leases instead (T23c).
 /// </remarks>
 public sealed partial class DispatchOutboxMessages(PaymentsDbContext db, TimeProvider timeProvider, ILogger<DispatchOutboxMessages> logger)
 {

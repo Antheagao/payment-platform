@@ -1,4 +1,5 @@
 using PaymentPlatform.Application;
+using PaymentPlatform.Application.Webhooks;
 using PaymentPlatform.Persistence;
 using PaymentPlatform.ServiceDefaults;
 using PaymentPlatform.Worker.Jobs;
@@ -11,6 +12,8 @@ builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddWorkerJobs();
 builder.WebHost.ConfigureKestrel(kestrel => kestrel.AddServerHeader = false);
+
+WebhookOptions.ThrowIfLocalReceiversOutsideDevelopment(builder.Configuration, builder.Environment.IsDevelopment());
 
 var app = builder.Build();
 

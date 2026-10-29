@@ -54,17 +54,26 @@ public sealed class WebhookEndpoint
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(url.Length, UrlMaxLength, nameof(url));
         ArgumentException.ThrowIfNullOrWhiteSpace(secret);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(secret.Length, SecretMaxLength, nameof(secret));
         return new WebhookEndpoint(id, merchantId, url, secret, now);
     }
 
-    /// <summary>Points the endpoint somewhere else with a new secret, and turns it back on.</summary>
-    public void Replace(string url, string secret, DateTimeOffset now)
+    /// <summary>Points the endpoint at <paramref name="url"/> and turns it on or off; the secret stays, so receivers keep verifying.</summary>
+    public void Update(string url, bool enabled, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
-        ArgumentException.ThrowIfNullOrWhiteSpace(secret);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(url.Length, UrlMaxLength, nameof(url));
         Url = url;
+        Enabled = enabled;
+        UpdatedAt = now;
+    }
+
+    /// <summary>Replaces the secret; deliveries from now on, retries included, are signed with the new one.</summary>
+    public void RotateSecret(string secret, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(secret);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(secret.Length, SecretMaxLength, nameof(secret));
         Secret = secret;
-        Enabled = true;
         UpdatedAt = now;
     }
 

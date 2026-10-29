@@ -158,6 +158,17 @@ Capturing `INV-1006` (failed) or `INV-1016` (already captured) is the same `409`
 These change the sample data; `docker compose down -v` and a fresh start bring it back.
 In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`, and step 6 follows it into the worker.
 
+Tell the platform where the demo merchant receives events:
+
+```sh
+curl -s -i -X PUT http://localhost:5080/api/v1/webhook-endpoint \
+  -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/hooks/payments"}'
+```
+
+The first answer is `201 Created` with the endpoint and its signing `secret` (`whsec_...`), shown this once; `GET` the same path and the secret is not there, and `POST /api/v1/webhook-endpoint/rotate-secret` issues a new one.
+The URL is the merchant's choice, so it is checked before it is stored: `https://169.254.169.254/latest/meta-data` (the cloud metadata service), `https://localhost:5080/...`, and `https://sqlserver/...` (a container on the stack's private network) are each `400` with `"errors":{"url":["webhook_url_not_public"]}`, and `http://` is `webhook_url_not_https`.
+
 **The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
 The payment is saved before the card network is called, so an outage leaves a visible `pending` payment rather than a charge with no record, and every status change writes its audit row in the same transaction.
 
@@ -248,7 +259,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- Signed webhook delivery with retries and dead-lettering, and a local receiver that shows deliveries arriving (T23b); settlement (T24); domain and queue metrics (T25).
+- Signed webhook delivery with retries and dead-lettering, and a local receiver that shows deliveries arriving (T23c); settlement (T24); domain and queue metrics (T25).
 - The dashboard's sign-in and the payment pages that show the sample data and a payment's timeline (T26 to T28).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 

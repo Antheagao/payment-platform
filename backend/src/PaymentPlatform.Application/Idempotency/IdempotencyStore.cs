@@ -1,4 +1,3 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using PaymentPlatform.Domain.Merchants;
 using PaymentPlatform.Persistence;
@@ -69,7 +68,7 @@ public sealed class IdempotencyStore(PaymentsDbContext db, TimeProvider timeProv
             await db.SaveChangesAsync(cancellationToken);
             return new IdempotencyClaim(ClaimOutcome.Claimed, fresh);
         }
-        catch (DbUpdateException exception) when (IsDuplicateKey(exception))
+        catch (DbUpdateException exception) when (DatabaseErrors.IsDuplicateKey(exception))
         {
             db.Entry(fresh).State = EntityState.Detached;
         }
@@ -147,8 +146,4 @@ public sealed class IdempotencyStore(PaymentsDbContext db, TimeProvider timeProv
             ? key
             : throw new InvalidOperationException("only a claimed key can be completed or released");
     }
-
-    // 2627: primary key or unique constraint; 2601: unique index (database overlay).
-    private static bool IsDuplicateKey(DbUpdateException exception) =>
-        exception.InnerException is SqlException { Number: 2627 or 2601 };
 }
