@@ -37,5 +37,6 @@ Top-level folders are fixed by ADR 001 (`docs/decisions/001-stack-and-repository
 ## Everything else
 
 - Bicep: `infra/bicep/main.bicep` plus one module per resource family in `infra/bicep/modules/`.
+- The compose edge proxy's configuration: `infra/edge/Caddyfile` (ADR 010).
 - Docs: ADRs as `docs/decisions/NNN-kebab-slug.md`; other docs kebab-case in `docs/`.
 - Scripts: Node (`.mjs`) so they run on Windows, macOS, and Linux, kebab-case and verb first, in `scripts/` (`check-docs.mjs`).

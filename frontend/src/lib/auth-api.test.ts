@@ -36,6 +36,28 @@ describe("signIn", () => {
     expect(url).toBe("http://localhost:5080/api/v1/auth/login");
     expect(init).toMatchObject({ method: "POST", cache: "no-store" });
     expect(JSON.parse(init.body)).toEqual({ email: "demo@example.com", password: "secret" });
+    expect(init.headers).toEqual({ "content-type": "application/json" });
+  });
+
+  it("names the person's address under the dashboard's key, and only with both", async () => {
+    vi.stubEnv("DASHBOARD_KEY", "local-dashboard-key");
+    const fetch = answer(401, problem("invalid_credentials"));
+
+    await signIn("a@example.com", "x", "203.0.113.7");
+    await signIn("a@example.com", "x");
+    vi.stubEnv("DASHBOARD_KEY", "");
+    await signIn("a@example.com", "x", "203.0.113.7");
+    vi.unstubAllEnvs();
+
+    expect(fetch.mock.calls.map(([, init]) => init.headers)).toEqual([
+      {
+        "content-type": "application/json",
+        "x-client-address": "203.0.113.7",
+        "x-dashboard-key": "local-dashboard-key",
+      },
+      { "content-type": "application/json" },
+      { "content-type": "application/json" },
+    ]);
   });
 
   it("reads each refusal by its code, not its text", async () => {

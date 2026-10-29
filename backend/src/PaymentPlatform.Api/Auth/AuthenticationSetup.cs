@@ -62,6 +62,10 @@ public static partial class AuthenticationSetup
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddSingleton<LoginThrottle>();
+        services.AddOptions<DashboardOptions>()
+            .BindConfiguration(DashboardOptions.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -142,8 +146,7 @@ public static partial class AuthenticationSetup
     private static RateLimitPartition<string> PartitionByAddress(HttpContext context)
     {
         var limits = context.RequestServices.GetRequiredService<IOptions<LoginRateLimitOptions>>().Value;
-        var address = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(address, _ => new FixedWindowRateLimiterOptions
+        return RateLimitPartition.GetFixedWindowLimiter(ClientAddress.PartitionOf(context), _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = limits.PerAddressPermits,
             Window = limits.PerAddressWindow,

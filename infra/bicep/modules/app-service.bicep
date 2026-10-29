@@ -50,6 +50,10 @@ var backendSettings = [
   }
 ]
 
+// The key with which the dashboard names each person's address on sign-in (ADR 010); the API and the dashboard
+// read the same secret, the worker never needs it.
+var dashboardKeySetting = '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=dashboard-key)'
+
 resource plan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: 'asp-${name}'
   location: location
@@ -79,7 +83,12 @@ resource api 'Microsoft.Web/sites@2024-04-01' = {
     virtualNetworkSubnetId: appSubnetId
     siteConfig: union(sharedSiteConfig, {
       linuxFxVersion: 'DOTNETCORE|10.0'
-      appSettings: backendSettings
+      appSettings: concat(backendSettings, [
+        {
+          name: 'Dashboard__Key'
+          value: dashboardKeySetting
+        }
+      ])
     })
   }
 }
@@ -130,6 +139,15 @@ resource dashboard 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsightsConnectionString
+        }
+        {
+          name: 'DASHBOARD_KEY'
+          value: dashboardKeySetting
+        }
+        {
+          // App Service's front end is the one proxy ahead of the site; 2 once Front Door is in front of it.
+          name: 'TRUSTED_PROXY_HOPS'
+          value: '1'
         }
       ]
     })

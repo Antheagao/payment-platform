@@ -27,13 +27,26 @@ export type CurrentUserResult =
 const signInTimeout = () => AbortSignal.timeout(5_000);
 const currentUserTimeout = () => AbortSignal.timeout(3_000);
 
-/** Exchanges an email and password for an access token. Never throws. */
-export async function signIn(email: string, password: string): Promise<SignInResult> {
+/**
+ * Exchanges an email and password for an access token. Never throws. With the dashboard's key (`DASHBOARD_KEY`)
+ * it names the person's address, so the API limits sign-ins per person rather than per dashboard (ADR 010).
+ */
+export async function signIn(
+  email: string,
+  password: string,
+  clientAddress?: string,
+): Promise<SignInResult> {
+  const key = process.env.DASHBOARD_KEY;
   let response: Response;
   try {
     response = await fetch(`${apiOrigin}/api/v1/auth/login`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(key && clientAddress
+          ? { "x-client-address": clientAddress, "x-dashboard-key": key }
+          : {}),
+      },
       body: JSON.stringify({ email, password }),
       cache: "no-store",
       signal: signInTimeout(),

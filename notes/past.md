@@ -393,3 +393,15 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Found on the way: every page streams (ADR 009), so a payment that is not found answers `200` with `noindex` rather than `404`, as the Next.js docs describe; recorded in `docs/tradeoffs.md`.
 - Found on the way: in two tabs, a capture in one left the other offering **Capture** under "can no longer be captured"; that refusal now refreshes the page. Long ids wrapped one character onto a second line in the narrow details column and at 360px, and opening the refund's confirmation pulled its button off the right edge; all three fixed and checked at 360 and 1440 in both schemes.
 - Checked on the composed stack: INV-1025 captured and refunded from its page, with a correlation id on each new step and verified `payment.captured` and `payment.refunded` webhooks at the receiver; INV-1004's five steps with the settlement job; an unknown id; no console errors.
+
+## 2026-10-29: the client's address, per person (T26b)
+
+- `security: limit sign-ins per person, with the address the dashboard's edge saw`: ADR 010.
+  - Compose's dashboard is reached only through a Caddy edge (`infra/edge/Caddyfile`, `caddy:2.10.2-alpine`), which writes the address it saw into `X-Forwarded-For` and drops `Server` and `Via`; App Service's front end does the same in Azure.
+  - The dashboard takes the entry its `TRUSTED_PROXY_HOPS` proxies wrote (`src/lib/client-address.ts`, ports and brackets stripped) and names it to the API on sign-in in `X-Client-Address` with `X-Dashboard-Key`; the API believes it only with the right key, compared as hashes in fixed time, groups IPv6 by `/64`, and logs a warning for a named address without the key (`Api/Auth/ClientAddress.cs`).
+  - The per-address limit is now 20 a minute, per person; Bicep gives the API and the dashboard the `dashboard-key` secret, the dashboard's role scoped to that one secret.
+  - 10 new integration tests and 5 new Vitest tests; mutations that accepted any key or dropped the `/64` failed them.
+- Found first, from the installed source and then on a build: Next.js keeps a browser's own `X-Forwarded-For` (`x-forwarded-for ??= socket.remoteAddress`); a forged `203.0.113.7` reached `src/proxy.ts` as sent. Network trust (`KnownNetworks`) was rejected because in Azure the dashboard reaches the API over the internet from shared addresses.
+- Checked on the composed stack: 22 sign-ins from the host, each with a different forged `X-Forwarded-For`, were refused from the 21st; the same sign-in replayed from another address on the compose network got its own limit while the host's was spent; no key warnings.
+- Not checked locally: the Bicep build and lint, because this machine has no Azure CLI and downloading the Bicep binary was refused by the session's permissions; CI's infra job runs them.
+- T26b's operator view and banner moved to their own row, T26c.

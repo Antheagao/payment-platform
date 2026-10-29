@@ -1,0 +1,14 @@
+# The dashboard's edge in compose (ADR 010): the only way in, as App Service's front end is in Azure. No client is
+# a trusted proxy, so Caddy replaces any X-Forwarded-For a browser sends with the address it saw, and the
+# dashboard can take the header's last entry as the person's.
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	reverse_proxy frontend:3000
+	# Like the dashboard's own X-Powered-By, nothing names the software that answers.
+	header -Server
+	header -Via
+}

@@ -8,7 +8,8 @@ Parts marked *planned* are designed and queued in `notes/future.md` but not buil
 
 ```mermaid
 flowchart LR
-    user([Merchant user]) --> web[Dashboard<br/>Next.js 16]
+    user([Merchant user]) --> edge[Edge proxy<br/>Caddy locally]
+    edge -->|"X-Forwarded-For<br/>the address it saw"| web[Dashboard<br/>Next.js 16]
     web -->|"Bearer JWT<br/>server side only"| api[API<br/>ASP.NET Core]
     merchant([Merchant backend]) -.->|planned: API keys| api
     api --> db[(SQL Server)]
@@ -21,6 +22,7 @@ flowchart LR
 
 | Component | Responsibility |
 | --- | --- |
+| **Edge proxy** (`infra/edge/Caddyfile`) | The only way to the dashboard: it writes the address each browser connected from into `X-Forwarded-For`, replacing any the browser sent. Caddy in compose; App Service's front end in Azure ([ADR 010](decisions/010-client-address-from-the-dashboard.md)). |
 | **Dashboard** (`frontend/`) | Merchant-facing UI: log in, list and search payments, view a payment and its history. Holds the login token in an HttpOnly cookie on its own server and calls the API from server code only; its server also asks the worker's readiness probe for the home page's service status. |
 | **API** (`backend/src/PaymentPlatform.Api`) | Authenticates merchants, owns every business rule, and writes each state change, its audit entry, and its outbox message in one transaction. |
 | **Worker** (`backend/src/PaymentPlatform.Worker`) | Runs the asynchronous work: dispatches outbox messages into webhook deliveries, delivers webhooks with retries, settles captured payments, and reconciles payments stuck in `Pending`. |
@@ -136,7 +138,8 @@ Card numbers, CVVs, tokens, passwords, and secrets never reach a log line: reque
   The API validates the signature, issuer, audience, and lifetime on every request ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)).
 - **The browser never holds the token.** The dashboard's server keeps it in an HttpOnly, Secure, SameSite=Strict cookie and calls the API from server code, so injected script cannot read it.
 - **Authorization.** Every query is scoped to the caller's merchant id; a foreign id is a `404`.
-- **Abuse.** Login is rate limited per account and per client address; request bodies are size-capped and requests time-limited.
+- **Abuse.** Login is rate limited per account and per person's address; the dashboard names the address its edge saw, under a key it shares with the API, and the API believes no other caller's claim ([ADR 010](decisions/010-client-address-from-the-dashboard.md)).
+  Request bodies are size-capped and requests time-limited.
 - **Secrets.** Local secrets come from `.env` and user secrets; in production they come from Key Vault through managed identity.
 
 ## Scaling
@@ -152,6 +155,7 @@ Card numbers, CVVs, tokens, passwords, and secrets never reach a log line: reque
 | --- | --- |
 | API container | App Service (Linux) with a managed identity |
 | Worker container | App Service with Always On today; Azure Functions on Service Bus triggers once the outbox relays to Service Bus |
+| Caddy edge container | App Service's front end (Front Door ahead of it, planned) |
 | Dashboard container | App Service (Node) |
 | SQL Server container | Azure SQL Database with Entra-only authentication |
 | Database outbox polling | Outbox relay to Azure Service Bus queues |

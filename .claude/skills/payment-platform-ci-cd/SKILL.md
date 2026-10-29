@@ -39,6 +39,7 @@ CI runs exactly the gates in `AGENTS.md`, so a change that passes them locally p
 ## Containers
 
 - `backend/Dockerfile` (targets `api` and `worker`, chiseled non-root runtime) and `frontend/Dockerfile` (standalone server on distroless Node 22, non-root, `NEXT_OUTPUT=standalone`).
+- Compose's dashboard has no port of its own: the `edge` service (`caddy:2.10.2-alpine`, `infra/edge/Caddyfile`) publishes `DASHBOARD_PORT` and writes each browser's address into `X-Forwarded-For` (ADR 010); the API and the dashboard share `DASHBOARD_KEY`, a public local-only default.
 - Images are built, never pushed: there is no registry, because nothing is deployed.
 
 ## Infrastructure as code

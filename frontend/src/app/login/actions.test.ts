@@ -14,6 +14,10 @@ const { signIn, saveToken, clearToken, redirect } = vi.hoisted(() => ({
 vi.mock("@/lib/auth-api", () => ({ signIn }));
 vi.mock("@/lib/session", () => ({ saveToken, clearToken }));
 vi.mock("next/navigation", () => ({ redirect }));
+// The request as the proxy in front of the dashboard passed it on: the browser's claim, then what the proxy saw.
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ "x-forwarded-for": "198.51.100.1, 203.0.113.7" }),
+}));
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -43,7 +47,7 @@ describe("signInAction", () => {
       ),
     ).rejects.toThrow("redirect:/payments?status=captured");
 
-    expect(signIn).toHaveBeenCalledWith("demo@example.com", "secret");
+    expect(signIn).toHaveBeenCalledWith("demo@example.com", "secret", "203.0.113.7");
     expect(saveToken).toHaveBeenCalledWith("token-1", expiresAt);
   });
 

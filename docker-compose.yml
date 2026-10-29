@@ -1,6 +1,6 @@
 # The whole platform on one machine, with one command and no setup: `docker compose up --build`.
 #
-#   Dashboard           http://localhost:3080
+#   Dashboard           http://localhost:3080   (through its edge, infra/edge/Caddyfile)
 #   API                 http://localhost:5080   (OpenAPI at /openapi/v1.json)
 #   Worker health       http://localhost:5081/health/ready
 #   Aspire dashboard    http://localhost:18888  (traces, metrics, structured logs)
@@ -29,6 +29,10 @@ x-demo-webhook-secret: &demo-webhook-secret whsec_TG9jYWxPbmx5X0RlbW9fV2ViaG9va1
 # The receiver is on the stack's private network, which the SSRF rules refuse; this lets webhooks reach it,
 # and only it, and only in Development (both hosts refuse the setting elsewhere).
 x-webhook-receiver-allowed: &webhook-receiver-allowed webhook-receiver
+
+# The dashboard's key for the API (ADR 010): with it the dashboard names each person's address, so the API's
+# per-address login limit is per person. Local-only and public like the passwords; Key Vault in Azure.
+x-dashboard-key: &dashboard-key ${DASHBOARD_KEY:-LocalOnly_Dashboard_Key_2026_0123456789}
 
 x-otel: &otel
   OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
@@ -103,6 +107,7 @@ services:
       # Empty by default: in Development the API then signs tokens with a key it generates at startup, so
       # logins end when it restarts. Set JWT_SIGNING_KEY in .env to keep them across restarts.
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-}
+      Dashboard__Key: *dashboard-key
     ports:
       - "127.0.0.1:${API_PORT:-5080}:8080"
 
@@ -139,10 +144,21 @@ services:
       # worker's readiness probe (ADR 004).
       API_ORIGIN: http://api:8080
       WORKER_ORIGIN: http://worker:8080
+      DASHBOARD_KEY: *dashboard-key
       # The login page shows the seeded demo login (DemoSeed); local-only, like the passwords above.
       DEMO_LOGIN_HINT: "true"
+    # No port of its own: browsers reach it only through the edge, which writes the address they came from.
+
+  # The dashboard's edge (infra/edge/Caddyfile), as App Service's front end is in Azure (ADR 010).
+  edge:
+    image: caddy:2.10.2-alpine
+    depends_on:
+      frontend:
+        condition: service_started
+    volumes:
+      - ./infra/edge/Caddyfile:/etc/caddy/Caddyfile:ro
     ports:
-      - "127.0.0.1:${DASHBOARD_PORT:-3080}:3000"
+      - "127.0.0.1:${DASHBOARD_PORT:-3080}:8080"
 
   # Stands in for a merchant's server: verifies each delivery's signature and lists what arrived
   # (scripts/webhook-receiver.mjs).

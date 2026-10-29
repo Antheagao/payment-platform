@@ -20,17 +20,17 @@ The backend is complete against the exercise's requirements; the dashboard signs
 
 | Built | Planned next |
 | --- | --- |
-| The payment lifecycle state machine with every transition tested | The service status behind an operator role, and the client's address forwarded to the API |
+| The payment lifecycle state machine with every transition tested | The service status behind an operator role |
 | Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | An end-to-end golden path through the composed stack |
 | Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile; from the API or from a payment's page in the dashboard | A load test |
 | List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | The documentation rewritten against what was built |
 | A payment's page in the dashboard: its details and its audit timeline, each change with who made it, when, and its correlation id | |
 | A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | |
 | Settlement through a T-SQL stored procedure, every minute in compose | |
-| Merchant login with 30-minute HS256 tokens and rate limits; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy | |
+| Merchant login with 30-minute HS256 tokens and rate limits per email and per person's address; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy, behind an edge proxy | |
 | JSON logs, OpenTelemetry traces from the request through the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes | |
 | RFC 9457 problem details for every error | |
-| 547 backend tests, 147 frontend unit tests, 70 browser runs, CI, CodeQL, containers, Bicep | |
+| 557 backend tests, 152 frontend unit tests, 70 browser runs, CI, CodeQL, containers, Bicep | |
 | One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
 
 ## Run it
@@ -171,7 +171,8 @@ The full list of gates is in [AGENTS.md](AGENTS.md); CI runs exactly those.
 
 ```mermaid
 flowchart LR
-    user([Merchant]) --> web[Dashboard<br/>Next.js 16]
+    user([Merchant]) --> edge[Edge<br/>Caddy]
+    edge --> web[Dashboard<br/>Next.js 16]
     web -->|server side, JWT| api[API<br/>ASP.NET Core]
     api --> db[(SQL Server)]
     worker[Worker<br/>.NET] --> db

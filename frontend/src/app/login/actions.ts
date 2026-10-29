@@ -1,7 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn } from "@/lib/auth-api";
+import { clientAddress } from "@/lib/client-address";
 import { safeRedirectTarget } from "@/lib/redirect-target";
 import { clearToken, saveToken } from "@/lib/session";
 
@@ -42,7 +44,8 @@ export async function signInAction(_previous: SignInState, form: FormData): Prom
   if (!password) return { error: "password_required", field: "password", email };
   if (password.length > passwordMaxLength) return { error: "invalid_credentials", email };
 
-  const result = await signIn(email, password);
+  const address = clientAddress((await headers()).get("x-forwarded-for"));
+  const result = await signIn(email, password, address);
   switch (result.kind) {
     case "signed_in":
       await saveToken(result.token, result.expiresAt);

@@ -28,6 +28,7 @@ The decision records in [decisions/](decisions/README.md) carry the full reasoni
 | Choice | What we gave up | We would revisit when |
 | --- | --- | --- |
 | **30-minute JWTs, no refresh, held by the dashboard's server** ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)) | Instant revocation and long sessions | Revocation becomes a requirement (a per-user security stamp) or staff sign in with Entra ID |
+| **The dashboard names each person's address under a shared key** ([ADR 010](decisions/010-client-address-from-the-dashboard.md)) | One more secret to rotate, and one more container in compose (the Caddy edge) | The API gets a gateway of its own that authenticates the dashboard (mutual TLS or a managed identity token), which would replace the key |
 | **HS256 with one key** | Validation by services that must not be able to issue tokens | A second service validates tokens; then RS256 with a published key set |
 | **Tokenizing test card numbers at the API edge** ([assumption 5](assumptions.md)) | Keeping the API out of PCI scope entirely | Production: hosted payment fields move tokenization into the browser and out of our systems |
 | **Public, local-only database passwords as compose defaults** | The rule that no password ever appears in a repository | Never for Azure, which has no passwords: the services use Entra managed identities; locally every port binds to 127.0.0.1 |

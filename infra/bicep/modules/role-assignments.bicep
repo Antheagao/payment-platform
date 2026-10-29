@@ -26,7 +26,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
   name: applicationInsightsName
 }
 
-// The API and the worker read the JWT signing key; the dashboard holds no backend secrets.
+// The API and the worker read the JWT signing key.
 resource secretReaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for principalId in [apiPrincipalId, workerPrincipalId]: {
     name: guid(vault.id, principalId, keyVaultSecretsUser)
@@ -38,6 +38,22 @@ resource secretReaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
     }
   }
 ]
+
+// The dashboard reads one secret, its own key for the API (ADR 010), and never the signing key.
+resource dashboardKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
+  parent: vault
+  name: 'dashboard-key'
+}
+
+resource dashboardKeyReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(dashboardKey.id, dashboardPrincipalId, keyVaultSecretsUser)
+  scope: dashboardKey
+  properties: {
+    principalId: dashboardPrincipalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUser)
+  }
+}
 
 // Only the worker touches the queue: it relays the outbox and consumes the events.
 resource queueRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [

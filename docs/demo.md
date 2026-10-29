@@ -26,6 +26,7 @@ Open <http://localhost:3080>: with no session, it sends you to the sign-in page.
 
 Sign in with `demo@example.com` and `LocalOnly_Demo_2026!` (the page shows them, because compose turns the hint on).
 A wrong password says so and keeps the email; the sixth attempt for one email within five minutes is refused with how long to wait.
+The 21st attempt from one address within a minute is refused too, whatever the emails: the page comes through a Caddy edge that writes the address it saw, and the dashboard passes that on to the API under a key only the two share, so a browser cannot dodge the limit by sending its own `X-Forwarded-For` ([ADR 010](decisions/010-client-address-from-the-dashboard.md)).
 The dashboard's server made the call and keeps the token in an `HttpOnly` cookie: in the browser's developer tools, `document.cookie` does not show it, and no request from the page goes to the API.
 
 ![The merchant dashboard with all three services ready](images/dashboard-light.png)
@@ -296,7 +297,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-547 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+557 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.

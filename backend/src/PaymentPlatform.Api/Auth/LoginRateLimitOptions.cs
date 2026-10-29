@@ -18,11 +18,11 @@ public sealed class LoginRateLimitOptions
     public TimeSpan PerEmailWindow { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Generous, because every dashboard login reaches the API from the dashboard's server; the per-address limit
-    /// starts working per person once the dashboard forwards the client address (T26).
+    /// Per person when the dashboard names their address (ADR 010), and per connection for every other caller;
+    /// enough for an office behind one address, far too few for credential stuffing from it.
     /// </summary>
     [Range(1, 10_000)]
-    public int PerAddressPermits { get; set; } = 60;
+    public int PerAddressPermits { get; set; } = 20;
 
     [Range(typeof(TimeSpan), "00:00:01", "01:00:00")]
     public TimeSpan PerAddressWindow { get; set; } = TimeSpan.FromMinutes(1);
