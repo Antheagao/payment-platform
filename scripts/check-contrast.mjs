@@ -35,6 +35,18 @@ const PAIRS = [
   ["danger", "surface", 4.5, "error text on cards"],
 ];
 
+// The status pills, which sit side by side: within a scheme their ratios may differ by at most this
+// factor, so equal statuses look equally weighted and none reads louder than another by accident.
+const PILLS = [
+  ["primary", "primary-soft"],
+  ["success", "success-soft"],
+  ["warning", "warning-soft"],
+  ["danger", "danger-soft"],
+  ["info", "info-soft"],
+  ["muted", "surface"],
+];
+const PILL_SPREAD = 1.25;
+
 const tokenPattern = /^\s*--([a-z0-9-]+):\s*light-dark\(\s*(oklch\([^)]*\))\s*,\s*(oklch\([^)]*\))\s*\);/gm;
 const tokens = new Map();
 for (const [, name, light, dark] of css.matchAll(tokenPattern)) {
@@ -85,6 +97,13 @@ for (const scheme of ["light", "dark"]) {
     lines.push(`${verdict} ${scheme.padEnd(5)} ${`${fg} on ${bg}`.padEnd(30)} ${value.toFixed(2).padStart(5)} >= ${minimum}  ${purpose}`);
     if (value < minimum) problems.push(`${scheme} ${fg} on ${bg}: ${value.toFixed(2)} < ${minimum}`);
   }
+  const pills = PILLS.filter(([fg, bg]) => tokens.has(fg) && tokens.has(bg)).map(([fg, bg]) =>
+    ratio(toLinearSrgb(tokens.get(fg)[scheme]), toLinearSrgb(tokens.get(bg)[scheme])),
+  );
+  const spread = Math.max(...pills) / Math.min(...pills);
+  const verdict = spread <= PILL_SPREAD ? "ok  " : "FAIL";
+  lines.push(`${verdict} ${scheme.padEnd(5)} ${"pill balance".padEnd(30)} ${spread.toFixed(2).padStart(5)} <= ${PILL_SPREAD}  strongest pill over the weakest`);
+  if (spread > PILL_SPREAD) problems.push(`${scheme} pills spread ${spread.toFixed(2)} > ${PILL_SPREAD}`);
 }
 
 if (tokens.size === 0) problems.push("no light-dark(oklch(...), oklch(...)) tokens found in globals.css");
@@ -93,4 +112,4 @@ if (problems.length > 0) {
   console.error(`\n${problems.join("\n")}`);
   process.exit(1);
 }
-console.log(`\ncontrast: ${tokens.size} tokens in gamut, ${PAIRS.length * 2} pairs meet their targets`);
+console.log(`\ncontrast: ${tokens.size} tokens in gamut, ${PAIRS.length * 2} pairs meet their targets, pills balanced`);

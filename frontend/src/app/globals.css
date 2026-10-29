@@ -10,7 +10,8 @@
   text label, never color alone.
 
   Contrast targets are checked by `node scripts/check-contrast.mjs`, which reads this file:
-  body text 7:1, secondary text and status pills 4.5:1, borders and focus 3:1.
+  body text 7:1, secondary text and status pills 4.5:1, borders and focus 3:1. The pills are also
+  held to one contrast band per scheme, so no status reads louder than another by accident.
 */
 
 :root {
@@ -24,17 +25,17 @@
   --border: light-dark(oklch(0.89 0.008 260), oklch(0.32 0.016 260));
   --border-strong: light-dark(oklch(0.6 0.02 260), oklch(0.56 0.02 260));
 
-  --primary: light-dark(oklch(0.48 0.17 265), oklch(0.72 0.13 265));
+  --primary: light-dark(oklch(0.48 0.17 265), oklch(0.78 0.11 265));
   --primary-fg: light-dark(oklch(1 0 0), oklch(0.17 0.03 265));
-  --primary-hover: light-dark(oklch(0.43 0.17 265), oklch(0.77 0.11 265));
-  --primary-soft: light-dark(oklch(0.95 0.022 265), oklch(0.28 0.06 265));
+  --primary-hover: light-dark(oklch(0.43 0.17 265), oklch(0.83 0.08 265));
+  --primary-soft: light-dark(oklch(0.95 0.022 265), oklch(0.27 0.05 265));
 
   --success: light-dark(oklch(0.45 0.11 150), oklch(0.79 0.13 150));
   --success-soft: light-dark(oklch(0.95 0.04 150), oklch(0.27 0.05 150));
   --warning: light-dark(oklch(0.47 0.1 70), oklch(0.83 0.11 80));
   --warning-soft: light-dark(oklch(0.95 0.05 85), oklch(0.28 0.05 75));
-  --danger: light-dark(oklch(0.5 0.18 27), oklch(0.75 0.14 27));
-  --danger-soft: light-dark(oklch(0.95 0.022 27), oklch(0.28 0.06 27));
+  --danger: light-dark(oklch(0.5 0.18 27), oklch(0.79 0.12 27));
+  --danger-soft: light-dark(oklch(0.95 0.022 27), oklch(0.27 0.05 27));
   --info: light-dark(oklch(0.47 0.08 200), oklch(0.8 0.09 200));
   --info-soft: light-dark(oklch(0.95 0.025 200), oklch(0.27 0.04 200));
 }

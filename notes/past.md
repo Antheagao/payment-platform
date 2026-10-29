@@ -192,3 +192,10 @@ Update this file when a task lands; keep the present and future notes in sync.
   Requirement O4 is Scaffolded until then.
 - Checked in a real browser (`chrome-devtools-axi`): the dashboard at 1440 light and 360 dark, and the Aspire trace, structured-log, and metrics pages.
   The Aspire "Endpoint is unsecured" banner is expected for a local, anonymous dashboard bound to 127.0.0.1; the guide says so instead of adding a public API key that would protect nothing.
+
+## 2026-10-28: balanced status colors (T37)
+
+- Found in the first browser pass for the screenshots: in dark mode the Captured and Failed pills read dimmer than the other four (contrast 5.9 and 6.3 against 7.7 to 8.6), so equal statuses looked unequal.
+- `frontend: balance the dark status colors and gate their spread`: dark `primary` 0.72 to 0.78 lightness (hover and soft follow), dark `danger` 0.75 to 0.79 with its soft at 0.27 like the others; light mode was already within 1.21.
+  `scripts/check-contrast.mjs` now also fails when, within a scheme, the strongest pill's ratio exceeds the weakest's by more than 1.25; it fails on the old dark palette (1.47) and passes the new one (1.15).
+- Gate: `node scripts/check-contrast.mjs` (19 tokens in gamut, 36 pairs, pills balanced in both schemes).

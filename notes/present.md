@@ -28,6 +28,10 @@ A second request the same day added:
 9. Fully functional without any paid service.
 10. Able to load sample data and sample dashboards, for a live demo or for a reviewer who downloads it to see what was built.
 
+A third request the same day added:
+
+11. Screenshots of the pages and GIFs of the dashboard in use, the frontend checked in a real browser, and its design brought up to current practice (layout, color values) following the repository's frontend overlay and the claude-brain `frontend-ui` guide.
+
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
@@ -56,7 +60,7 @@ A second request the same day added:
   All thirteen guide overlays exist: `payment-platform-pull-requests`, `-repository-structure`, `-clean-code`, `-code-comments`, `-error-handling-logging`, `-database`, `-api-design`, `-security`, `-architecture`, `-design-principles`, `-testing`, `-frontend-ui`, `-ci-cd`; each is updated by the task that changes what it describes.
 - **frontend/** (`payment-platform-dashboard`): `create-next-app` 16.4.3 with TypeScript strict, Tailwind v4 through `@tailwindcss/turbopack`, ESLint (`eslint-config-next` plus `eslint-config-prettier`), App Router under `src/`, the React Compiler, and `cacheComponents` with `partialPrefetching` (the create-next-app default, and the default everywhere in the next major).
   Prettier 3.9 with the Tailwind class-sorting plugin; scripts `typecheck` (`next typegen && tsc --noEmit`), `lint` (zero warnings), `format:check`, `build`; Node 22 or later.
-  The shell: design tokens in `src/app/globals.css` (OKLCH `light-dark()`, following the OS; 19 tokens, 36 contrast pairs checked by `node scripts/check-contrast.mjs`), `ui/` primitives (`Badge`, `Button`, `Container`), a sticky `SiteHeader` with the API readiness badge streamed in `<Suspense>`, the `PaymentLifecycle` legend, `error.tsx`, `global-error.tsx`, `not-found.tsx`, the skip link, security headers in `next.config.ts`, and the server-only `src/lib/api.ts` (`API_ORIGIN`, no-store, 5 s timeout, longer than the API's 3 s readiness deadline).
+  The shell: design tokens in `src/app/globals.css` (OKLCH `light-dark()`, following the OS; 19 tokens, 36 contrast pairs and the balance of the six status pills checked by `node scripts/check-contrast.mjs`), `ui/` primitives (`Badge`, `Button`, `Container`), a sticky `SiteHeader` with the API readiness badge streamed in `<Suspense>`, the `PaymentLifecycle` legend, `error.tsx`, `global-error.tsx`, `not-found.tsx`, the skip link, security headers in `next.config.ts`, and the server-only `src/lib/api.ts` (`API_ORIGIN`, no-store, 5 s timeout, longer than the API's 3 s readiness deadline).
   `frontend/Dockerfile` builds the standalone server onto distroless Node 22 (non-root); compose serves it on `http://localhost:3080`.
   Tests: Vitest 5 with Testing Library, 16 tests in 5 files beside the code (`getApiHealth` with a stubbed fetch, `Badge`, the lifecycle legend, the status table, `classNames`); Playwright, 6 golden-path checks on the production build at 1440 and 360 (12 runs): the legend, the API-down badge, the skip link, security headers, no sideways scroll, the 404 page.
 - **CI** (`.github/`): `ci.yml` with six jobs (backend: locked and audited restore, format, Release build, every test project including the SQL Server integration tests; frontend: typecheck, lint, format, Vitest, build, `npm audit`; e2e: Playwright; repository: docs links and contrast; infra: Bicep build, lint, parameters; stack: the README's one command on a clean runner with no `.env`, then `scripts/check-stack.sh`), `codeql.yml` (C# and TypeScript, `security-extended`, weekly too), and `dependabot.yml` (NuGet, npm, Actions, Docker, compose; minor and patch grouped; deliberate majors ignored).
@@ -92,6 +96,7 @@ A second request the same day added:
 | T34 | Prerequisites, free-to-run audit, troubleshooting | Done |
 | T36 | A healthy start logs no warnings | Done |
 | T35 | Demo guide; sample data planned into T19 to T22 | Done |
+| T37 | Status colors balanced across the pills, and the balance gated | Done |
 | T19 | Merchant accounts and login | Next |
 
 The scaffold (T1 to T18) is complete; the payment slice (T19 to T31) is ranked in `future.md`.

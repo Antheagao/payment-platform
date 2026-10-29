@@ -34,6 +34,7 @@ Read `frontend/node_modules/next/dist/docs/` before any Next.js API: the install
 - `node scripts/check-contrast.mjs` reads that file and fails on any token outside sRGB or any pair under its target (body 7:1, secondary text and every pill 4.5:1, borders and focus 3:1).
   Adding a token means the `:root` value, the `@theme inline` mapping, a pair in the script's `PAIRS`, and this list, in one change.
 - The neutral pill has an inset ring because it sits on `surface-2` rows.
+- The six status pills are also held to one contrast band per scheme (strongest over weakest at most 1.25, `PILLS` in the script), so no status reads louder than another by accident; dark primary and danger were raised from 5.9 and 6.3 to 7.5 and 7.6 to meet it.
 
 ## Known gaps
 
