@@ -18,6 +18,7 @@ Ranked by what the exercise grades most: the lifecycle and its audit trail, idem
 
 First slice, ready to start:
 - Migration `InitialSchema`: `Merchants` and `MerchantUsers` (email `nvarchar(254)` unique under the default case-insensitive collation, password hash, created time), and `READ_COMMITTED_SNAPSHOT ON` to match Azure SQL (database overlay).
+- `PaymentsDbContext.OnModelCreating` gains `ApplyConfigurationsFromAssembly` with the first `IEntityTypeConfiguration` (it was removed while there were none, because EF Core warns on every start; `StartupTests` keeps a healthy start free of warnings).
 - `Application/Auth/LogIn.cs`: ASP.NET Core Identity's `PasswordHasher`, a dummy-hash comparison for unknown emails, one "email or password is incorrect" error, a JWT per ADR 004 (HS256 pinned, 30 minutes, issuer, audience, `sub`, `merchant_id`, `jti`).
 - `Api/Endpoints/AuthEndpoints.cs`: `POST /api/v1/auth/login`, rate limited per email and per address with `Retry-After`; JwtBearer validation registered for the `/api/v1` group.
 - A development seed (one demo merchant and user) applied with the startup migration, never in production.

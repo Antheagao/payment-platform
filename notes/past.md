@@ -176,3 +176,10 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Licenses: all 130 resolved NuGet packages are MIT or Apache 2.0 except the SqlClient SNI runtime and MSAL's native interop, both under free Microsoft license terms; every npm package is under an open-source license (MIT, ISC, Apache 2.0, BSD, MPL 2.0, BlueOak, and libvips under LGPL 3.0 for `sharp`).
 - Fresh clone of `7c6f549` from GitHub with no `.env`, as project `pp-fresh` so the database volume was new: `docker compose up --build -d --wait` in 29 s on a warm build cache, `check-stack.sh` green at once, the bootstrap created the database and login, the API migrated; then a `.env` with Windows line endings moved the dashboard to 3090 and the API to 5090, and both the stack and `check-stack.sh` followed; `down -v` removed that project's volume.
 - CI run 40801177285 on `7c6f549`: all six jobs green; the new `stack` job went from an empty runner to every service answering in 77 s (73 s of it the build and start).
+
+## 2026-10-28: a healthy start logs no warnings (T36)
+
+- Found while checking the Aspire dashboard for the demo guide: every API start logged an EF Core warning (event 10632, no `IEntityTypeConfiguration` found in the Persistence assembly), the one highlighted row in an otherwise clean structured-log view.
+- `persistence: keep a healthy start free of warnings`: `PaymentsDbContext` stops scanning for configurations while there are none; T19's first slice now names restoring `ApplyConfigurationsFromAssembly` with the first configuration.
+  `Startup/StartupTests` starts the API the way compose does (migrating at startup) with fake logging and asserts nothing at Warning or above; it failed on exactly this warning before the change.
+- Gate: locked restore, format, Release build, 172 tests; in compose, a fresh Aspire dashboard and a rebuilt API show no warning in the container logs or the structured-log view.

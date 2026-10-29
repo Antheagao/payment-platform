@@ -20,7 +20,7 @@ The payment features are next, in the order the exercise weighs them; [requireme
 | RFC 9457 problem details for every error | The transactional outbox, signed webhooks with retries and dead-lettering, settlement |
 | The worker's job runner, the simulated acquirer | Domain and queue metrics |
 | The dashboard shell with accessible design tokens | Sign-in, the payments list, and the payment timeline |
-| 171 backend tests, 16 frontend unit tests, 12 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
+| 172 backend tests, 16 frontend unit tests, 12 browser runs, CI, CodeQL, containers, Bicep | End-to-end golden path, load test |
 
 ## Run it
 

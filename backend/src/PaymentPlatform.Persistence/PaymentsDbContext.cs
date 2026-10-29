@@ -18,6 +18,5 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
         modelBuilder.HasDefaultSchema(Schema);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(PaymentsDbContext).Assembly);
     }
 }
