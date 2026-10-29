@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,7 +15,10 @@ using PaymentPlatform.ServiceDefaults;
 
 namespace PaymentPlatform.Api.Endpoints;
 
-/// <summary><c>POST /api/v1/payments</c> and <c>GET /api/v1/payments/{id}</c>, scoped to the caller's merchant.</summary>
+/// <summary>
+/// <c>POST /api/v1/payments</c>, <c>GET /api/v1/payments/{id}</c>, and <c>POST /api/v1/payments/{id}/capture</c> and
+/// <c>/refund</c>, scoped to the caller's merchant; every money-moving call takes an <c>Idempotency-Key</c>.
+/// </summary>
 public static class PaymentEndpoints
 {
     public const string IdempotencyKeyHeader = "Idempotency-Key";
@@ -37,7 +41,21 @@ public static class PaymentEndpoints
             .WithName("GetPayment")
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound);
+        MapMove(group.MapPost("/payments/{id:guid}/capture", CaptureAsync).WithName("CapturePayment"));
+        MapMove(group.MapPost("/payments/{id:guid}/refund", RefundAsync).WithName("RefundPayment"));
         return group;
+    }
+
+    private static void MapMove(RouteHandlerBuilder endpoint)
+    {
+        endpoint
+            .Produces<PaymentResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
     }
 
     /// <summary>
@@ -92,8 +110,8 @@ public static class PaymentEndpoints
 
     /// <summary>
     /// Creates a payment under the caller's <c>Idempotency-Key</c> (ADR 007). Invalid requests are answered before
-    /// the key is claimed, so nothing is stored for them and a corrected request may use the same key; once work
-    /// starts, the response is stored and every retry with the same request gets it back.
+    /// the key is claimed, so nothing is stored for them and a corrected request may use the same key; once a
+    /// payment exists, the response is stored and every retry with the same request gets it back.
     /// </summary>
     private static async Task<Results<ContentHttpResult, ValidationProblem, ProblemHttpResult>> CreateAsync(
         CreatePaymentRequest request,
@@ -105,17 +123,9 @@ public static class PaymentEndpoints
         HttpContext http,
         CancellationToken cancellationToken)
     {
-        var key = http.Request.Headers[IdempotencyKeyHeader].ToString();
-        if (key.Length == 0)
+        if (ReadIdempotencyKey(http, out var key) is { } keyProblem)
         {
-            return ApiProblems.Create(
-                StatusCodes.Status400BadRequest, "idempotency_key_required", "send an Idempotency-Key header that is unique to this payment");
-        }
-
-        if (!IsAcceptableKey(key))
-        {
-            return ApiProblems.Create(
-                StatusCodes.Status400BadRequest, "idempotency_key_invalid", "an Idempotency-Key is 1 to 255 printable ASCII characters");
+            return keyProblem;
         }
 
         var errors = request.Validate(timeProvider.GetUtcNow());
@@ -124,43 +134,122 @@ public static class PaymentEndpoints
             return TypedResults.ValidationProblem(errors);
         }
 
-        var claim = await idempotency.ClaimAsync(caller.GetMerchantId(), key, request.Fingerprint(), cancellationToken);
+        var (sent, problem) = await RunIdempotentAsync(
+            http,
+            idempotency,
+            caller,
+            key,
+            request.Fingerprint(),
+            claim => createPayment.HandleAsync(request, CallerOf(caller, http), claim, cancellationToken),
+            StatusCodes.Status201Created,
+            json.Value.SerializerOptions,
+            cancellationToken);
+        return sent is not null ? sent : problem!;
+    }
+
+    private static Task<Results<ContentHttpResult, ProblemHttpResult>> CaptureAsync(
+        Guid id,
+        ClaimsPrincipal caller,
+        CapturePayment capture,
+        IdempotencyStore idempotency,
+        IOptions<JsonOptions> json,
+        HttpContext http,
+        CancellationToken cancellationToken) =>
+        MoveAsync("capture", id, caller, capture, idempotency, json, http, cancellationToken);
+
+    private static Task<Results<ContentHttpResult, ProblemHttpResult>> RefundAsync(
+        Guid id,
+        ClaimsPrincipal caller,
+        RefundPayment refund,
+        IdempotencyStore idempotency,
+        IOptions<JsonOptions> json,
+        HttpContext http,
+        CancellationToken cancellationToken) =>
+        MoveAsync("refund", id, caller, refund, idempotency, json, http, cancellationToken);
+
+    /// <summary>
+    /// Capture or refund under an <c>Idempotency-Key</c>: a retry with the same key replays the first success; a
+    /// new key on a payment already moved is the lifecycle's <c>409</c>, the second line of defense (ADR 007).
+    /// </summary>
+    private static async Task<Results<ContentHttpResult, ProblemHttpResult>> MoveAsync(
+        string operation,
+        Guid id,
+        ClaimsPrincipal caller,
+        MovePayment move,
+        IdempotencyStore idempotency,
+        IOptions<JsonOptions> json,
+        HttpContext http,
+        CancellationToken cancellationToken)
+    {
+        if (ReadIdempotencyKey(http, out var key) is { } keyProblem)
+        {
+            return keyProblem;
+        }
+
+        // The operation and the payment are the whole request, so they are the whole fingerprint.
+        var fingerprint = SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new[] { $"POST {ApiRoutes.V1}/payments/{id}/{operation}" }));
+        var (sent, problem) = await RunIdempotentAsync(
+            http,
+            idempotency,
+            caller,
+            key,
+            fingerprint,
+            _ => move.HandleAsync(new PaymentId(id), CallerOf(caller, http), cancellationToken),
+            StatusCodes.Status200OK,
+            json.Value.SerializerOptions,
+            cancellationToken);
+        return sent is not null ? sent : problem!;
+    }
+
+    /// <summary>
+    /// Claims the key, runs the work, and stores and sends a success; anything else releases the key, because
+    /// nothing changed and the same request may be tried again.
+    /// </summary>
+    private static async Task<(ContentHttpResult? Sent, ProblemHttpResult? Problem)> RunIdempotentAsync(
+        HttpContext http,
+        IdempotencyStore idempotency,
+        ClaimsPrincipal caller,
+        string key,
+        byte[] fingerprint,
+        Func<IdempotencyClaim, Task<Result<PaymentDetails>>> work,
+        int successStatus,
+        JsonSerializerOptions json,
+        CancellationToken cancellationToken)
+    {
+        var claim = await idempotency.ClaimAsync(caller.GetMerchantId(), key, fingerprint, cancellationToken);
         switch (claim.Outcome)
         {
             case ClaimOutcome.Replay:
                 http.Response.Headers[ReplayedHeader] = "true";
-                return Send(claim.Response!, http);
+                return (Send(claim.Response!, http), null);
             case ClaimOutcome.InProgress:
-                return ApiProblems.Create(
+                return (null, ApiProblems.Create(
                     StatusCodes.Status409Conflict,
                     "idempotency_request_in_progress",
-                    "a request with this Idempotency-Key is still running; retry shortly");
+                    "a request with this Idempotency-Key is still running; retry shortly"));
             case ClaimOutcome.Mismatch:
-                return ApiProblems.Create(
+                return (null, ApiProblems.Create(
                     StatusCodes.Status422UnprocessableEntity,
                     "idempotency_key_reused",
-                    "this Idempotency-Key was used for a different request");
+                    "this Idempotency-Key was used for a different request"));
         }
 
         try
         {
-            var result = await createPayment.HandleAsync(
-                request, new PaymentCaller(caller.GetMerchantId(), caller.GetUserId(), http.GetCorrelationId()), claim, cancellationToken);
+            var result = await work(claim);
             if (!result.IsSuccess)
             {
-                // Nothing was created, so nothing is stored: the same request gets the same answer, and a
-                // corrected one may use the key.
                 await idempotency.ReleaseAsync(claim);
-                return ApiProblems.Create(StatusCodes.Status422UnprocessableEntity, result.Error.Code, result.Error.Message);
+                return (null, ProblemFor(result.Error, http));
             }
 
             var body = PaymentResponse.From(result.Value);
             var response = new StoredResponse(
-                StatusCodes.Status201Created,
-                JsonSerializer.Serialize(body, json.Value.SerializerOptions),
-                $"{ApiRoutes.V1}/payments/{body.Id}");
+                successStatus,
+                JsonSerializer.Serialize(body, json),
+                successStatus == StatusCodes.Status201Created ? $"{ApiRoutes.V1}/payments/{body.Id}" : null);
             await idempotency.CompleteAsync(claim, response, cancellationToken);
-            return Send(response, http);
+            return (Send(response, http), null);
         }
         catch
         {
@@ -168,6 +257,43 @@ public static class PaymentEndpoints
             await idempotency.ReleaseAsync(claim);
             throw;
         }
+    }
+
+    /// <summary>The status for each error a payment use case returns; its code goes into the body unchanged.</summary>
+    private static ProblemHttpResult ProblemFor(DomainError error, HttpContext http)
+    {
+        var status = error.Code switch
+        {
+            "not_found" => StatusCodes.Status404NotFound,
+            "acquirer_unavailable" => StatusCodes.Status503ServiceUnavailable,
+            _ when error.Code.StartsWith("payment_not_", StringComparison.Ordinal) => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status422UnprocessableEntity,
+        };
+        if (status == StatusCodes.Status503ServiceUnavailable)
+        {
+            http.Response.Headers.RetryAfter = "5";
+        }
+
+        return ApiProblems.Create(status, error.Code, error.Message);
+    }
+
+    private static PaymentCaller CallerOf(ClaimsPrincipal caller, HttpContext http) =>
+        new(caller.GetMerchantId(), caller.GetUserId(), http.GetCorrelationId());
+
+    /// <summary>Reads the <c>Idempotency-Key</c> header; a problem when it is missing or not 1 to 255 printable ASCII characters.</summary>
+    private static ProblemHttpResult? ReadIdempotencyKey(HttpContext http, out string key)
+    {
+        key = http.Request.Headers[IdempotencyKeyHeader].ToString();
+        if (key.Length == 0)
+        {
+            return ApiProblems.Create(
+                StatusCodes.Status400BadRequest, "idempotency_key_required", "send an Idempotency-Key header that is unique to this request");
+        }
+
+        return IsAcceptableKey(key)
+            ? null
+            : ApiProblems.Create(
+                StatusCodes.Status400BadRequest, "idempotency_key_invalid", "an Idempotency-Key is 1 to 255 printable ASCII characters");
     }
 
     /// <summary>1 to 255 printable ASCII characters (ADR 007); anything else could not be stored or compared exactly.</summary>

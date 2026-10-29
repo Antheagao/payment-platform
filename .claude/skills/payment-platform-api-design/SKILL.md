@@ -37,7 +37,8 @@ ADR 006 (errors) and ADR 007 (idempotency) come first.
 ## Payments-specific rules
 
 - `POST /payments`, `/payments/{id}/capture`, and `/payments/{id}/refund` require `Idempotency-Key` (ADR 007 and its amendment); a replay carries `Idempotent-Replayed: true`.
-  Built for create: validate first (a refused request stores nothing), then `IdempotencyStore.ClaimAsync`, then the use case with the claim, then `CompleteAsync` with the exact response bytes; any failure calls `ReleaseAsync`. The first answer and every replay go through the same `Send`, so they are identical. Capture and refund follow the same shape.
+  `PaymentEndpoints.RunIdempotentAsync` is the one path for all three: validate first (a refused request stores nothing), claim, run the use case, store and send a success (the first answer and every replay go through the same `Send`, so they are identical), release on anything else. Capture and refund fingerprint the method, path, and payment id.
+- `POST /api/v1/payments/{id}/capture` and `/refund` take no body and answer `200` with the payment; `ProblemFor` maps the use cases' codes: `not_found` 404, `payment_not_*` 409, `*_declined` and `card_not_accepted` 422, `acquirer_unavailable` 503 with `Retry-After: 5`.
 - Lists: `?limit=` (default 25, maximum 100; out of range is `400 invalid_limit`), an opaque base64url `cursor` over `(created_at, id)`, `next_cursor` null on the last page, results wrapped as `{"data": [...], "next_cursor": ...}`.
 - Another merchant's payment is `404 not_found`, indistinguishable from a missing one.
 

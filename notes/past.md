@@ -281,3 +281,12 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Gate: 2 new tests (every status present, every history a legal and time-ordered path ending in the payment's status, settlement by the system actor, all within 90 days; a seeded payment read back through the API with its five-step trail), and the restart test now also counts thirty payments after two starts; 326 backend tests green three runs in a row.
   In compose, the existing volume gained exactly thirty records and `INV-1004` reads back as pending, authorized, captured, settled by `system`, and refunded, on three different days.
 
+## 2026-10-28: capture and refund (T21)
+
+- `backend: capture and refund payments, idempotently`: R4, R5, and R26 are done.
+  - `Application/Payments/MovePayment.cs`: `CapturePayment` and `RefundPayment` share one flow (load the merchant's payment, check the lifecycle, call the acquirer outside any transaction with the stored authorization reference, apply the move, save it with its audit row); a decline or no answer leaves the payment unchanged; a `DbUpdateConcurrencyException` from the row version becomes the lifecycle's `409`.
+  - `PaymentEndpoints`: the create flow became `RunIdempotentAsync`, shared by all three money-moving calls; `ProblemFor` maps the use cases' codes to statuses; ADR 007 gains the capture and refund amendment.
+  - 14 new integration tests; a mutation that dropped the row-version handling made the racing-captures test fail.
+- Checked against compose as the demo merchant: `INV-1025` captured (and the same key replayed), then refunded; the settled `INV-1001` refunded; capturing the captured `INV-1016` or the failed `INV-1006` was `409 payment_not_capturable`; no startup warnings after the rebuild.
+- Gate: format, Release build, 340 backend tests green three runs in a row (the capture tests five more times alone).
+

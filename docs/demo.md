@@ -131,6 +131,20 @@ Their ids are fixed, so these read back the same on every machine:
 | `019a2c00-0000-7000-8000-000000001025` (`INV-1025`) | `authorized`, ready to capture |
 | `019a2c00-0000-7000-8000-000000001006` (`INV-1006`) | `failed` with `card_declined` |
 | `019a2c00-0000-7000-8000-000000001023` (`INV-1023`) | `pending`: the acquirer never answered |
+
+Capture the authorized one, then refund it:
+
+```sh
+curl -s -X POST http://localhost:5080/api/v1/payments/019a2c00-0000-7000-8000-000000001025/capture \
+  -H "Authorization: Bearer <access_token>" -H "Idempotency-Key: capture-1025"
+curl -s -X POST http://localhost:5080/api/v1/payments/019a2c00-0000-7000-8000-000000001025/refund \
+  -H "Authorization: Bearer <access_token>" -H "Idempotency-Key: refund-1025"
+```
+
+Each answers `200` with the payment and one more history row.
+Repeat the capture with the same key and it replays (`Idempotent-Replayed: true`); repeat it with a new key and it is `409 payment_not_capturable`, because the lifecycle is the second line of defense.
+Capturing `INV-1006` (failed) or `INV-1016` (already captured) is the same `409`; refunding `INV-1001` (settled) works.
+These change the sample data; `docker compose down -v` and a fresh start bring it back.
 In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`.
 
 **The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
@@ -195,7 +209,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-326 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+340 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.
@@ -208,7 +222,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- Capture and refund with the same idempotency keys (T21), so `INV-1025` can be captured live, then search (T22) and the payment pages that show the sample data (T27, T28).
+- List and search (T22), the outbox and webhooks (T23), settlement (T24), and the payment pages that show the sample data (T27, T28).
   The startup seed will load a demo merchant and payments in every status, each with its audit trail, so this guide can then log in and walk a payment's timeline.
 - The asynchronous workflow: the outbox, signed webhooks with retries and dead-lettering, and settlement (T23, T24).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).

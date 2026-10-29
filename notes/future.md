@@ -7,24 +7,23 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-28.
 
-The scaffold (T1 to T18), merchant login (T19), and creating and reading payments (T20) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), and capture and refund (T21) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T21. Capture and refund
+### T22. List and search payments
 
 First slice, ready to start:
-- `Application/Payments/CapturePayment.cs` and `RefundPayment.cs`: load the merchant's payment (another merchant's is `404`), move it through the domain (`payment_not_capturable` or `payment_not_refundable` as `409` when the state does not allow it), call the acquirer with the stored authorization reference outside any transaction, and save the change and its audit row; an acquirer decline is `502 acquirer_declined` with the payment unchanged, and an acquirer that does not answer is `503 acquirer_unavailable`, also unchanged.
-- `POST /api/v1/payments/{id}/capture` and `/refund` with `Idempotency-Key` through the same `IdempotencyStore` (the fingerprint names the path and payment id), the second line of defense being the state check (ADR 007).
-- The seeded authorized and captured payments can then be captured and refunded live; `docs/demo.md` step 5 gains the commands.
-- Gate: the five-case checklist for both, double capture and double refund (`409` with a new key, replay with the same key), concurrent captures with one key, refund from captured and from settled, the acquirer's decline and silence leaving the payment as it was, and the audit rows for each.
+- `GET /api/v1/payments` scoped to the caller's merchant, newest first, `{"data": [...], "next_cursor": ...}` (api-design overlay): `limit` 1 to 100 (default 25; anything else `400 invalid_limit`), an opaque base64url cursor over `(created_at, id)` that keyset-paginates (never `OFFSET`), and filters `status` (one or more), `created_from` and `created_to` (ISO 8601), `amount_min_minor` and `amount_max_minor`, `currency`, and `reference` (the merchant reference, exact or prefix); each filter's bad value is a `400` with a field code.
+- List items are a summary (no history); the existing clustered index `(MerchantId, CreatedAt, Id)` serves the default order, and an index on `(MerchantId, Status, CreatedAt, Id)` and one on `(MerchantId, MerchantReference)` serve the common filters; the query plan is checked for a seek on each.
+- The demo seed grows to a few hundred payments (deterministic, still idempotent) so paging shows, and `docs/demo.md` gains the step.
+- Gate: paging through every seeded payment returns each exactly once in order, with ties on `created_at` broken by id; every filter alone and combined; another merchant's payments never appear; a tampered cursor is `400 invalid_cursor`.
 
 ### Then
 
-- **T22. List and search.** Filters by status, date range, amount, and reference; keyset pagination with an opaque cursor; the indexes that serve it; enough seeded payments (a few hundred) that paging shows in the demo.
 - **T23. Outbox and webhook delivery.** Outbox rows written in the same transaction as the state change, a dispatcher claiming rows with `READPAST`, HMAC-signed webhooks, exponential backoff with jitter, a dead-letter state, SSRF rules for merchant URLs, and trace context carried across the hop; the worker's first integration tests.
 - **T24. Settlement.** A scheduled batch that settles captured payments through a T-SQL stored procedure, with reconciliation counts.
 - **T25. Domain and queue metrics.** Payments created, captured, refunded, failed by state; outbox depth, oldest-pending lag, retries, dead letters.

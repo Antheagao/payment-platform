@@ -14,10 +14,14 @@ public static class PaymentRequests
     public static Task<HttpResponseMessage> CreateRawAsync(HttpClient client, string json, string? idempotencyKey = null) =>
         SendAsync(client, new StringContent(json, Encoding.UTF8, "application/json"), idempotencyKey);
 
-    private static async Task<HttpResponseMessage> SendAsync(HttpClient client, HttpContent content, string? idempotencyKey)
+    /// <summary><c>POST /api/v1/payments/{id}/capture</c> or <c>/refund</c>, which take no body.</summary>
+    public static Task<HttpResponseMessage> MoveAsync(HttpClient client, Guid paymentId, string operation, string? idempotencyKey = null) =>
+        SendAsync(client, null, idempotencyKey, $"{Path}/{paymentId}/{operation}");
+
+    private static async Task<HttpResponseMessage> SendAsync(HttpClient client, HttpContent? content, string? idempotencyKey, string path = Path)
     {
         ArgumentNullException.ThrowIfNull(client);
-        using var request = new HttpRequestMessage(HttpMethod.Post, Path) { Content = content };
+        using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
         request.Headers.Add("Idempotency-Key", idempotencyKey ?? Guid.NewGuid().ToString("N"));
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
