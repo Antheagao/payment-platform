@@ -16,7 +16,7 @@ CI runs exactly the gates in `AGENTS.md`, so a change that passes them locally p
 | `ci.yml` frontend | `npm ci`, `typecheck`, `lint`, `format:check`, `test`, `build`, `npm audit --omit=dev` | the same scripts from `frontend/` |
 | `ci.yml` e2e | Playwright on the production build, desktop and mobile; report uploaded on failure | `npm run e2e` |
 | `ci.yml` repository | `node scripts/check-docs.mjs`, `node scripts/check-contrast.mjs` | the same |
-| `ci.yml` containers | `docker compose config -q` with `.env.example`, then `docker compose build api worker frontend` | the same |
+| `ci.yml` stack | the README's one command on a clean runner with no `.env`: `docker compose config -q`, `docker compose up --build --detach --wait`, `sh scripts/check-stack.sh` (both readiness probes, OpenAPI, the dashboard showing "API ready", the Aspire dashboard); logs uploaded on failure; `down --volumes` always | the same commands from the root |
 | `ci.yml` infra | `az bicep build`, `az bicep lint`, `az bicep build-params` | the Bicep CLI, see `infra/README.md` |
 | `codeql.yml` | C# and TypeScript, `security-extended`, on push, pull request, and Mondays | none; results in Security, Code scanning |
 

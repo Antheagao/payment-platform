@@ -6,7 +6,8 @@
 # e2e        Playwright golden paths against the production build, desktop and mobile viewports.
 # repository documentation links and the design-token contrast check.
 # infra      Bicep build, lint, and parameter build; validated only, never deployed.
-# containers compose config and both Dockerfiles build, so `docker compose up` keeps working.
+# stack      the README's one command on a clean runner with no .env: `docker compose up --build`,
+#            then every service must answer (scripts/check-stack.sh).
 #
 # NuGet audit fails the restore on any known vulnerability, and GitHub sets CI=true, which switches
 # restore to locked mode: a lock file that drifted from its project fails here, not in production.
@@ -139,15 +140,27 @@ jobs:
       - name: Build parameters
         run: az bicep build-params --file infra/bicep/main.bicepparam --stdout > /dev/null
 
-  containers:
-    name: Containers (compose config, image builds)
+  stack:
+    name: Stack (one-command start)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - name: Compose configuration
-        run: |
-          cp .env.example .env
-          docker compose config -q
-      - name: Build the API, worker, and dashboard images
-        run: docker compose build api worker frontend
+        run: docker compose config -q
+      - name: Start everything the way the README says, with no .env
+        run: docker compose up --build --detach --wait --wait-timeout 300
+      - name: Every service answers
+        run: sh scripts/check-stack.sh
+      - name: Keep the logs of a failure
+        if: failure()
+        run: docker compose logs --no-color --timestamps > stack.log
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stack-logs
+          path: stack.log
+          retention-days: 7
+      - name: Stop and remove everything
+        if: always()
+        run: docker compose down --volumes

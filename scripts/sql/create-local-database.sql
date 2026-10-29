@@ -3,7 +3,7 @@
 -- Runs on every `docker compose up` and is idempotent. Never used outside the local stack: Azure SQL uses
 -- Microsoft Entra managed identities and no SQL logins (infra/).
 --
--- sqlcmd variables: $(AppPassword), from PAYMENTS_DB_PASSWORD in .env.
+-- sqlcmd variables: $(AppPassword), from PAYMENTS_DB_PASSWORD (its docker-compose.yml default, or .env).
 
 SET NOCOUNT ON;
 

@@ -24,14 +24,17 @@ The payment features are next, in the order the exercise weighs them; [requireme
 
 ## Run it
 
-You need Docker. Then:
+One command, with nothing to set up first: no `.env`, no SDKs, no accounts.
+You need Git and Docker.
 
 ```sh
 git clone https://github.com/Antheagao/payment-platform.git
 cd payment-platform
-cp .env.example .env
 docker compose up --build
 ```
+
+The first run downloads the images and packages and builds the three services; later runs start in under a minute.
+To run it in the background instead, use `docker compose up --build -d --wait`, then `sh scripts/check-stack.sh`, which waits until every service answers and prints where to open each one.
 
 | Open | For |
 | --- | --- |
@@ -40,7 +43,8 @@ docker compose up --build
 | <http://localhost:5080/health/ready> and <http://localhost:5081/health/ready> | API and worker readiness |
 | <http://localhost:18888> | The Aspire dashboard: traces, metrics, and structured logs from every service |
 
-`docker compose down` stops everything; the database survives in a named volume.
+`docker compose down` stops everything and keeps the database; `docker compose down -v` deletes it too.
+Every port binds to 127.0.0.1, and each can move: if one is taken, copy `.env.example` to `.env` and set its variable, such as `DASHBOARD_PORT=3090`.
 SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 
 ## Develop
@@ -62,7 +66,8 @@ npm run dev                     # http://localhost:3080
 npm run typecheck && npm run lint && npm test && npm run e2e
 ```
 
-To run the API or worker with `dotnet run`, point `ConnectionStrings__Payments` at the compose database: `Server=localhost,14333;Database=payments;User Id=payments_app;TrustServerCertificate=True`, plus `Password=` followed by `PAYMENTS_DB_PASSWORD` from your `.env`.
+To run the API or worker with `dotnet run`, point `ConnectionStrings__Payments` at the compose database: `Server=localhost,14333;Database=payments;User Id=payments_app;Password=LocalOnly_App_2026!;TrustServerCertificate=True`.
+That password is a public, local-only default for a container bound to 127.0.0.1; Azure has no passwords at all ([infra/](infra/README.md)).
 The full list of gates is in [AGENTS.md](AGENTS.md); CI runs exactly those.
 
 ## How it fits together

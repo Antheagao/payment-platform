@@ -46,6 +46,17 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 | R26 | Idempotent create, capture, and refund | `Idempotency-Key` header, [ADR 007](decisions/007-idempotency-keys.md) | T20, T21 | Planned |
 | R27 | Retries with backoff, timeouts, and dead-lettering in the async workflow | Outbox dispatcher and webhook delivery | T23 | Planned |
 
+## Owner requirements
+
+Added by the repository's owner on 2026-10-28, for demos and for reviewers who download the repository.
+
+| Id | Requirement | Where it lives | Task | Status |
+| --- | --- | --- | --- | --- |
+| O1 | One command starts everything, with no setup | `docker compose up --build`; passwords and ports have defaults; the CI `stack` job runs it on a clean runner | T33 | Done |
+| O2 | Every download it needs is listed | [README.md](../README.md#prerequisites) | T34 | Planned |
+| O3 | Fully functional without any paid service | [README.md](../README.md#free-to-run) | T34 | Planned |
+| O4 | Loads sample data and sample dashboards for a demo | A demo guide for what runs today; sample payments arrive with the payment features | T35 | Planned |
+
 ## Documentation deliverables
 
 | Id | Deliverable | Where it lives | Task | Status |

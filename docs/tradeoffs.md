@@ -30,13 +30,15 @@ The decision records in [decisions/](decisions/README.md) carry the full reasoni
 | **30-minute JWTs, no refresh, held by the dashboard's server** ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)) | Instant revocation and long sessions | Revocation becomes a requirement (a per-user security stamp) or staff sign in with Entra ID |
 | **HS256 with one key** | Validation by services that must not be able to issue tokens | A second service validates tokens; then RS256 with a published key set |
 | **Tokenizing test card numbers at the API edge** ([assumption 5](assumptions.md)) | Keeping the API out of PCI scope entirely | Production: hosted payment fields move tokenization into the browser and out of our systems |
+| **Public, local-only database passwords as compose defaults** | The rule that no password ever appears in a repository | Never for Azure, which has no passwords: the services use Entra managed identities; locally every port binds to 127.0.0.1 |
 | **No script-src CSP on the dashboard yet** | Defense in depth against injected script | Sign-in lands (T26), with a nonce from `proxy.ts` |
 
 ## Operations and tooling
 
 | Choice | What we gave up | We would revisit when |
 | --- | --- | --- |
-| **docker compose plus the standalone Aspire dashboard** instead of an Aspire AppHost | Service discovery and one-command startup from the .NET SDK | Every contributor already has the Aspire workload |
+| **docker compose plus the standalone Aspire dashboard** instead of an Aspire AppHost | Service discovery and generated local passwords from the .NET SDK | Every reader already has the .NET SDK; today a reviewer needs only Docker |
+| **Readiness probes run on the thread pool and are abandoned at a 3 s deadline** | A thread-pool thread held for the length of a host-name lookup during an outage | SqlClient's `OpenAsync` stops resolving host names synchronously |
 | **OpenTelemetry everywhere, exported only when configured** | Zero-config telemetry in a bare `dotnet run` | Not expected; the local dashboard is one compose service away |
 | **SQL Server in Testcontainers for integration tests** | Speed: about 20 seconds per run instead of milliseconds | Never: an in-memory provider would hide exactly the locking and constraint behavior payments depend on |
 | **Bicep validated, never deployed** | Proof that the Azure shape works end to end | Someone owns a subscription and the bill |

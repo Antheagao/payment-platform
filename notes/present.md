@@ -22,6 +22,12 @@ The base of the project was requested with these requirements; they are recorded
 6. Database: SQL Server (the owner's choice on 2026-10-28, over the usual PostgreSQL default, to match Azure SQL).
 7. A public GitHub repository.
 
+A second request the same day added:
+
+8. One easy command that starts everything, with every download it needs listed.
+9. Fully functional without any paid service.
+10. Able to load sample data and sample dashboards, for a live demo or for a reviewer who downloads it to see what was built.
+
 ## What exists
 
 - **Repository** `C:\projects\payment-platform` on `main`, pushed to `github.com/Antheagao/payment-platform` (public).
@@ -53,7 +59,7 @@ The base of the project was requested with these requirements; they are recorded
   The shell: design tokens in `src/app/globals.css` (OKLCH `light-dark()`, following the OS; 19 tokens, 36 contrast pairs checked by `node scripts/check-contrast.mjs`), `ui/` primitives (`Badge`, `Button`, `Container`), a sticky `SiteHeader` with the API readiness badge streamed in `<Suspense>`, the `PaymentLifecycle` legend, `error.tsx`, `global-error.tsx`, `not-found.tsx`, the skip link, security headers in `next.config.ts`, and the server-only `src/lib/api.ts` (`API_ORIGIN`, no-store, 5 s timeout, longer than the API's 3 s readiness deadline).
   `frontend/Dockerfile` builds the standalone server onto distroless Node 22 (non-root); compose serves it on `http://localhost:3080`.
   Tests: Vitest 5 with Testing Library, 16 tests in 5 files beside the code (`getApiHealth` with a stubbed fetch, `Badge`, the lifecycle legend, the status table, `classNames`); Playwright, 6 golden-path checks on the production build at 1440 and 360 (12 runs): the legend, the API-down badge, the skip link, security headers, no sideways scroll, the 404 page.
-- **CI** (`.github/`): `ci.yml` with six jobs (backend: locked and audited restore, format, Release build, every test project including the SQL Server integration tests; frontend: typecheck, lint, format, Vitest, build, `npm audit`; e2e: Playwright; repository: docs links and contrast; infra: Bicep build, lint, parameters; containers: compose config and all three images), `codeql.yml` (C# and TypeScript, `security-extended`, weekly too), and `dependabot.yml` (NuGet, npm, Actions, Docker, compose; minor and patch grouped; deliberate majors ignored).
+- **CI** (`.github/`): `ci.yml` with six jobs (backend: locked and audited restore, format, Release build, every test project including the SQL Server integration tests; frontend: typecheck, lint, format, Vitest, build, `npm audit`; e2e: Playwright; repository: docs links and contrast; infra: Bicep build, lint, parameters; stack: the README's one command on a clean runner with no `.env`, then `scripts/check-stack.sh`), `codeql.yml` (C# and TypeScript, `security-extended`, weekly too), and `dependabot.yml` (NuGet, npm, Actions, Docker, compose; minor and patch grouped; deliberate majors ignored).
   Green on `83577a5` (run 40790395009): all six jobs; CodeQL reports 0 alerts.
   Dependabot's first scan opened #1 to #5, still open for the owner (see Decisions pending).
 - **infra/** (validated, never deployed): `bicep/main.bicep` with modules for monitoring (Application Insights with local auth off), network (app and private-endpoint subnets), a reusable private endpoint with its DNS zone, Key Vault (RBAC, purge protection, private), Azure SQL (Entra-only, private, serverless `payments`), Service Bus (no shared keys, `payment-events` queue with duplicate detection, private when Premium), App Service (API, worker without inbound access, dashboard; managed identities, VNet integration, `/health/ready` probes), and role assignments; `main.bicepparam` reads the Entra group from the environment; `bicepconfig.json` makes the key linter rules errors; `sql/grant-app-identities.sql` and `README.md` describe what a deployment would add.
@@ -82,6 +88,7 @@ The base of the project was requested with these requirements; they are recorded
 | T17 | Infrastructure as code: Bicep for Azure, validated in CI, never deployed | Done |
 | T18 | README and documentation deliverables | Done |
 | T32 | Readiness answers by its deadline with the database gone | Done |
+| T33 | One-command start with no setup, tested in CI | Done |
 | T19 | Merchant accounts and login | Next |
 
 The scaffold (T1 to T18) is complete; the payment slice (T19 to T31) is ranked in `future.md`.
@@ -91,7 +98,9 @@ The scaffold (T1 to T18) is complete; the payment slice (T19 to T31) is ranked i
 - API alone, from `backend/`: set `ConnectionStrings__Payments` (or `dotnet user-secrets set ConnectionStrings:Payments ... --project src/PaymentPlatform.Api`), then `dotnet run --project src/PaymentPlatform.Api`; it listens on `http://localhost:5080`.
   Without a database, `/health/live` is 200 and `/health/ready` is 503 within its 3 s deadline, so the dashboard (which waits 5 s) shows "API not ready" rather than "API unreachable".
 - Worker alone: the same connection string, then `dotnet run --project src/PaymentPlatform.Worker` (health on `http://localhost:5081`).
-- Whole stack: `cp .env.example .env`, then `docker compose up --build`: SQL Server on `localhost,14333`, a one-shot bootstrap that creates the `payments` database and the `payments_app` login, the Aspire dashboard on `http://localhost:18888`, the API on 5080, the worker on 5081; `docker compose down` stops it.
+- Whole stack: `docker compose up --build`, with no `.env` and no other setup: SQL Server on `localhost,14333`, a one-shot bootstrap that creates the `payments` database and the `payments_app` login, the Aspire dashboard on `http://localhost:18888`, the API on 5080, the worker on 5081, the dashboard on 3080; `docker compose down` stops it, `down -v` drops the database too.
+  The local passwords (`LocalOnly_Admin_2026!` for `sa`, `LocalOnly_App_2026!` for `payments_app`) and every host port have defaults in `docker-compose.yml`; a gitignored `.env` overrides them (`.env.example` lists the variables).
+  `sh scripts/check-stack.sh` waits until every service answers and prints the URLs; the CI `stack` job runs exactly that after `docker compose up --build --detach --wait`.
   Verified 2026-10-28: both readiness probes green, the API migrated at startup, traces and structured logs in the dashboard under `payment-api`.
 - The dashboard is part of compose on `http://localhost:3080`; alone, `cp frontend/.env.example frontend/.env.local` and `npm run dev` from `frontend/` (same port).
 

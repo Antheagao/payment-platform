@@ -1,15 +1,25 @@
-# The whole platform on one machine: `cp .env.example .env`, then `docker compose up --build`.
+# The whole platform on one machine, with one command and no setup: `docker compose up --build`.
 #
 #   Dashboard           http://localhost:3080
 #   API                 http://localhost:5080   (OpenAPI at /openapi/v1.json)
 #   Worker health       http://localhost:5081/health/ready
 #   Aspire dashboard    http://localhost:18888  (traces, metrics, structured logs)
-#   SQL Server          localhost,14333         (payments_app / PAYMENTS_DB_PASSWORD)
+#   SQL Server          localhost,14333         (payments_app / LocalOnly_App_2026!)
 #
-# Every port binds to 127.0.0.1 only. For the inner loop, run `docker compose up -d sqlserver
-# sqlserver-init aspire-dashboard` and start the API and worker with `dotnet run`.
+# Every port binds to 127.0.0.1 only, and every host port can move: set DASHBOARD_PORT, API_PORT,
+# WORKER_PORT, SQL_PORT, ASPIRE_DASHBOARD_PORT, or OTLP_PORT in a gitignored .env (see .env.example).
+# For the inner loop, run `docker compose up -d sqlserver sqlserver-init aspire-dashboard` and start
+# the API and worker with `dotnet run`.
 
 name: payment-platform
+
+# Local-only credentials for local-only containers, public on purpose so the stack starts without a
+# setup step. Override either in .env: the application password applies on every start, the sa
+# password only when the sqlserver-data volume is created (`docker compose down -v` resets it).
+# Azure has no passwords at all: the services use Entra managed identities (infra/).
+x-sa-password: &sa-password ${MSSQL_SA_PASSWORD:-LocalOnly_Admin_2026!}
+x-app-password: &app-password ${PAYMENTS_DB_PASSWORD:-LocalOnly_App_2026!}
+x-payments-connection: &payments-connection Server=sqlserver,1433;Database=payments;User Id=payments_app;Password=${PAYMENTS_DB_PASSWORD:-LocalOnly_App_2026!};TrustServerCertificate=True
 
 x-otel: &otel
   OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
@@ -18,12 +28,15 @@ x-otel: &otel
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-24.04
+    # Built for x64 only; Docker Desktop on Apple silicon runs it under emulation.
+    platform: linux/amd64
     environment:
       ACCEPT_EULA: "Y"
+      # Developer edition: the full engine, free for development and test.
       MSSQL_PID: Developer
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?copy .env.example to .env first}
+      MSSQL_SA_PASSWORD: *sa-password
     ports:
-      - "127.0.0.1:14333:1433"
+      - "127.0.0.1:${SQL_PORT:-14333}:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
     healthcheck:
@@ -36,12 +49,13 @@ services:
   # One-shot: the database and the least-privilege application login (scripts/sql/create-local-database.sql).
   sqlserver-init:
     image: mcr.microsoft.com/mssql/server:2025-CU10-ubuntu-24.04
+    platform: linux/amd64
     depends_on:
       sqlserver:
         condition: service_healthy
     environment:
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?copy .env.example to .env first}
-      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:?copy .env.example to .env first}
+      MSSQL_SA_PASSWORD: *sa-password
+      PAYMENTS_DB_PASSWORD: *app-password
     volumes:
       - ./scripts/sql:/scripts:ro
     entrypoint:
@@ -56,8 +70,8 @@ services:
       # Local only and bound to 127.0.0.1; a shared environment would use the dashboard's login token.
       ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
     ports:
-      - "127.0.0.1:18888:18888"
-      - "127.0.0.1:4317:18889"
+      - "127.0.0.1:${ASPIRE_DASHBOARD_PORT:-18888}:18888"
+      - "127.0.0.1:${OTLP_PORT:-4317}:18889"
 
   api:
     build:
@@ -70,10 +84,10 @@ services:
       <<: *otel
       ASPNETCORE_ENVIRONMENT: Development
       OTEL_SERVICE_NAME: payment-api
-      ConnectionStrings__Payments: Server=sqlserver,1433;Database=payments;User Id=payments_app;Password=${PAYMENTS_DB_PASSWORD:?copy .env.example to .env first};TrustServerCertificate=True
+      ConnectionStrings__Payments: *payments-connection
       Database__MigrateOnStartup: "true"
     ports:
-      - "127.0.0.1:5080:8080"
+      - "127.0.0.1:${API_PORT:-5080}:8080"
 
   worker:
     build:
@@ -88,9 +102,9 @@ services:
       <<: *otel
       ASPNETCORE_ENVIRONMENT: Development
       OTEL_SERVICE_NAME: payment-worker
-      ConnectionStrings__Payments: Server=sqlserver,1433;Database=payments;User Id=payments_app;Password=${PAYMENTS_DB_PASSWORD:?copy .env.example to .env first};TrustServerCertificate=True
+      ConnectionStrings__Payments: *payments-connection
     ports:
-      - "127.0.0.1:5081:8080"
+      - "127.0.0.1:${WORKER_PORT:-5081}:8080"
 
   frontend:
     build:
@@ -102,7 +116,7 @@ services:
       # Server-side only: the browser talks to the dashboard, the dashboard talks to the API (ADR 004).
       API_ORIGIN: http://api:8080
     ports:
-      - "127.0.0.1:3080:3000"
+      - "127.0.0.1:${DASHBOARD_PORT:-3080}:3000"
 
 volumes:
   sqlserver-data:
