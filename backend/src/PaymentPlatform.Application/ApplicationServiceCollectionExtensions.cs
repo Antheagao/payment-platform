@@ -47,6 +47,9 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<SetWebhookEndpoint>();
         services.AddScoped<GetWebhookEndpoint>();
         services.AddScoped<RotateWebhookSecret>();
+        services.TryAddSingleton(Random.Shared);
+        HttpWebhookSender.AddTo(services);
+        services.AddScoped<DeliverWebhooks>();
         return services;
     }
 }

@@ -46,7 +46,7 @@ ADR 006 (errors) and ADR 007 (idempotency) come first.
 ## Webhook endpoint rules
 
 - `Endpoints/WebhookEndpoints.cs`: the merchant's one endpoint (assumption 11) is a singleton resource at `/api/v1/webhook-endpoint`, with no id in the path: `GET` (`url`, `enabled`, `created_at`, `updated_at`; `404 webhook_endpoint_not_found`), `PUT` (`{"url", "enabled"?}`, enabled by default; `201` with `Location` the first time, `200` after), and `POST /api/v1/webhook-endpoint/rotate-secret` (`200`).
-- The signing secret (`whsec_` and 43 base64url characters) is in the body only of the answer that issues it, the first `PUT` and each rotation, and nowhere else: not in `GET`, logs, or problem details. A merchant who lost it rotates.
+- The signing secret (`whsec_` and 32 random bytes in standard base64, the Standard Webhooks form, so receivers can verify with its libraries) is in the body only of the answer that issues it, the first `PUT` and each rotation, and nowhere else: not in `GET`, logs, or problem details. A merchant who lost it rotates.
 - `PUT` needs no `Idempotency-Key`: a repeat changes nothing further, and a first `PUT` that loses the race to create becomes an update of the winner (`200`, no secret). Rotation is not idempotent and does not need to be: a repeat issues another secret and the last one wins.
 - A URL that breaks `Application/Webhooks/WebhookUrlPolicy` is a `400` field code under `url`: `url_required`, `webhook_url_too_long`, `webhook_url_invalid` (not absolute `http(s)`, user info, fragment), `webhook_url_not_https`, `webhook_url_not_public`, `webhook_url_unresolvable`.
 

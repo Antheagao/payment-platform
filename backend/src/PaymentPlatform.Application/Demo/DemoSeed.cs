@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PaymentPlatform.Application.Auth;
 using PaymentPlatform.Application.Cards;
+using PaymentPlatform.Application.Webhooks;
 using PaymentPlatform.Domain;
 using PaymentPlatform.Domain.Merchants;
 using PaymentPlatform.Persistence;
@@ -22,6 +24,12 @@ public static partial class DemoSeed
 {
     public const string SettingName = "Demo:Seed";
 
+    /// <summary>With <see cref="WebhookSecretSetting"/>, gives the demo merchant a webhook endpoint: compose's local receiver.</summary>
+    public const string WebhookUrlSetting = "Demo:WebhookUrl";
+
+    /// <summary>The demo endpoint's signing secret, which compose also gives the receiver so it can verify.</summary>
+    public const string WebhookSecretSetting = "Demo:WebhookSecret";
+
     public const string MerchantName = "Demo Merchant";
 
     public const string Email = "demo@example.com";
@@ -31,6 +39,8 @@ public static partial class DemoSeed
     public static readonly MerchantId MerchantId = new(Guid.Parse("019a2c00-0000-7000-8000-0000000000d1"));
 
     public static readonly MerchantUserId UserId = new(Guid.Parse("019a2c00-0000-7000-8000-0000000000d2"));
+
+    public static readonly Guid WebhookEndpointId = Guid.Parse("019a2c00-0000-7000-8000-0000000000d3");
 
     /// <summary>Adds whichever demo rows are missing; expects a migrated database.</summary>
     public static async Task RunAsync(IServiceProvider services, CancellationToken cancellationToken)
@@ -53,6 +63,20 @@ public static partial class DemoSeed
         if (!await db.MerchantUsers.AnyAsync(user => user.Id == UserId, cancellationToken))
         {
             db.MerchantUsers.Add(MerchantUser.Create(UserId, MerchantId, Email, passwords.Hash(Password), now));
+            added++;
+        }
+
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        if (configuration[WebhookUrlSetting] is { Length: > 0 } webhookUrl
+            && !await db.WebhookEndpoints.AnyAsync(endpoint => endpoint.MerchantId == MerchantId, cancellationToken))
+        {
+            var secret = configuration[WebhookSecretSetting] ?? "";
+            if (WebhookSecrets.KeyOf(secret) is null)
+            {
+                throw new InvalidOperationException($"{WebhookSecretSetting} must be a whsec_ secret when {WebhookUrlSetting} is set.");
+            }
+
+            db.WebhookEndpoints.Add(WebhookEndpoint.Create(WebhookEndpointId, MerchantId, webhookUrl, secret, now));
             added++;
         }
 

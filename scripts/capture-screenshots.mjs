@@ -219,7 +219,8 @@ async function observability(browser) {
   await shoot(page, "aspire-trace.png");
 
   // A payment sent with a trace id chosen here, so its trace can be opened directly; the worker's
-  // dispatch of its payment.authorized event joins that trace about a second later (ADR 003).
+  // dispatch of its payment.authorized event and the signed delivery to compose's webhook receiver join
+  // that trace a second or two later (ADR 003).
   const paymentTraceId = randomBytes(16).toString("hex");
   const { access_token: token } = await postJson("/api/v1/auth/login", {
     email: "demo@example.com",
@@ -240,13 +241,13 @@ async function observability(browser) {
       traceparent: `00-${paymentTraceId}-${randomBytes(8).toString("hex")}-01`,
     },
   );
-  const dispatch = page.getByRole("gridcell", { name: /payment-worker.*: outbox dispatch/ }).first();
-  for (let attempt = 0; attempt < 15 && !(await dispatch.isVisible()); attempt += 1) {
+  const delivery = page.getByRole("gridcell", { name: /payment-worker.*: webhook deliver/ }).first();
+  for (let attempt = 0; attempt < 15 && !(await delivery.isVisible()); attempt += 1) {
     await page.goto(`${aspire}/traces/detail/${paymentTraceId}`);
-    await dispatch.waitFor({ timeout: 2_000 }).catch(() => {});
+    await delivery.waitFor({ timeout: 2_000 }).catch(() => {});
   }
-  await dispatch.click();
-  await page.getByText("messaging.message.id").waitFor();
+  await delivery.click();
+  await page.getByText("webhook.attempt").waitFor();
   // The details pane narrows the grid under the pointer; parked, it draws no hover label over a row.
   await page.mouse.move(0, 0);
   await shoot(page, "aspire-outbox-trace.png");

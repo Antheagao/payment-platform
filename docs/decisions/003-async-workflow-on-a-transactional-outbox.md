@@ -33,7 +33,7 @@ The Azure design must map onto services the team already runs (Service Bus, Func
 
 - Polling adds up to a second of latency, which is acceptable for webhooks and settlement.
 - The database carries the queue load; at higher volume the dispatcher becomes a relay that publishes outbox rows to Azure Service Bus and consumers become Service Bus-triggered Azure Functions, with the outbox still guaranteeing atomicity.
-- Dead-lettered deliveries need an operator action (a replay endpoint or script), queued with T23.
+- Dead-lettered deliveries need an operator action (a replay endpoint or script), parked in `notes/future.md`.
 
 ## Amendments
 
@@ -43,3 +43,9 @@ The Azure design must map onto services the team already runs (Service Bus, Func
   The dispatcher claims with `SELECT TOP (100) ... WITH (UPDLOCK, READPAST, ROWLOCK)` inside the transaction that writes the deliveries and marks the rows dispatched, rather than an `UPDATE ... OUTPUT` lease: dispatch does no network work and finishes in milliseconds, so the locks it holds until the commit are the lease, and a worker that dies mid-batch rolls back and frees its rows with no reclaim step.
   Deliveries, which wait on merchants' servers, keep the lease design (T23c).
   A payment's creation as `Pending` writes no event (nothing a merchant can act on has happened yet), and the demo seed's history writes none (it is history, not news).
+- 2026-10-29: delivery as built (T23c).
+  The 12 attempts at 10 seconds doubling to an hour wait at most about 3.4 hours in all, not about a day as first written, and half that on average with full jitter; a longer outage is a dead letter and a replay.
+  Signatures follow Standard Webhooks (`webhook-id`, `webhook-timestamp`, `webhook-signature: v1,<base64>` over `id.timestamp.body`, `whsec_` secrets in standard base64), so a receiver can verify with any of its libraries; the event id is the `webhook-id`.
+  The claim is `UPDATE` over a `TOP` with `UPDLOCK, READPAST, ROWLOCK` setting a one-minute lease; each outcome is saved only while that lease stands (it is a concurrency token), so a worker whose lease ran out mid-send never overwrites the one that took over.
+  A disabled endpoint's pending deliveries are dead-lettered without being sent, like a `410 Gone`, rather than held for the endpoint to come back.
+  The sender connects only to addresses the SSRF rules allow, resolved in its own connection callback, and follows no redirects.

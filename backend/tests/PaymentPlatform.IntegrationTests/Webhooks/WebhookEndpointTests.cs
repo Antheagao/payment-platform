@@ -56,7 +56,7 @@ public sealed class WebhookEndpointTests(SqlServerFixture sqlServer) : ApiTestBa
             Assert.Equal(Path, created.Headers.Location?.OriginalString);
             var body = await JsonAsync(created);
             var secret = body.GetProperty("secret").GetString()!;
-            Assert.Matches("^whsec_[A-Za-z0-9_-]{43}$", secret);
+            Assert.Matches("^whsec_[A-Za-z0-9+/]{43}=$", secret);
             Assert.Equal(Url, body.GetProperty("url").GetString());
             Assert.True(body.GetProperty("enabled").GetBoolean());
 
@@ -109,7 +109,7 @@ public sealed class WebhookEndpointTests(SqlServerFixture sqlServer) : ApiTestBa
             Assert.Equal(HttpStatusCode.OK, rotated.StatusCode);
             var second = (await JsonAsync(rotated)).GetProperty("secret").GetString();
             Assert.NotEqual(first, second);
-            Assert.Matches("^whsec_[A-Za-z0-9_-]{43}$", second!);
+            Assert.Matches("^whsec_[A-Za-z0-9+/]{43}=$", second!);
             Assert.Equal(second, (await StoredAsync(user)).Secret);
             Assert.False((await JsonAsync(read)).TryGetProperty("secret", out _));
         }

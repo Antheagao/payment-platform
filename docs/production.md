@@ -11,9 +11,11 @@ The Azure shape is already written down in [infra/](../infra/README.md); this pa
 3. **Identity.**
    Staff sign in with Microsoft Entra ID; merchants keep password login with multi-factor authentication, and merchant backends get scoped, rotatable API keys.
 4. **Secrets and keys** live in Key Vault and reach the apps through managed identities and Key Vault references; the JWT signing key rotates with an overlap window during which both keys validate.
+   Merchants' webhook signing secrets, stored as issued in the database today because signing needs them, move to Key Vault (or Always Encrypted columns), and a rotation keeps the old secret for a day, sending both signatures in `webhook-signature` so a receiver can switch without missing events.
 5. **Edge protection.**
    Front Door with a WAF policy in front of the API and the dashboard, rate limits at the edge as well as in the API, and the API reachable only from Front Door.
-6. **Migrations in the pipeline** as an idempotent script under a migration identity, before the new build takes traffic; the readiness probe already keeps an instance out of rotation until its schema is current.
+6. **Webhook egress** leaves through a NAT gateway with fixed addresses that merchants can allow-list, and the worker's subnet denies traffic to the platform's own address space, a second wall behind the SSRF rules; dead-lettered deliveries get a replay endpoint for operators.
+7. **Migrations in the pipeline** as an idempotent script under a migration identity, before the new build takes traffic; the readiness probe already keeps an instance out of rotation until its schema is current.
 
 ## Observability in production
 

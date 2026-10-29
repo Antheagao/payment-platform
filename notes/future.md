@@ -7,24 +7,23 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), and the webhook endpoint API (T23b) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), and signed webhook delivery (T23c) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T23c. Signed webhook delivery
+### T24. Settlement
 
-The rest of the asynchronous workflow (R9, R15, R27; ADR 003 and its 2026-10-29 amendment). The outbox and dispatcher (T23a) and the endpoint API with the set-time SSRF rules (T23b) have landed.
-- **The delivery job.** Claims due `Pending` deliveries with `UPDATE TOP (@n) ... WITH (UPDLOCK, READPAST, ROWLOCK) ... OUTPUT inserted.*` and a lease (`LeasedUntil`), posts the payload with `Webhook-Id`, `Webhook-Timestamp`, and `Webhook-Signature` (HMAC-SHA256 over `id.timestamp.body`, `v1,` and base64) and the correlation id, a 10 s timeout, no redirects; `2xx` delivered, `410` disables the endpoint and dead-letters, anything else retries with exponential backoff and full jitter from 10 s to 1 h, dead-lettered after 12 attempts; a disabled endpoint's pending deliveries are dead-lettered; a `webhook deliver` `Producer` span under the event's trace, and the job opts out of per-run traces like the dispatcher.
-- **Connect-time SSRF guard.** A named `HttpClient` whose `SocketsHttpHandler.ConnectCallback` resolves through `WebhookUrlPolicy.ResolveAllowedAsync` and connects only to an allowed address, so a name that resolves somewhere private by the time of the send reaches nothing; no proxy, no redirects, response bodies not read past a few KB.
-- **A local receiver** in compose (a small container that verifies signatures and logs what it gets, listed in `Webhooks:LocalReceiverHosts` for Development), so the demo shows deliveries arriving and a forced failure retrying.
-- Gate: signatures verify byte for byte (a test vector in the docs); a rebinding name is refused at connect time; retries back off on a fake clock and dead-letter; two delivery workers never send one delivery at once; an expired lease is taken over; the trace runs from `POST /payments` through dispatch into delivery in the Aspire dashboard.
+The second asynchronous workflow and the stored-procedure requirement (ADR 003's settlement decision; R9's second half).
+- **The procedure.** `payments.SettleCapturedPayments @Now, @SettleBefore, @BatchSize` in a migration: in one transaction, `UPDATE TOP (@BatchSize)` the `Captured` payments captured before `@SettleBefore` to `Settled` (`WITH (UPDLOCK, READPAST, ROWLOCK)`, the row version changing as EF expects), `OUTPUT` into a table variable, then insert their `PaymentEvents` rows (actor `system` `settlement`) and their `payment.settled` `OutboxMessages` rows, the payload built with `FOR JSON PATH` in exactly the shape `OutboxMessage.For` writes; it returns the batch's count and amount per currency, for reconciliation.
+- **The job.** `settle-payments` every minute (traced: once a minute is not noise), `Settlement:Delay` (one minute in compose, so the demo shows it; a day's cut-off in production), draining batches; it logs each batch's counts and totals, and the outbox rows carry the job span's `traceparent`.
+- **Why a procedure here, when the rest is EF:** settlement is set-based work over many rows, which is what T-SQL is for; the domain's rule (only `Captured` to `Settled`) is restated in the `WHERE`, and a test holds the two to each other.
+- Gate: a payment settles once however often the job runs or however many workers run it; a capture or refund racing settlement on one payment leaves a legal history (row version or `READPAST`); the procedure's payload equals the C# one for the same payment, field by field; every `Settled` payment has exactly one settled audit row and one outbox event; the totals it reports match a query over the settled rows; the demo shows `INV-1016` settling about a minute after the stack starts and its webhook arriving.
 
 ### Then
 
-- **T24. Settlement.** A scheduled batch that settles captured payments through a T-SQL stored procedure, with reconciliation counts.
 - **T25. Domain and queue metrics.** Payments created, captured, refunded, failed by state; outbox depth, oldest-pending lag, retries, dead letters.
 - **T26. Dashboard login.** Login form, the JWT held in an HttpOnly cookie on the Next.js server, sign-out, expiry handling, and a nonce-based CSP from `proxy.ts`; the home page's service status moves behind an operator role, and merchants get a single banner when payments are delayed (docs/tradeoffs.md).
 - **T27. Payments list.** Filters and search bound to the URL, pagination, empty and error states.
@@ -36,6 +35,7 @@ The rest of the asynchronous workflow (R9, R15, R27; ADR 003 and its 2026-10-29 
 
 ## Smaller items to fold in
 
+- A replay for dead-lettered webhook deliveries (ADR 003): `POST` on a delivery that puts it back to `Pending` with its attempts reset, for an operator role; fold into T26, which brings roles to the dashboard, and count dead letters with T25.
 - Integration tests: migrate one template database per run and copy it for each test class (a backup and restore, or `CREATE DATABASE ... AS SNAPSHOT` where the edition allows), instead of migrating 30-odd databases; the per-class setup is now about 3.5 s and the suite about 60 s, and it grows with every migration.
 - OpenTelemetry in the dashboard (`instrumentation.ts`) so traces start at the browser request; fold into T26.
 - Update this machine's .NET SDK past 10.0.101: CI runs 10.0.403, whose analyzers caught an unused using the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]

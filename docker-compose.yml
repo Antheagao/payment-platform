@@ -4,10 +4,12 @@
 #   API                 http://localhost:5080   (OpenAPI at /openapi/v1.json)
 #   Worker health       http://localhost:5081/health/ready
 #   Aspire dashboard    http://localhost:18888  (traces, metrics, structured logs)
+#   Webhook receiver    http://localhost:8090/events  (what the demo merchant's endpoint received)
 #   SQL Server          localhost,14333         (payments_app / LocalOnly_App_2026!)
 #
 # Every port binds to 127.0.0.1 only, and every host port can move: set DASHBOARD_PORT, API_PORT,
-# WORKER_PORT, SQL_PORT, ASPIRE_DASHBOARD_PORT, or OTLP_PORT in a gitignored .env (see .env.example).
+# WORKER_PORT, SQL_PORT, ASPIRE_DASHBOARD_PORT, OTLP_PORT, or WEBHOOK_RECEIVER_PORT in a gitignored .env
+# (see .env.example).
 # For the inner loop, run `docker compose up -d sqlserver sqlserver-init aspire-dashboard` and start
 # the API and worker with `dotnet run`.
 
@@ -20,6 +22,13 @@ name: payment-platform
 x-sa-password: &sa-password ${MSSQL_SA_PASSWORD:-LocalOnly_Admin_2026!}
 x-app-password: &app-password ${PAYMENTS_DB_PASSWORD:-LocalOnly_App_2026!}
 x-payments-connection: &payments-connection Server=sqlserver,1433;Database=payments;User Id=payments_app;Password=${PAYMENTS_DB_PASSWORD:-LocalOnly_App_2026!};TrustServerCertificate=True
+
+# The demo merchant's webhook signing secret, shared by the API's seed and the receiver that verifies it.
+x-demo-webhook-secret: &demo-webhook-secret whsec_TG9jYWxPbmx5X0RlbW9fV2ViaG9va19TZWNyZXRfMjAyNg==
+
+# The receiver is on the stack's private network, which the SSRF rules refuse; this lets webhooks reach it,
+# and only it, and only in Development (both hosts refuse the setting elsewhere).
+x-webhook-receiver-allowed: &webhook-receiver-allowed webhook-receiver
 
 x-otel: &otel
   OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889
@@ -88,6 +97,9 @@ services:
       Database__MigrateOnStartup: "true"
       # The demo merchant and its login (docs/demo.md); the API refuses this setting in Production.
       Demo__Seed: "true"
+      Demo__WebhookUrl: http://webhook-receiver:8080/webhooks
+      Demo__WebhookSecret: *demo-webhook-secret
+      Webhooks__LocalReceiverHosts__0: *webhook-receiver-allowed
       # Empty by default: in Development the API then signs tokens with a key it generates at startup, so
       # logins end when it restarts. Set JWT_SIGNING_KEY in .env to keep them across restarts.
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-}
@@ -108,6 +120,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       OTEL_SERVICE_NAME: payment-worker
       ConnectionStrings__Payments: *payments-connection
+      Webhooks__LocalReceiverHosts__0: *webhook-receiver-allowed
     ports:
       - "127.0.0.1:${WORKER_PORT:-5081}:8080"
 
@@ -126,6 +139,23 @@ services:
       WORKER_ORIGIN: http://worker:8080
     ports:
       - "127.0.0.1:${DASHBOARD_PORT:-3080}:3000"
+
+  # Stands in for a merchant's server: verifies each delivery's signature and lists what arrived
+  # (scripts/webhook-receiver.mjs).
+  webhook-receiver:
+    image: node:22-bookworm-slim
+    command: ["node", "/app/webhook-receiver.mjs"]
+    environment:
+      WEBHOOK_SECRET: *demo-webhook-secret
+    volumes:
+      - ./scripts/webhook-receiver.mjs:/app/webhook-receiver.mjs:ro
+    ports:
+      - "127.0.0.1:${WEBHOOK_RECEIVER_PORT:-8090}:8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   sqlserver-data:

@@ -403,6 +403,7 @@ namespace PaymentPlatform.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("LeasedUntil")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetimeoffset");
 
                     b.Property<Guid>("MerchantId")

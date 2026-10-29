@@ -29,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup Label="Hosting">
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.14" />
   </ItemGroup>

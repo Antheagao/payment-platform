@@ -1,4 +1,3 @@
-using System.Buffers.Text;
 using System.Security.Cryptography;
 using PaymentPlatform.Domain;
 using PaymentPlatform.Persistence;
@@ -15,12 +14,28 @@ public sealed record WebhookEndpointDetails(string Url, bool Enabled, DateTimeOf
         new(endpoint.Url, endpoint.Enabled, endpoint.CreatedAt, endpoint.UpdatedAt, withSecret ? endpoint.Secret : null);
 }
 
-/// <summary>Signing secrets: <c>whsec_</c> and 32 random bytes in base64url, 49 characters.</summary>
+/// <summary>
+/// Signing secrets in the Standard Webhooks form, so a receiver can verify with any of its libraries: <c>whsec_</c>
+/// and 32 random bytes in standard base64 (50 characters). The key is the decoded bytes, not the text.
+/// </summary>
 public static class WebhookSecrets
 {
     public const string Prefix = "whsec_";
 
-    public static string New() => Prefix + Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+    public static string New() => Prefix + Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+    /// <summary>The HMAC key a secret stands for; null for text that is not a secret in this form.</summary>
+    public static byte[]? KeyOf(string secret)
+    {
+        ArgumentNullException.ThrowIfNull(secret);
+        if (!secret.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var key = new byte[secret.Length];
+        return Convert.TryFromBase64String(secret[Prefix.Length..], key, out var written) && written >= 16 ? key[..written] : null;
+    }
 }
 
 public static class WebhookEndpointErrors

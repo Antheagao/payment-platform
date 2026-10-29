@@ -11,13 +11,14 @@ set -eu
 
 if [ -f .env ]; then
   # Only the port variables; the file may hold anything else.
-  eval "$(tr -d '\r' < .env | grep -E '^(DASHBOARD_PORT|API_PORT|WORKER_PORT|ASPIRE_DASHBOARD_PORT)=[0-9]+$' || true)"
+  eval "$(tr -d '\r' < .env | grep -E '^(DASHBOARD_PORT|API_PORT|WORKER_PORT|ASPIRE_DASHBOARD_PORT|WEBHOOK_RECEIVER_PORT)=[0-9]+$' || true)"
 fi
 
 dashboard="http://localhost:${DASHBOARD_PORT:-3080}"
 api="http://localhost:${API_PORT:-5080}"
 worker="http://localhost:${WORKER_PORT:-5081}"
 aspire="http://localhost:${ASPIRE_DASHBOARD_PORT:-18888}"
+receiver="http://localhost:${WEBHOOK_RECEIVER_PORT:-8090}"
 timeout="${CHECK_STACK_TIMEOUT:-180}"
 
 # status URL: the HTTP status code, or 000 when nothing answers.
@@ -64,6 +65,7 @@ wait_for "OpenAPI document" "$api/openapi/v1.json" 200 '"openapi"' || failed=1
 wait_for "Dashboard" "$dashboard/" 200 'API ready' || failed=1
 # The Aspire dashboard redirects / to its first page.
 wait_for "Aspire dashboard" "$aspire/" 302 || failed=1
+wait_for "Webhook receiver" "$receiver/health" 200 || failed=1
 
 for service in api worker; do
   warnings=$(startup_warnings "$service")
@@ -90,4 +92,5 @@ Everything is up:
   Dashboard          $dashboard
   API (OpenAPI)      $api/openapi/v1.json
   Aspire dashboard   $aspire   (traces, metrics, structured logs)
+  Webhook receiver   $receiver/events   (what the demo merchant's endpoint received)
 EOF

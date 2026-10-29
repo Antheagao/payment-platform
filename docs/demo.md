@@ -158,16 +158,23 @@ Capturing `INV-1006` (failed) or `INV-1016` (already captured) is the same `409`
 These change the sample data; `docker compose down -v` and a fresh start bring it back.
 In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`, and step 6 follows it into the worker.
 
-Tell the platform where the demo merchant receives events:
+Each status change is also an event for the merchant, sent as a signed webhook.
+The demo merchant's endpoint is the stack's own receiver (`scripts/webhook-receiver.mjs`, standing in for a merchant's server), set up by the seed:
 
 ```sh
-curl -s -i -X PUT http://localhost:5080/api/v1/webhook-endpoint \
-  -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/hooks/payments"}'
+curl -s http://localhost:5080/api/v1/webhook-endpoint -H "Authorization: Bearer <access_token>"
+curl -s http://localhost:8090/events
 ```
 
-The first answer is `201 Created` with the endpoint and its signing `secret` (`whsec_...`), shown this once; `GET` the same path and the secret is not there, and `POST /api/v1/webhook-endpoint/rotate-secret` issues a new one.
-The URL is the merchant's choice, so it is checked before it is stored: `https://169.254.169.254/latest/meta-data` (the cloud metadata service), `https://localhost:5080/...`, and `https://sqlserver/...` (a container on the stack's private network) are each `400` with `"errors":{"url":["webhook_url_not_public"]}`, and `http://` is `webhook_url_not_https`.
+The first answers `{"url":"http://webhook-receiver:8080/webhooks","enabled":true,...}` with no secret (it is shown only when it is issued); the second lists what the receiver got, newest first: for the payment above, `"outcome":"verified"` with `"type":"payment.authorized"`, the payment id, `"correlation_id":"demo-pay"`, and the `traceparent` of the request, about a second and a half after the payment was taken.
+Each delivery carries `webhook-id`, `webhook-timestamp`, and `webhook-signature` headers in the [Standard Webhooks](https://www.standardwebhooks.com/) form (HMAC-SHA256 over the id, the timestamp, and the raw body), and the receiver checks the signature, refuses a timestamp older than five minutes, and drops an id it has seen.
+
+A receiver that is down gets the delivery again, later each time: take a payment with `"merchant_reference":"webhook-fail-1"`, which the receiver answers with `503`, and `/events` shows a `failing_on_purpose` row about 10, 20, and 40 seconds apart (exponential backoff with full jitter, capped at an hour; after 12 attempts the delivery is dead-lettered for an operator).
+The worker's log in the Aspire dashboard says the same: `failed attempt 3: HTTP 503; next attempt at ...`.
+
+The endpoint's URL is the merchant's choice, so `PUT /api/v1/webhook-endpoint` checks it before storing it, and the worker checks every address again when it connects: `{"url":"https://169.254.169.254/latest/meta-data"}` (the cloud metadata service), `https://localhost:5080/...`, and `https://sqlserver/...` (a container on the stack's private network) are each `400` with `"errors":{"url":["webhook_url_not_public"]}`, and `http://` is `webhook_url_not_https`.
+Only `webhook-receiver` is let through, by a setting both services refuse outside Development.
+A `PUT` with a public `https` URL would point the demo merchant's events away from the receiver; `docker compose down -v` brings the seeded endpoint back, and `POST /api/v1/webhook-endpoint/rotate-secret` would issue a secret the receiver does not know, so its `/events` would show `bad_signature`.
 
 **The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
 The payment is saved before the card network is called, so an outage leaves a visible `pending` payment rather than a charge with no record, and every status change writes its audit row in the same transaction.
@@ -180,12 +187,12 @@ The trace shows the `payment-api` span and how long it took; select it for its a
 ![The span's attributes in the Aspire dashboard, with correlation.id demo-1](images/aspire-trace.png)
 
 Now the payment from step 5.
-Its status change wrote a `payment.authorized` event to the outbox in the same transaction, with the request's `traceparent`, and within about a second the worker dispatched it.
-In **Traces**, the `POST /api/v1/payments` row spans two resources, `payment-api` and `payment-worker`; open it and select `outbox dispatch`, a `Consumer` span of the worker whose parent is the API's request span, with the same `correlation.id`, the event type, and the event id.
+Its status change wrote a `payment.authorized` event to the outbox in the same transaction, with the request's `traceparent`; within about a second the worker dispatched it, and within another it delivered it to the receiver.
+In **Traces**, the `POST /api/v1/payments` row spans two resources, `payment-api` and `payment-worker`; open it and the one trace holds the API's work, then the worker's `outbox dispatch` (a `Consumer` span) and `webhook deliver` (a `Producer` span, with the attempt number and the receiver's status), whose `HTTP POST 204` child is the call to the receiver.
 
-![The payment's trace in the Aspire dashboard, from the API request into the worker's outbox dispatch, correlation.id demo-outbox](images/aspire-outbox-trace.png)
+![The payment's trace in the Aspire dashboard, from the API request through the worker's outbox dispatch to the webhook delivery and its HTTP POST, correlation.id demo-outbox](images/aspire-outbox-trace.png)
 
-The worker polls the outbox every second, but those runs are not traces of their own: a trace a second would bury everything else, so only the events it dispatches are traced, each under the request that caused it ([ADR 005](decisions/005-observability-on-opentelemetry.md)).
+The worker polls the outbox and the deliveries every second, but those runs are not traces of their own: a trace a second would bury everything else, so only the events it handles are traced, each under the request that caused it ([ADR 005](decisions/005-observability-on-opentelemetry.md)).
 To see the queue itself (in Git Bash on Windows, put `MSYS_NO_PATHCONV=1` in front, or it rewrites the container path):
 
 ```sh
@@ -259,7 +266,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 ## 9. Where it goes next
 
-- Signed webhook delivery with retries and dead-lettering, and a local receiver that shows deliveries arriving (T23c); settlement (T24); domain and queue metrics (T25).
+- Settlement (T24); domain and queue metrics, among them the delivery queue's depth, lag, retries, and dead letters (T25); a replay for dead-lettered deliveries.
 - The dashboard's sign-in and the payment pages that show the sample data and a payment's timeline (T26 to T28).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 

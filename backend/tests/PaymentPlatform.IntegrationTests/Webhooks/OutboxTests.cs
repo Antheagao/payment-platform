@@ -51,7 +51,10 @@ public sealed class OutboxTests(SqlServerFixture sqlServer) : ApiTestBase(sqlSer
         Assert.Equal("captured", data.GetProperty("status").GetString());
         Assert.Equal("authorized", data.GetProperty("previous_status").GetString());
         Assert.Equal("ord-9", data.GetProperty("merchant_reference").GetString());
-        Assert.DoesNotContain("4242", messages[1].Payload, StringComparison.Ordinal);
+        // The card is not in the event at all: no card field, and neither the number nor its token anywhere. (A
+        // search for "4242" alone also matched the digits of a timestamp's fraction and made this test flaky.)
+        Assert.False(data.TryGetProperty("card", out _));
+        Assert.DoesNotContain("4242424242424242", messages[1].Payload, StringComparison.Ordinal);
         Assert.DoesNotContain("tok_", messages[1].Payload, StringComparison.Ordinal);
     }
 

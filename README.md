@@ -53,6 +53,7 @@ To run it in the background instead, use `docker compose up --build -d --wait`, 
 | <http://localhost:5080/openapi/v1.json> | The API's OpenAPI document |
 | <http://localhost:5080/health/ready> and <http://localhost:5081/health/ready> | API and worker readiness |
 | <http://localhost:18888> | The Aspire dashboard: traces, metrics, and structured logs from every service |
+| <http://localhost:8090/events> | The webhook receiver standing in for the demo merchant's server: the signed events it verified |
 
 For a guided tour of what to show and what each step proves, follow the [demo guide](docs/demo.md).
 
@@ -87,9 +88,9 @@ The same page on a phone, in both color schemes; the design tokens follow the op
 | --- | --- |
 | <img src="docs/images/dashboard-mobile-light.png" alt="The dashboard at phone width in the light scheme" width="300"> | <img src="docs/images/dashboard-mobile-dark.png" alt="The dashboard at phone width in the dark scheme" width="300"> |
 
-A payment followed into the Aspire dashboard: one trace runs from the API request (its saves and the `acquirer authorize` call) into the worker, which dispatched the payment's `payment.authorized` event from the transactional outbox under the correlation id the client sent (`demo-outbox`).
+A payment followed into the Aspire dashboard: one trace runs from the API request (its saves and the `acquirer authorize` call) into the worker, which dispatched the payment's `payment.authorized` event from the transactional outbox and delivered it, signed, to the stack's webhook receiver, all under the correlation id the client sent (`demo-outbox`).
 
-![The Aspire trace of POST /api/v1/payments across payment-api and payment-worker, with the worker's outbox dispatch span selected: kind Consumer, correlation.id demo-outbox, event.type payment.authorized](docs/images/aspire-outbox-trace.png)
+![The Aspire trace of POST /api/v1/payments across payment-api and payment-worker: outbox dispatch, then webhook deliver with its HTTP POST 204, the delivery span selected with kind Producer, correlation.id demo-outbox, event.type payment.authorized, and webhook.attempt 1](docs/images/aspire-outbox-trace.png)
 
 The outage above in the structured logs, each failed check linked to its trace, and the API's request durations as a chart.
 
@@ -131,6 +132,7 @@ Nothing here needs a paid service, an account, or a cloud subscription.
 | Aspire dashboard (traces, metrics, logs) | Free and open source |
 | .NET 10, Node.js, Next.js, and every NuGet and npm package | Free; all open source (MIT, Apache 2.0, and similar), except two native helpers SqlClient brings in under free Microsoft license terms |
 | The card acquirer | Simulated inside the API: no payment-provider account and no real card numbers |
+| The merchant's webhook server | A Node.js receiver in compose (`scripts/webhook-receiver.mjs`); webhooks never leave the machine unless a merchant URL is set |
 | Docker | Docker Engine (Linux, and what CI runs) is free and open source; Docker Desktop is free for personal use, education, non-commercial open source, and businesses with fewer than 250 employees and under $10 million in revenue ([license](https://docs.docker.com/subscription/desktop-license/)), and larger organizations need a paid subscription for it |
 | CI: GitHub Actions, CodeQL, Dependabot | Free for public repositories |
 | Azure | Not needed: the Bicep is validated offline and never deployed |

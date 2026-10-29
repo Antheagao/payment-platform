@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using PaymentPlatform.Api.Auth;
 using PaymentPlatform.IntegrationTests.Support;
 
 namespace PaymentPlatform.IntegrationTests.Startup;
@@ -18,15 +21,18 @@ public sealed class SigningKeyTests(SqlServerFixture sqlServer) : ApiTestBase(sq
     [InlineData("c2hvcnQta2V5")]
     public async Task Outside_development_a_missing_malformed_or_short_key_stops_startup(string key)
     {
-        await using var factory = Factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Production");
-            builder.UseSetting("Jwt:SigningKey", key);
-        });
+        // A host with the API's own authentication setup, started directly. Through WebApplicationFactory the
+        // failure races the factory: Program's RunAsync disposes the failed host while the factory still reads its
+        // services, so the test sometimes saw an ObjectDisposedException instead of the reason (a CI run did).
+        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Configuration["Jwt:SigningKey"] = key;
+        builder.AddApiAuthentication();
+        await using var app = builder.Build();
 
-        var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        var error = await Assert.ThrowsAsync<OptionsValidationException>(() => app.StartAsync(Cancellation));
 
-        Assert.Contains("Jwt:SigningKey", Unwrap(error).Message, StringComparison.Ordinal);
+        Assert.Contains("Jwt:SigningKey", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -44,9 +50,4 @@ public sealed class SigningKeyTests(SqlServerFixture sqlServer) : ApiTestBase(sq
 
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
     }
-
-    private static Exception Unwrap(Exception error) =>
-        error is OptionsValidationException or InvalidOperationException || error.InnerException is null
-            ? error
-            : Unwrap(error.InnerException);
 }

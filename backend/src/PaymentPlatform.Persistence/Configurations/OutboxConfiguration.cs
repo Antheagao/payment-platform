@@ -71,6 +71,10 @@ internal sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<We
             .HasDatabaseName("IX_WebhookDeliveries_Due");
         builder.Property(delivery => delivery.Status).HasConversion<string>().HasMaxLength(20).IsUnicode(false);
         builder.Property(delivery => delivery.LastError).HasMaxLength(WebhookDelivery.LastErrorMaxLength);
+
+        // A worker saves an attempt only while its lease stands: if the lease ran out and another worker took the
+        // delivery, the first worker's save fails instead of overwriting the second's.
+        builder.Property(delivery => delivery.LeasedUntil).IsConcurrencyToken();
         builder.Property(delivery => delivery.CreatedAt);
     }
 }
