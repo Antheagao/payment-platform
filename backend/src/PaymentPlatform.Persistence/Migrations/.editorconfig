@@ -1,0 +1,6 @@
+# EF Core scaffolds migrations; analyzers judge hand-written code, not its output. A migration's Up and Down
+# are still reviewed by hand, along with the SQL from `dotnet ef migrations script`.
+# This file sits here rather than in the root .editorconfig because the container build's context is
+# backend/, which the root file is outside of.
+[*.cs]
+generated_code = true

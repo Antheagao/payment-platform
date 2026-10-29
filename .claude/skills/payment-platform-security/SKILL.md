@@ -31,14 +31,15 @@ ADR 004 (authentication) and `docs/assumptions.md` (card data) come first.
 
 ## Card data (PCI mindset)
 
-- The API tokenizes a card number the moment it arrives and keeps only the token, brand, last four digits, and expiry; the CVV is used once for the simulated authorization and never stored (T20).
+- The API tokenizes a card number the moment it arrives and keeps only the token, brand, last four digits, and expiry; the CVV is checked for shape and discarded, never stored ([ADR 008](../../../docs/decisions/008-card-tokenization-at-the-edge.md)).
+  `Application/Cards/`: `CardInput` (shape checks, and a `ToString` that masks the number and CVV), `ICardVault`, and `SimulatedCardVault`, which accepts only the published test cards in `TestCards` and refuses any other valid number with `422 card_not_accepted`, so a real card is never stored, not even as four digits.
 - Card numbers, CVVs, tokens, passwords, and signing keys never appear in logs, traces, problem details, idempotency records, or outbox payloads; request bodies are never logged.
-- T20 adds a test that captures every log line of a payment flow and fails on any card number or CVV.
+- `CreatePaymentTests.No_card_number_or_cvv_is_stored_logged_or_returned` captures every log record at Trace and up, every column the create wrote, and the responses, and fails on the number, its grouped form, the CVV, or the token.
 - Only the simulator's test card numbers are ever used; a real card number in a test, fixture, or screenshot is a defect.
 
 ## Planned, with the task that lands it
 
-- T20: the no-token and another-merchant tests on every payment route, as `AccessTokenTests` does for `/me`.
+- Every new payment route gets the no-token and another-merchant tests that `CreatePaymentTests` and `GetPaymentTests` have.
 - T26: the dashboard forwards the client address (`X-Forwarded-For` from a known proxy only), so the per-address login limit applies per person.
 - T23: webhook URLs are merchant-supplied, so delivery is an SSRF surface: `https` only, resolve the host and refuse private, loopback, and link-local ranges, follow no redirects, 10 s timeout, and sign every body with HMAC-SHA256 over the timestamp and raw bytes.
 - T16: CodeQL for C# and TypeScript, Dependabot, and `npm audit --omit=dev` in CI.

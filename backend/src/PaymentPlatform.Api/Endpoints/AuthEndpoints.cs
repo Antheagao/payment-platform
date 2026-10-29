@@ -52,7 +52,7 @@ public static class AuthEndpoints
         if (!throttle.TryAcquire(request.Email!, out var retryAfter))
         {
             http.Response.Headers.RetryAfter = AuthenticationSetup.RetryAfterSeconds(retryAfter);
-            return Problem(
+            return ApiProblems.Create(
                 StatusCodes.Status429TooManyRequests,
                 ProblemCodes.RateLimited,
                 "too many login attempts for this account; try again after Retry-After seconds");
@@ -62,7 +62,7 @@ public static class AuthEndpoints
         if (!result.IsSuccess)
         {
             http.Response.Headers.WWWAuthenticate = TokenType;
-            return Problem(StatusCodes.Status401Unauthorized, result.Error.Code, result.Error.Message);
+            return ApiProblems.Create(StatusCodes.Status401Unauthorized, result.Error.Code, result.Error.Message);
         }
 
         var token = tokens.Issue(result.Value);
@@ -76,10 +76,7 @@ public static class AuthEndpoints
     {
         var user = await query.HandleAsync(caller.GetUserId(), caller.GetMerchantId(), cancellationToken);
         return user is null
-            ? Problem(StatusCodes.Status401Unauthorized, ProblemCodes.Unauthorized, "the user this token names no longer exists")
+            ? ApiProblems.Create(StatusCodes.Status401Unauthorized, ProblemCodes.Unauthorized, "the user this token names no longer exists")
             : TypedResults.Ok(new CurrentUserResponse(user.UserId.Value, user.MerchantId.Value, user.Email, user.MerchantName));
     }
-
-    private static ProblemHttpResult Problem(int status, string code, string detail) =>
-        TypedResults.Problem(statusCode: status, detail: detail, extensions: new Dictionary<string, object?> { ["code"] = code });
 }

@@ -55,7 +55,7 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapDefaultEndpoints();
-app.MapApiV1().MapAuthEndpoints();
+app.MapApiV1().MapAuthEndpoints().MapPaymentEndpoints();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

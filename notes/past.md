@@ -247,3 +247,17 @@ Update this file when a task lands; keep the present and future notes in sync.
   - `docker compose up --wait` returns before a .NET service listens (they have no container healthcheck); scripts wait for `/health/ready`.
 - Gate: format, locked restore, Release build, 231 backend tests green three runs in a row; from an empty compose volume, `check-stack.sh` green with no startup warnings, and the demo guide's new step 4 run as written.
 
+## 2026-10-28: create and read payments (T20a)
+
+- `backend: create and read payments with card tokenization and the audit trail`: R2, R3, R17, R24, and R25 are done.
+  - Domain: `PaymentCard` and `CardBrand`; `Payment.Create` takes the card and an optional merchant reference; `Authorize` keeps the acquirer's reference and `Fail` the decline code.
+  - Persistence: `Payments` (nonclustered key, clustered on `(MerchantId, CreatedAt, Id)`, `Money` and `PaymentCard` as complex properties, `CHECK`s generated from the enums, a shadow `RowVersion`) and `PaymentEvents` (identity key, the actor, the correlation id); `RecordChanges` plus a `SaveChanges` guard that refuses a payment with unrecorded changes.
+  - Application: `Cards/` (`CardInput`, `ICardVault`, `SimulatedCardVault` with only test cards) and `Payments/` (`CreatePayment`, `GetPayment`, `PaymentDetails`); Api `Endpoints/PaymentEndpoints.cs` and the shared `Errors/ApiProblems`; ADR 008.
+  - 75 new tests (13 domain, 23 card unit tests, 39 integration); mutations that dropped the merchant filter on reads and let the vault accept any card each failed a test.
+- Found on the way:
+  - The container build failed on CA1861 in the generated `Payments` migration though the local build passed: the root `.editorconfig` that marks migrations `generated_code` is outside the image's build context (`backend/`). The rule moved to `Migrations/.editorconfig`; CI's stack job would have failed on this push.
+  - `GET /api/v1/payments` used to be the unknown-route example in `ErrorResponseTests`; with `POST /payments` mapped it is a 405, so the test uses a path that does not exist.
+  - The no-card-data test was flaky: its first version searched the response for the CVV `739` as a plain substring and once found it inside a random correlation id. It now looks for the CVV only as a whole JSON value (and for any `cvv` field), in the responses and the stored rows alike.
+- Checked against the composed stack as the demo merchant: every test card (authorized, `card_declined`, `insufficient_funds`, `pending` for the silent acquirer, `422` for `4111 1111 1111 1111`), a JPY payment read back with its history, and in the Aspire dashboard each create is one trace of `POST /api/v1/payments` with the insert, `acquirer authorize`, and the second save as children (the silent-acquirer trace has no second save).
+- Gate: format, locked restore, Release build, 306 backend tests green three runs in a row; `check-stack.sh` with no startup warnings; docs.
+

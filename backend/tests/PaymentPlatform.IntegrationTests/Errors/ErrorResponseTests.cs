@@ -6,7 +6,7 @@ namespace PaymentPlatform.IntegrationTests.Errors;
 public sealed class ErrorResponseTests(SqlServerFixture sqlServer) : ApiTestBase(sqlServer)
 {
     [Theory]
-    [InlineData("/api/v1/payments")]
+    [InlineData("/api/v1/no-such-resource")]
     [InlineData("/api/v2/anything")]
     [InlineData("/nowhere")]
     public async Task Unknown_routes_answer_with_problem_details(string path)

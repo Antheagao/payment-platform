@@ -4,7 +4,9 @@ namespace PaymentPlatform.Application.Acquiring;
 /// Card tokens that make the <see cref="SimulatedAcquirer"/> take a specific branch, so every outcome is
 /// reproducible in tests and demos. Any other token is approved.
 /// </summary>
-/// <remarks>The simulated vault (T20) issues these for the matching well-known test card numbers.</remarks>
+/// <remarks>
+/// <see cref="Cards.SimulatedCardVault"/> issues these for its scenario test cards (<c>TestCards</c>).
+/// </remarks>
 public static class SimulatedCardTokens
 {
     public const string CardDeclined = "tok_sim_card_declined";

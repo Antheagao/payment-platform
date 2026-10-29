@@ -19,7 +19,8 @@ Each is cheap to revisit; the ones that would be expensive to change have an ADR
    A payment has one currency; there is no currency conversion, and totals are never summed across currencies.
 5. **Card data is test data, tokenized at the edge.**
    The create endpoint accepts a test card number, exchanges it at once for a token from a simulated vault, and keeps only the token, brand, last four digits, and expiry.
-   The CVV is used for the simulated authorization and never stored; request bodies are never logged.
+   The CVV is checked for shape and discarded with the number; it is never stored, and request bodies are never logged.
+   The simulated vault accepts only published test card numbers, so a real card is refused rather than stored ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
    In production, tokenization would move into hosted payment fields so that card numbers never reach the merchant or this API at all (PCI DSS SAQ A for the merchant).
 6. **The acquirer is simulated.**
    A deterministic in-process adapter stands in for the card network: specific test card numbers decline, time out, or succeed, so every branch is reproducible in tests.

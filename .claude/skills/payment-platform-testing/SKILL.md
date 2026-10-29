@@ -51,7 +51,8 @@ The gate commands live in `AGENTS.md`; `dotnet test` from `backend/` runs everyt
 
 ## Known gaps
 
-- The five-case checklist (success, validation, no token, another merchant, conflicts) is covered for login and `/me` (`Auth/`); helpers in `Support/`: `Merchants.CreateUserAsync`, `Tokens.Forge` and `WithoutSignature` for hand-made tokens with the factory's fixed 64-byte key, and `Problems.ReadAsync` and `ReadCodeAsync`.
+- The five-case checklist (success, validation, no token, another merchant, conflicts) is covered for login and `/me` (`Auth/`); helpers in `Support/`: `Merchants.CreateUserAsync`, `Tokens.Forge` and `WithoutSignature` for hand-made tokens with the factory's fixed 64-byte key, `Problems.ReadAsync` and `ReadCodeAsync`, `Clients.For(factory, user)` for a client with a valid token, and `LogCapture` for every log record at Trace and up.
+- Security properties get a mutation check when they land: break the property on purpose (allow HS512, skip the dummy hash, drop the merchant filter, accept any card) and confirm a test fails, then restore it.
 - The worker has no integration tests yet; they arrive with its first job (T23), driving the job against the fixture's database.
 - No property-based tests; add FsCheck with the first rule whose input space is large (card number checks in T20).
 - The log-capture test that proves no card data reaches a log line lands with T20.

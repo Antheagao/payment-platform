@@ -20,13 +20,13 @@ Project facts only; the generic module, port, and ADR rules live in the global `
 | Project | Key files |
 | --- | --- |
 | `Domain` | `Payments/Payment.cs` (the aggregate), `Payments/PaymentLifecycle.cs` (the transition table), `Monetary/Money.cs`, `Result.cs`, `Actor.cs` |
-| `Persistence` | `PaymentsDbContext.cs` (`Merchants`, `MerchantUsers`), `Configurations/`, `Migrations/` (`InitialSchema`, `EnableReadCommittedSnapshot`), `PersistenceServiceCollectionExtensions.cs` (`AddPersistence`), `DatabaseHealthCheck.cs`, `DatabaseMigrator.cs`, `PaymentsDbContextFactory.cs` |
-| `Application` | `ApplicationServiceCollectionExtensions.cs` (`AddApplication`), `Acquiring/` (`IAcquirer`, `SimulatedAcquirer`), `Auth/` (`LogIn`, `GetCurrentUser`, `PasswordVerifier`), `Demo/DemoSeed.cs`, `ApplicationTelemetry.cs` |
+| `Persistence` | `PaymentsDbContext.cs` (`Merchants`, `MerchantUsers`, `Payments`, `PaymentEvents`, `RecordChanges`), `PaymentEvent.cs`, `Configurations/`, `Migrations/` (`InitialSchema`, `EnableReadCommittedSnapshot`, `Payments`), `PersistenceServiceCollectionExtensions.cs` (`AddPersistence`), `DatabaseHealthCheck.cs`, `DatabaseMigrator.cs`, `PaymentsDbContextFactory.cs` |
+| `Application` | `ApplicationServiceCollectionExtensions.cs` (`AddApplication`), `Acquiring/` (`IAcquirer`, `SimulatedAcquirer`), `Auth/` (`LogIn`, `GetCurrentUser`, `PasswordVerifier`), `Cards/` (`CardInput`, `ICardVault`, `SimulatedCardVault`), `Payments/` (`CreatePayment`, `GetPayment`, `PaymentDetails`), `Demo/DemoSeed.cs`, `ApplicationTelemetry.cs` |
 | `ServiceDefaults` | `ServiceDefaultsExtensions.cs` (`AddServiceDefaults`, `UseCorrelationIds`, `MapDefaultEndpoints`), `CorrelationIds.cs`, `HealthResponseWriter.cs` |
-| `Api` | `Program.cs`, `Auth/` (`AuthenticationSetup`, `JwtOptions`, `TokenIssuer`, `CallerClaims`, `LoginThrottle`, `LoginRateLimitOptions`), `Endpoints/ApiRoutes.cs`, `Endpoints/AuthEndpoints.cs`, `Errors/`, `SecurityHeadersMiddleware.cs` |
+| `Api` | `Program.cs`, `Auth/` (`AuthenticationSetup`, `JwtOptions`, `TokenIssuer`, `CallerClaims`, `LoginThrottle`, `LoginRateLimitOptions`), `Endpoints/ApiRoutes.cs`, `Endpoints/AuthEndpoints.cs`, `Endpoints/PaymentEndpoints.cs`, `Errors/` (with `ApiProblems`), `SecurityHeadersMiddleware.cs` |
 | `Worker` | `Program.cs`, `Jobs/PeriodicJob.cs` (the loop), `Jobs/WorkerTelemetry.cs`, `Jobs/JobsServiceCollectionExtensions.cs` |
 
-The domain also has `Merchants/` (`Merchant`, `MerchantUser`, and their ids). Login and the caller lookup are the only use cases and endpoints so far, and no job exists yet; the queue in `notes/future.md` (T20 onward) adds them.
+The domain also has `Merchants/` (`Merchant`, `MerchantUser`, and their ids) and `Payments/PaymentCard.cs` (`PaymentCard`, `CardBrand`). Use cases so far: login, the caller lookup, and create and read a payment; no job exists yet, and the queue in `notes/future.md` adds the rest.
 
 ## Where new work goes
 
@@ -59,5 +59,5 @@ A new setting lands in one commit across its validated options class, `appsettin
 
 ## Decision records
 
-- 001 stack and layout, 002 project boundaries, 003 transactional outbox, 004 JWT behind the dashboard's server, 005 OpenTelemetry, 006 problem details, 007 idempotency keys.
-- Expected next: card tokenization and the vault (T20), webhook signing and endpoint registration (T23), the settlement procedure (T24).
+- 001 stack and layout, 002 project boundaries, 003 transactional outbox, 004 JWT behind the dashboard's server, 005 OpenTelemetry, 006 problem details, 007 idempotency keys, 008 card tokenization at the edge with a vault that holds only test cards.
+- Expected next: webhook signing and endpoint registration (T23), the settlement procedure (T24).

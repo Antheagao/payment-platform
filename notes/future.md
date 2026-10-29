@@ -16,13 +16,8 @@ Ranked by what the exercise grades most: the lifecycle and its audit trail, idem
 
 ### T20. Create and read payments
 
-Three slices, each its own commit:
-- **T20a. The payment and its audit trail, created and read.**
-  Tables `Payments` (clustered on `(MerchantId, CreatedAt, Id)`, nonclustered primary key on `Id`, status as `varchar` with a `CHECK`, `AmountMinor bigint`, `Currency char(3)`, card brand, last four, expiry, the acquirer reference and decline code, `rowversion`) and `PaymentEvents` (one row per `PaymentStatusChanged`: from, to, actor kind and id, time, reason, correlation id), written in one transaction by saving the aggregate (Persistence drains `DequeueEvents`).
-  `Application/Payments/CreatePayment.cs`: validates amount, currency, and card fields; tokenizes the card number at the edge with a simulated vault (Luhn check, brand from the prefix, keep only token, brand, last four, expiry; the CVV is passed to the simulated authorization and never stored); saves `Pending`, calls the acquirer outside the transaction, then saves `Authorized` or `Failed` (assumption 7).
-  `GET /api/v1/payments/{id}` scoped to the caller's merchant (another merchant's payment is `404`), with its events.
-  Gate: the five-case checklist for both endpoints, the no-token and another-merchant tests, and the log-capture test over a full create (no card number or CVV in any log line, problem, or stored row).
-- **T20b. Idempotency for create (ADR 007).** `Idempotency-Key` required on `POST /payments`; the stored response replays with `Idempotent-Replayed: true`, `409` while the first request runs, `422` for the same key with a different body; keys kept 24 hours.
+T20a (create and read, the audit trail, tokenization) is done; two slices remain, each its own commit:
+- **T20b. Idempotency for create (ADR 007).** `Idempotency-Key` required on `POST /payments` (`400 idempotency_key_required` without it); an `IdempotencyKeys` table keyed by `(MerchantId, Key)` with a hash of the request body, the stored status and response, and an expiry 24 hours out; the first request claims the key in its own transaction before tokenizing, a replay returns the stored response with `Idempotent-Replayed: true`, a retry while the first is still running gets `409 idempotency_key_in_use`, and the same key with a different body gets `422 idempotency_key_reused`; a claim whose request crashed is released after a timeout so a retry can finish it. Gate: concurrent retries (parallel requests with one key create one payment), replay after success and after a decline, the body mismatch, the expiry, and that the stored response holds no card data.
 - **T20c. Sample payments.** The demo seed gains payments in every status, created through the domain so each carries a real audit trail, spread over the last 90 days with deterministic amounts and references; `docs/demo.md` gains the step that reads one.
 
 ### Then

@@ -9,16 +9,28 @@ namespace PaymentPlatform.Domain.Payments;
 /// </summary>
 public sealed class Payment
 {
+    /// <summary>The longest merchant reference (an order number, an invoice id) the API accepts and the column holds.</summary>
+    public const int MerchantReferenceMaxLength = 100;
+
     private readonly List<PaymentStatusChanged> _pendingEvents = [];
 
-    private Payment(PaymentId id, MerchantId merchantId, Money amount, DateTimeOffset createdAt)
+    private Payment(
+        PaymentId id, MerchantId merchantId, Money amount, PaymentCard card, string? merchantReference, DateTimeOffset createdAt)
     {
         Id = id;
         MerchantId = merchantId;
         Amount = amount;
+        Card = card;
+        MerchantReference = merchantReference;
         Status = PaymentStatus.Pending;
         CreatedAt = createdAt;
         UpdatedAt = createdAt;
+    }
+
+    // For EF Core, which sets every property from its column.
+    private Payment()
+    {
+        Card = null!;
     }
 
     public PaymentId Id { get; }
@@ -27,7 +39,18 @@ public sealed class Payment
 
     public Money Amount { get; }
 
+    public PaymentCard Card { get; }
+
+    /// <summary>The merchant's own id for what was paid for, if they gave one; searchable, never unique.</summary>
+    public string? MerchantReference { get; }
+
     public PaymentStatus Status { get; private set; }
+
+    /// <summary>The acquirer's reference for the authorization, which capture and refund quote back to it.</summary>
+    public string? AuthorizationReference { get; private set; }
+
+    /// <summary>Why the acquirer declined, such as <c>insufficient_funds</c>; set only on a failed payment.</summary>
+    public string? FailureReason { get; private set; }
 
     public DateTimeOffset CreatedAt { get; }
 
@@ -36,21 +59,47 @@ public sealed class Payment
     /// <summary>Changes not yet saved; persistence drains them with <see cref="DequeueEvents"/>.</summary>
     public IReadOnlyList<PaymentStatusChanged> PendingEvents => _pendingEvents;
 
-    public static Payment Create(PaymentId id, MerchantId merchantId, Money amount, Actor actor, DateTimeOffset now)
+    /// <exception cref="ArgumentException">The merchant reference is blank or longer than <see cref="MerchantReferenceMaxLength"/>.</exception>
+    public static Payment Create(
+        PaymentId id, MerchantId merchantId, Money amount, PaymentCard card, string? merchantReference, Actor actor, DateTimeOffset now)
     {
+        ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(actor);
-        var payment = new Payment(id, merchantId, amount, now);
+        if (merchantReference is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(merchantReference);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(merchantReference.Length, MerchantReferenceMaxLength, nameof(merchantReference));
+        }
+
+        var payment = new Payment(id, merchantId, amount, card, merchantReference, now);
         payment._pendingEvents.Add(new PaymentStatusChanged(id, merchantId, null, PaymentStatus.Pending, actor, now, null));
         return payment;
     }
 
-    public Result Authorize(Actor actor, DateTimeOffset now) => MoveTo(PaymentStatus.Authorized, actor, now, null);
+    /// <param name="authorizationReference">The acquirer's reference for the approval.</param>
+    public Result Authorize(string authorizationReference, Actor actor, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authorizationReference);
+        var moved = MoveTo(PaymentStatus.Authorized, actor, now, null);
+        if (moved.IsSuccess)
+        {
+            AuthorizationReference = authorizationReference;
+        }
 
-    /// <param name="reason">The acquirer's decline code, kept on the audit row.</param>
+        return moved;
+    }
+
+    /// <param name="reason">The acquirer's decline code, kept on the payment and its audit row.</param>
     public Result Fail(string reason, Actor actor, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-        return MoveTo(PaymentStatus.Failed, actor, now, reason);
+        var moved = MoveTo(PaymentStatus.Failed, actor, now, reason);
+        if (moved.IsSuccess)
+        {
+            FailureReason = reason;
+        }
+
+        return moved;
     }
 
     public Result Capture(Actor actor, DateTimeOffset now) => MoveTo(PaymentStatus.Captured, actor, now, null);

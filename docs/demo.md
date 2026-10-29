@@ -1,6 +1,6 @@
 # Demo guide
 
-A fifteen-minute walkthrough of what runs today, in the order that tells the story.
+A twenty-minute walkthrough of what runs today, in the order that tells the story.
 Each step gives the command, what you will see, and the point it makes.
 Everything here was run against the composed stack; the payment features arrive in the order [notes/future.md](../notes/future.md) ranks them, and this guide grows with them.
 
@@ -90,7 +90,37 @@ Then the ways it says no:
 
 **The point:** a request is validated by signature, issuer, audience, algorithm, and lifetime on every call, with no session lookup, and a login expires by itself ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)).
 
-## 5. Follow the request in the Aspire dashboard
+## 5. Take a payment
+
+With the token from step 4 (on Windows PowerShell 5.1, keep `curl.exe` and put the JSON in a file with `-d "@payment.json"`):
+
+```sh
+curl -s -i -X POST http://localhost:5080/api/v1/payments \
+  -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json" \
+  -H "X-Correlation-Id: demo-pay" \
+  -d '{"amount_minor":2599,"currency":"USD","merchant_reference":"order-1001","card":{"number":"4242 4242 4242 4242","exp_month":12,"exp_year":2030,"cvv":"123"}}'
+```
+
+The answer is `201 Created` with a `Location` header and the payment: `"status":"authorized"`, `"card":{"brand":"visa","last4":"4242",...}` with no number and no token, the acquirer's `authorization_reference`, and a `history` of two rows (`null` to `pending`, `pending` to `authorized`), each with the demo user as the actor and `demo-pay` as the correlation id.
+`curl` the `Location` with the same token to read it back; a different merchant's token gets `404`, the same answer as an id that does not exist.
+
+The simulated vault accepts only test cards, and each one takes a branch:
+
+| Card number | Outcome |
+| --- | --- |
+| `4242 4242 4242 4242` (Visa), `5555 5555 5555 4444` (Mastercard), `3782 822463 10005` (Amex, four-digit CVV), `6011 1111 1111 1117` (Discover) | `authorized` |
+| `4000 0000 0000 0002` | `failed`, `failure_reason` `card_declined` |
+| `4000 0000 0000 9995` | `failed`, `insufficient_funds` |
+| `4000 0000 0000 0119` | `pending`: the acquirer does not answer, so the payment stays visible for reconciliation |
+| Any other valid number, such as `4111 1111 1111 1111` | `422 card_not_accepted`, and nothing is stored |
+
+A mistyped number (`4242 4242 4242 4241`) is `400` with `"errors":{"card.number":["card_number_invalid"]}`.
+In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`.
+
+**The point:** the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
+The payment is saved before the card network is called, so an outage leaves a visible `pending` payment rather than a charge with no record, and every status change writes its audit row in the same transaction.
+
+## 6. Follow the request in the Aspire dashboard
 
 Open `http://localhost:18888/traces/detail/` followed by the `trace_id` from step 3.
 The trace shows the `payment-api` span and how long it took; select it for its attributes, among them `correlation.id`, the status code, and the path.
@@ -106,7 +136,7 @@ The yellow "Endpoint is unsecured" banner is expected: the dashboard runs withou
 
 **The point:** logs, traces, and metrics share one id from the first request, through OpenTelemetry and OTLP ([ADR 005](decisions/005-observability-on-opentelemetry.md)); in Azure the same export goes to Application Insights.
 
-## 6. Take the database away
+## 7. Take the database away
 
 Keep the dashboard open beside the terminal.
 
@@ -141,7 +171,7 @@ To show the other failure, stop the API instead (`docker compose stop api`): the
 
 **The point:** a load balancer routes only to instances that can serve, a restart policy only restarts processes that are stuck, and the dashboard tells a merchant which of the two is happening.
 
-## 7. The code and its gates
+## 8. The code and its gates
 
 With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), from `backend/`:
 
@@ -149,7 +179,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-174 tests pass in about half a minute, including the integration tests, which start their own SQL Server 2025 container.
+306 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.
@@ -160,9 +190,9 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 **The point:** the habits a payment system needs (tests on a real database, enforced boundaries, a pipeline that proves the run instructions) are in place before the first payment.
 
-## 8. Where it goes next
+## 9. Where it goes next
 
-- Sample payments arrive with the payment features: create and read (T20), capture and refund (T21), and search (T22), each beside the demo merchant.
+- Idempotency keys on create (T20b), then sample payments in every status beside the demo merchant (T20c), capture and refund (T21), and search (T22).
   The startup seed will load a demo merchant and payments in every status, each with its audit trail, so this guide can then log in and walk a payment's timeline.
 - The asynchronous workflow: the outbox, signed webhooks with retries and dead-lettering, and settlement (T23, T24).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
