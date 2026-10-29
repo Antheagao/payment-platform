@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { classNames } from "@/lib/class-names";
 
@@ -11,18 +11,22 @@ export const refreshIntervalMs = 5_000;
  * Re-renders the page's server components every five seconds while the tab is visible, so the
  * statuses follow an outage and its recovery without a reload. The numbers it changes are content
  * that updates on its own, so it carries a control to pause it (WCAG 2.2.2).
+ *
+ * No timer runs while a refresh does, and the next starts when it finishes: a refresh started over a
+ * running one cancels it, and during an outage, when every refresh is slow, the page never changed.
  */
 export function LiveUpdates() {
   const router = useRouter();
   const [paused, setPaused] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
 
   useEffect(() => {
-    if (paused) return;
+    if (paused || refreshing) return;
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState === "visible") startRefresh(() => router.refresh());
     }, refreshIntervalMs);
     return () => clearInterval(timer);
-  }, [paused, router]);
+  }, [paused, refreshing, router]);
 
   return (
     <div className="flex items-center gap-3">

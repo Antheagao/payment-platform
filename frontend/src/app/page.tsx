@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import { LiveUpdates } from "@/components/live-updates";
 import { PaymentLifecycle } from "@/components/payment-lifecycle";
 import { ServiceStatus, ServiceStatusFallback } from "@/components/service-status";
+import { buttonClasses } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -14,6 +16,9 @@ export default function Home() {
         Search your payments, follow each one through its lifecycle, and see who changed what and
         when.
       </p>
+      <Link href="/payments" className={buttonClasses({ className: "mt-6" })}>
+        View payments
+      </Link>
 
       <div className="mt-10 space-y-12">
         <section aria-labelledby="status-heading">

@@ -15,21 +15,21 @@ Every state change is audited, every money-moving call is idempotent, and a sing
 
 ## Status
 
-The backend is complete against the exercise's requirements, and the dashboard signs merchants in; the dashboard's payment pages are next.
+The backend is complete against the exercise's requirements; the dashboard signs merchants in and lists and filters their payments, and a payment's own page is next.
 [requirements.md](docs/requirements.md) shows each requirement's status, and [`notes/future.md`](notes/future.md) is the ranked plan.
 
 | Built | Planned next |
 | --- | --- |
-| The payment lifecycle state machine with every transition tested | The dashboard's payments list, with filters and paging |
-| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | A payment's detail page with its audit timeline |
-| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile | The service status behind an operator role, and the client's address forwarded to the API |
-| List and search: keyset pages and filters by status, date, amount, currency, and reference | An end-to-end golden path through the composed stack |
-| A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | A load test |
-| Settlement through a T-SQL stored procedure, every minute in compose | The documentation rewritten against what was built |
+| The payment lifecycle state machine with every transition tested | A payment's detail page with its audit timeline |
+| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | The service status behind an operator role, and the client's address forwarded to the API |
+| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile | An end-to-end golden path through the composed stack |
+| List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | A load test |
+| A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | The documentation rewritten against what was built |
+| Settlement through a T-SQL stored procedure, every minute in compose | |
 | Merchant login with 30-minute HS256 tokens and rate limits; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy | |
 | JSON logs, OpenTelemetry traces from the request through the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes | |
 | RFC 9457 problem details for every error | |
-| 547 backend tests, 72 frontend unit tests, 34 browser runs, CI, CodeQL, containers, Bicep | |
+| 547 backend tests, 121 frontend unit tests, 49 browser runs, CI, CodeQL, containers, Bicep | |
 | One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
 
 ## Run it

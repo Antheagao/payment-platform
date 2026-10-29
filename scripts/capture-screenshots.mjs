@@ -146,6 +146,21 @@ async function dashboardStills(browser) {
     await shoot(mobile, `dashboard-mobile-${colorScheme}.png`);
     await narrow.close();
   }
+
+  // The payments list over the seeded payments: the table at desktop width, the cards at phone width.
+  const listWide = await signedIn(browser, { ...desktop, colorScheme: "light", reducedMotion: "reduce" });
+  const list = await listWide.newPage();
+  await list.goto(`${dashboard}/payments`);
+  await list.locator("tbody tr").first().waitFor();
+  await shoot(list, "dashboard-payments.png");
+  await listWide.close();
+
+  const listNarrow = await signedIn(browser, { ...phone, colorScheme: "dark", reducedMotion: "reduce" });
+  const cards = await listNarrow.newPage();
+  await cards.goto(`${dashboard}/payments`);
+  await cards.getByRole("main").getByRole("listitem").first().waitFor();
+  await shoot(cards, "dashboard-payments-mobile.png");
+  await listNarrow.close();
 }
 
 /** Stops the database, then the API, recording the first and taking a still of each. */

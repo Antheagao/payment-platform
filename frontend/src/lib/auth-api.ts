@@ -22,7 +22,10 @@ export type CurrentUserResult =
   | { kind: "signed_out"; expired: boolean }
   | { kind: "unavailable" };
 
-const timeout = () => AbortSignal.timeout(5_000);
+// Sign-in may wait on the password hash; who is signed in is asked on every page, so it gives up sooner, like
+// the readiness probes, and a slow API costs a page no more than they do.
+const signInTimeout = () => AbortSignal.timeout(5_000);
+const currentUserTimeout = () => AbortSignal.timeout(3_000);
 
 /** Exchanges an email and password for an access token. Never throws. */
 export async function signIn(email: string, password: string): Promise<SignInResult> {
@@ -33,7 +36,7 @@ export async function signIn(email: string, password: string): Promise<SignInRes
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
       cache: "no-store",
-      signal: timeout(),
+      signal: signInTimeout(),
     });
   } catch {
     return { kind: "unavailable" };
@@ -67,7 +70,7 @@ export async function getCurrentUser(token: string): Promise<CurrentUserResult> 
     response = await fetch(`${apiOrigin}/api/v1/me`, {
       headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
-      signal: timeout(),
+      signal: currentUserTimeout(),
     });
   } catch {
     return { kind: "unavailable" };

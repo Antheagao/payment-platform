@@ -40,6 +40,17 @@ The dashboard's server made the call and keeps the token in an `HttpOnly` cookie
 
 - Every response carries a Content-Security-Policy with a nonce made for that request, and only scripts with it run: in the developer tools, each `<script>` has a `nonce` that changes on every reload ([ADR 009](decisions/009-strict-csp-with-per-request-rendering.md)).
 
+Select **View payments** (or **Payments** in the header): the 280 sample payments, newest first, 25 to a page, each amount in its currency's own form (`£44.00`, `¥76,000`, `A$1,012.07`).
+
+![The payments list: created time, reference, card, status, and amount, newest first](images/dashboard-payments.png)
+
+- Open **Filters**, tick **Failed** and **Refunded**, choose **USD**, and apply: the address becomes `/payments?status=failed&status=refunded&currency=USD`, so the view is a link, and the panel says **3 active**.
+- An amount filter needs a currency (JPY has no minor unit), so **Amount from** without one is marked and nothing is asked of the API until it is fixed.
+- **Older payments** follows the API's cursor and keeps every filter; a reference prefix that matches nothing says so, with a way to clear it.
+- At phone width the rows become cards and the filters stay folded until opened.
+
+![The payments list at phone width in the dark scheme](images/dashboard-payments-mobile.png)
+
 **The point:** the dashboard is accessible and responsive, shows the running system honestly, and keeps the session out of reach of script in the browser.
 
 ## 3. Errors are a contract
@@ -285,7 +296,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 ## 9. Where it goes next
 
 - A replay for dead-lettered deliveries, and alert rules on the queue gauges.
-- The payment pages that show the sample data and a payment's timeline (T27, T28), and the status panel behind an operator role (T26b).
+- A payment's own page with its timeline (T28), and the status panel behind an operator role (T26b).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 
 ## Remake the images
