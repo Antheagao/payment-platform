@@ -110,13 +110,15 @@ public sealed class PeriodicJobTests : IDisposable
     }
 
     [Fact]
-    public async Task The_outbox_dispatcher_runs_every_second_untraced_and_the_hourly_cleanup_traced()
+    public async Task The_every_second_jobs_run_untraced_and_the_slower_ones_traced()
     {
         var scopes = _services.GetRequiredService<IServiceScopeFactory>();
         var telemetry = new WorkerTelemetry(MeterFactory);
         PeriodicJob[] jobs =
         [
             new DispatchOutboxJob(scopes, _clock, telemetry, NullLogger<DispatchOutboxJob>.Instance),
+            new DeliverWebhooksJob(scopes, _clock, telemetry, NullLogger<DeliverWebhooksJob>.Instance),
+            new SettlePaymentsJob(scopes, _clock, telemetry, NullLogger<SettlePaymentsJob>.Instance),
             new DeleteExpiredIdempotencyKeysJob(scopes, _clock, telemetry, NullLogger<DeleteExpiredIdempotencyKeysJob>.Instance),
         ];
         var priorities = new Dictionary<string, object?>();
@@ -125,7 +127,7 @@ public sealed class PeriodicJobTests : IDisposable
             ShouldListenTo = source => source.Name == WorkerTelemetry.Name,
             Sample = (ref ActivityCreationOptions<ActivityContext> options) =>
             {
-                if (options.Name is "job dispatch-outbox" or "job delete-expired-idempotency-keys")
+                if (options.Name.StartsWith("job ", StringComparison.Ordinal) && options.Name != "job test-job")
                 {
                     priorities[options.Name] = options.Tags?.FirstOrDefault(tag => tag.Key == TraceSampling.PriorityTag).Value;
                 }
@@ -141,8 +143,10 @@ public sealed class PeriodicJobTests : IDisposable
             await job.RunGuardedAsync(_cancellation);
         }
 
-        Assert.Equal(TimeSpan.FromSeconds(1), jobs[0].Interval);
+        Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(1), TimeSpan.FromHours(1)], jobs.Select(job => job.Interval));
         Assert.Equal(0, priorities["job dispatch-outbox"]);
+        Assert.Equal(0, priorities["job deliver-webhooks"]);
+        Assert.Null(priorities["job settle-payments"]);
         Assert.Null(priorities["job delete-expired-idempotency-keys"]);
     }
 

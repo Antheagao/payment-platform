@@ -127,7 +127,7 @@ Their ids are fixed, so these read back the same on every machine:
 | Payment | Shows |
 | --- | --- |
 | `019a2c00-0000-7000-8000-000000001004` (`INV-1004`) | The whole lifecycle: `pending`, `authorized`, `captured`, `settled` by the `system` actor `settlement`, then `refunded` |
-| `019a2c00-0000-7000-8000-000000001016` (`INV-1016`) | `captured`, waiting for settlement |
+| `019a2c00-0000-7000-8000-000000001016` (`INV-1016`) | `captured`, until the worker's first settlement run settles it with the stack's other captured payments, within a minute of the start |
 | `019a2c00-0000-7000-8000-000000001025` (`INV-1025`) | `authorized`, ready to capture |
 | `019a2c00-0000-7000-8000-000000001006` (`INV-1006`) | `failed` with `card_declined` |
 | `019a2c00-0000-7000-8000-000000001023` (`INV-1023`) | `pending`: the acquirer never answered |
@@ -154,8 +154,12 @@ curl -s -X POST http://localhost:5080/api/v1/payments/019a2c00-0000-7000-8000-00
 
 Each answers `200` with the payment and one more history row.
 Repeat the capture with the same key and it replays (`Idempotent-Replayed: true`); repeat it with a new key and it is `409 payment_not_capturable`, because the lifecycle is the second line of defense.
-Capturing `INV-1006` (failed) or `INV-1016` (already captured) is the same `409`; refunding `INV-1001` (settled) works.
+Capturing `INV-1006` (failed) or `INV-1016` (captured, and settled since) is the same `409`; refunding `INV-1001` (settled) works.
 These change the sample data; `docker compose down -v` and a fresh start bring it back.
+
+A captured payment does not stay captured: every minute the worker runs the stored procedure `payments.SettleCapturedPayments`, which settles the payments captured more than a minute before (a day, outside compose) in one set-based batch, with their audit rows and `payment.settled` events in the same transaction.
+Capture `INV-1026` (`019a2c00-0000-7000-8000-000000001026`, another authorized one) and leave it; read it a minute or two later and its `history` ends `captured` to `settled` by the `system` actor `settlement`, and the receiver's `/events` has its `payment.settled`.
+The worker's log reports each batch by currency, as in `Settled 18 USD payments for 1288192 minor units`.
 In the Aspire dashboard, the request's trace shows the insert, the `acquirer authorize` call, and the second save as children of `POST /api/v1/payments`, and step 6 follows it into the worker.
 
 Each status change is also an event for the merchant, sent as a signed webhook.

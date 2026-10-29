@@ -176,6 +176,10 @@ namespace PaymentPlatform.Persistence.Migrations
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
 
+                    b.HasIndex("UpdatedAt")
+                        .HasDatabaseName("IX_Payments_Captured")
+                        .HasFilter("[Status] = 'Captured'");
+
                     b.HasIndex("MerchantId", "MerchantReference");
 
                     b.HasIndex("MerchantId", "CreatedAt", "Sequence")

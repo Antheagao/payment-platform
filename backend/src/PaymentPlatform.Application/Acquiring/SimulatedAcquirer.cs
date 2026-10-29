@@ -53,13 +53,13 @@ public sealed class SimulatedAcquirer(IOptions<SimulatedAcquirerOptions> options
     private Task WaitForNetworkAsync(CancellationToken cancellationToken) =>
         _latency == TimeSpan.Zero ? Task.CompletedTask : Task.Delay(_latency, timeProvider, cancellationToken);
 
-    private static Activity? Start(string operation, Guid paymentId)
-    {
-        var activity = ApplicationTelemetry.ActivitySource.StartActivity($"acquirer {operation}", ActivityKind.Client);
-        activity?.SetTag("payment.id", paymentId);
-        activity?.SetTag("acquirer.name", "simulated");
-        return activity;
-    }
+    // The tags go in at the start, so a sampler or a listener sees them as the span begins.
+    private static Activity? Start(string operation, Guid paymentId) =>
+        ApplicationTelemetry.ActivitySource.StartActivity(
+            $"acquirer {operation}",
+            ActivityKind.Client,
+            parentContext: default,
+            tags: [new("payment.id", paymentId), new("acquirer.name", "simulated")]);
 
     private static AcquirerResponse Finish(Activity? activity, AcquirerResponse response)
     {

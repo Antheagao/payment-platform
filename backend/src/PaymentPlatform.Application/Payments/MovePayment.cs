@@ -27,14 +27,19 @@ public static class PaymentErrors
 /// if the network approves. A decline or no answer leaves the payment exactly as it was.
 /// </summary>
 /// <remarks>
-/// Two requests moving the same payment at once both pass the state check; the payment's row version lets only
-/// the first save, and the second gets the lifecycle's conflict, as if it had arrived a moment later. The
-/// acquirer call is idempotent by payment id, so the loser's call moved no money twice.
+/// Two writers can change a payment between this move's read and its save; the row version catches it, and the
+/// move is tried again against the payment as it now is. If the move is still legal it is saved: the acquirer
+/// approved it, so it must be recorded (a refund racing settlement refunds a settled payment). If not, it is the
+/// lifecycle's conflict, as if it had arrived a moment later; two captures or two refunds end that way, and since
+/// the acquirer call is idempotent by payment id, the loser's call moved no money twice.
 /// </remarks>
 public abstract partial class MovePayment(PaymentsDbContext db, IAcquirer acquirer, TimeProvider timeProvider, ILogger logger)
 {
     /// <summary>The operation's name in codes and logs: <c>capture</c>, <c>refund</c>.</summary>
     protected abstract string Operation { get; }
+
+    // A payment changes a handful of times in its life, so a few rereads always reach a stable state.
+    private const int MaxSaveAttempts = 3;
 
     protected abstract PaymentStatus Target { get; }
 
@@ -66,22 +71,32 @@ public abstract partial class MovePayment(PaymentsDbContext db, IAcquirer acquir
                 return PaymentErrors.AcquirerUnavailable;
         }
 
-        var moved = Apply(payment, Actor.MerchantUser(caller.UserId.Value), timeProvider.GetUtcNow());
-        if (!moved.IsSuccess)
+        for (var attempt = 1; ; attempt++)
         {
-            return moved.Error;
-        }
+            var moved = Apply(payment, Actor.MerchantUser(caller.UserId.Value), timeProvider.GetUtcNow());
+            if (!moved.IsSuccess)
+            {
+                return moved.Error;
+            }
 
-        db.RecordChanges(payment, caller.CorrelationId);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // Another request moved the payment between this one's read and its save.
-            var current = await db.Payments.AsNoTracking().SingleAsync(candidate => candidate.Id == id, cancellationToken);
-            return PaymentLifecycle.InvalidTransition(current.Status, Target);
+            db.RecordChanges(payment, caller.CorrelationId);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                break;
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < MaxSaveAttempts)
+            {
+                // Another writer changed the payment between this move's read and its save: read it again.
+                db.ChangeTracker.Clear();
+                payment = await db.Payments.SingleAsync(candidate => candidate.Id == id, cancellationToken);
+                if (!PaymentLifecycle.CanTransition(payment.Status, Target))
+                {
+                    return PaymentLifecycle.InvalidTransition(payment.Status, Target);
+                }
+
+                LogRetried(logger, Operation, payment.Id, payment.Status);
+            }
         }
 
         LogMoved(logger, Operation, payment.Id, caller.MerchantId);
@@ -98,6 +113,9 @@ public abstract partial class MovePayment(PaymentsDbContext db, IAcquirer acquir
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Payment {PaymentId} of merchant {MerchantId}: {Operation} done")]
     private static partial void LogMoved(ILogger logger, string operation, PaymentId paymentId, MerchantId merchantId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Payment {PaymentId} changed to {Status} during the {Operation}; the {Operation} is saved against its new state")]
+    private static partial void LogRetried(ILogger logger, string operation, PaymentId paymentId, PaymentStatus status);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Payment {PaymentId}: the acquirer declined the {Operation} ({DeclineCode})")]
     private static partial void LogDeclined(ILogger logger, string operation, PaymentId paymentId, string declineCode);

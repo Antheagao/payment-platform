@@ -7,24 +7,22 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), and signed webhook delivery (T23c) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), and settlement (T24) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T24. Settlement
+### T25. Domain and queue metrics
 
-The second asynchronous workflow and the stored-procedure requirement (ADR 003's settlement decision; R9's second half).
-- **The procedure.** `payments.SettleCapturedPayments @Now, @SettleBefore, @BatchSize` in a migration: in one transaction, `UPDATE TOP (@BatchSize)` the `Captured` payments captured before `@SettleBefore` to `Settled` (`WITH (UPDLOCK, READPAST, ROWLOCK)`, the row version changing as EF expects), `OUTPUT` into a table variable, then insert their `PaymentEvents` rows (actor `system` `settlement`) and their `payment.settled` `OutboxMessages` rows, the payload built with `FOR JSON PATH` in exactly the shape `OutboxMessage.For` writes; it returns the batch's count and amount per currency, for reconciliation.
-- **The job.** `settle-payments` every minute (traced: once a minute is not noise), `Settlement:Delay` (one minute in compose, so the demo shows it; a day's cut-off in production), draining batches; it logs each batch's counts and totals, and the outbox rows carry the job span's `traceparent`.
-- **Why a procedure here, when the rest is EF:** settlement is set-based work over many rows, which is what T-SQL is for; the domain's rule (only `Captured` to `Settled`) is restated in the `WHERE`, and a test holds the two to each other.
-- Gate: a payment settles once however often the job runs or however many workers run it; a capture or refund racing settlement on one payment leaves a legal history (row version or `READPAST`); the procedure's payload equals the C# one for the same payment, field by field; every `Settled` payment has exactly one settled audit row and one outbox event; the totals it reports match a query over the settled rows; the demo shows `INV-1016` settling about a minute after the stack starts and its webhook arriving.
+R19 and R20 (ADR 005): the numbers an operator watches, read back through the OpenTelemetry pipeline in tests and shown in the Aspire dashboard.
+- **`PaymentPlatform.Payments` meter.** `payments.transitions` (counter, by `from` and `to` status) recorded after a save commits, from the changes `RecordChanges` turned into rows, plus settlement's count per batch from the procedure's totals; `payments.amount` (histogram of minor units by currency and status) only if it stays cheap.
+- **`PaymentPlatform.Outbox` meter.** Observable gauges from one small query every collection, cached for a few seconds: undispatched outbox depth and the oldest one's age, pending deliveries due now and the oldest due one's age (lag), and dead letters in total; counters for delivery attempts by outcome (`delivered`, `retried`, `dead_lettered`, `gone`) and for settlement batches.
+- Gate: each instrument read back through the in-memory exporter after the action that moves it (create, capture, refund, settle, a failed and a dead-lettered delivery); the gauges match a direct query; names and units follow the OpenTelemetry conventions; a screenshot of the queue lag in the Aspire dashboard; `docs/architecture.md`'s observability table matches what exists.
 
 ### Then
 
-- **T25. Domain and queue metrics.** Payments created, captured, refunded, failed by state; outbox depth, oldest-pending lag, retries, dead letters.
 - **T26. Dashboard login.** Login form, the JWT held in an HttpOnly cookie on the Next.js server, sign-out, expiry handling, and a nonce-based CSP from `proxy.ts`; the home page's service status moves behind an operator role, and merchants get a single banner when payments are delayed (docs/tradeoffs.md).
 - **T27. Payments list.** Filters and search bound to the URL, pagination, empty and error states.
 - **T28. Payment detail.** Amounts, status, and the audit timeline.

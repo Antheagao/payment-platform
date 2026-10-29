@@ -33,6 +33,12 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.HasIndex(nameof(Payment.MerchantId), nameof(Payment.Status), nameof(Payment.CreatedAt), Sequence);
         builder.HasIndex(payment => new { payment.MerchantId, payment.MerchantReference });
 
+        // Settlement's queue (payments.SettleCapturedPayments): captured payments by when they were captured, which
+        // is their last change; small, because a payment leaves it once settled or refunded.
+        builder.HasIndex(payment => payment.UpdatedAt)
+            .HasFilter("[Status] = 'Captured'")
+            .HasDatabaseName("IX_Payments_Captured");
+
         builder.Property(payment => payment.Id)
             .HasConversion(id => id.Value, value => new PaymentId(value))
             .ValueGeneratedNever();

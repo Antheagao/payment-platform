@@ -6,6 +6,7 @@ using PaymentPlatform.Application.Auth;
 using PaymentPlatform.Application.Cards;
 using PaymentPlatform.Application.Idempotency;
 using PaymentPlatform.Application.Payments;
+using PaymentPlatform.Application.Settlement;
 using PaymentPlatform.Application.Webhooks;
 using PaymentPlatform.Domain.Merchants;
 
@@ -50,6 +51,11 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddSingleton(Random.Shared);
         HttpWebhookSender.AddTo(services);
         services.AddScoped<DeliverWebhooks>();
+        services.AddOptions<SettlementOptions>()
+            .BindConfiguration(SettlementOptions.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddScoped<SettlePayments>();
         return services;
     }
 }

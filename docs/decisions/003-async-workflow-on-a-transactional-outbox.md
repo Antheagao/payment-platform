@@ -49,3 +49,8 @@ The Azure design must map onto services the team already runs (Service Bus, Func
   The claim is `UPDATE` over a `TOP` with `UPDLOCK, READPAST, ROWLOCK` setting a one-minute lease; each outcome is saved only while that lease stands (it is a concurrency token), so a worker whose lease ran out mid-send never overwrites the one that took over.
   A disabled endpoint's pending deliveries are dead-lettered without being sent, like a `410 Gone`, rather than held for the endpoint to come back.
   The sender connects only to addresses the SSRF rules allow, resolved in its own connection callback, and follows no redirects.
+- 2026-10-29: settlement as built (T24).
+  `payments.SettleCapturedPayments` takes a batch of payments captured before `@CapturedBefore` (`UPDLOCK, READPAST, ROWLOCK` over the filtered index `IX_Payments_Captured`), moves them to `Settled`, and writes their audit rows and `payment.settled` events in the same transaction, the payload in exactly the shape the C# outbox writes; it returns the batch's count and amount per currency, which the job logs for reconciliation.
+  The worker's `settle-payments` job runs it every minute, after `Settlement:Delay` (a day by default, a minute in compose).
+  A capture or refund that read a payment before settlement changed it now re-reads it and saves against the new state when the move is still legal, because the acquirer has already approved it: a refund racing settlement refunds the settled payment.
+  The migration runs the procedure's `CREATE` through `EXEC`, because an idempotent migration script wraps each step in `IF NOT EXISTS (...)`, where a bare `CREATE PROCEDURE` is a syntax error; the script needs `sqlcmd -I` (`QUOTED_IDENTIFIER ON`), which filtered indexes require.

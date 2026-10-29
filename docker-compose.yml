@@ -121,6 +121,8 @@ services:
       OTEL_SERVICE_NAME: payment-worker
       ConnectionStrings__Payments: *payments-connection
       Webhooks__LocalReceiverHosts__0: *webhook-receiver-allowed
+      # Captured payments settle a minute after capture, so the demo shows it; production waits for a daily cut-off.
+      Settlement__Delay: "00:01:00"
     ports:
       - "127.0.0.1:${WORKER_PORT:-5081}:8080"
 
