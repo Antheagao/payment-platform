@@ -25,7 +25,7 @@ The payment features are next, in the order the exercise weighs them; [requireme
 ## Run it
 
 One command, with nothing to set up first: no `.env`, no SDKs, no accounts.
-You need Git and Docker.
+You need Git and Docker ([Prerequisites](#prerequisites) has the downloads).
 
 ```sh
 git clone https://github.com/Antheagao/payment-platform.git
@@ -33,7 +33,8 @@ cd payment-platform
 docker compose up --build
 ```
 
-The first run downloads the images and packages and builds the three services; later runs start in under a minute.
+The first run downloads the images and packages and builds the three services: about a minute and a half on a CI runner, a few minutes on a home connection.
+Later runs start in under a minute.
 To run it in the background instead, use `docker compose up --build -d --wait`, then `sh scripts/check-stack.sh`, which waits until every service answers and prints where to open each one.
 
 | Open | For |
@@ -47,9 +48,59 @@ To run it in the background instead, use `docker compose up --build -d --wait`, 
 Every port binds to 127.0.0.1, and each can move: if one is taken, copy `.env.example` to `.env` and set its variable, such as `DASHBOARD_PORT=3090`.
 SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 
+### If something goes wrong
+
+| What you see | What to do |
+| --- | --- |
+| `port is already allocated` (another container) or `ports are not available` (another program) | Something else uses that port: set the matching variable in `.env` (`DASHBOARD_PORT`, `API_PORT`, `WORKER_PORT`, `SQL_PORT`, `ASPIRE_DASHBOARD_PORT`, `OTLP_PORT`) |
+| `Cannot connect to the Docker daemon`, or on Windows `open //./pipe/dockerDesktopLinuxEngine` | Docker is not running: start Docker Desktop (or the Docker service) and run the command again |
+| `sqlserver` restarts or never turns healthy | Give Docker at least 4 GB of memory; on Apple silicon, turn on "Use Rosetta for x86_64/amd64 emulation" in Docker Desktop's settings |
+| The dashboard badge says "API not ready" | The API runs but its database does not answer yet: `docker compose ps -a`, then `docker compose logs sqlserver` |
+| The dashboard badge says "API unreachable" | The API is not running: `docker compose logs api` |
+| `Login failed for user 'sa'` after changing `MSSQL_SA_PASSWORD` | That password is set only when the database volume is created: `docker compose down -v`, then start again |
+
+## Prerequisites
+
+To run it, only Git and Docker:
+
+| Download | Version | Windows | macOS | Linux |
+| --- | --- | --- | --- | --- |
+| [Git](https://git-scm.com/downloads) | Any recent | `winget install --id Git.Git -e` | `brew install git` | Your package manager |
+| [Docker](https://docs.docker.com/get-started/get-docker/) with Compose v2 | Docker Desktop 4, or Docker Engine 24 or later with the compose plugin | `winget install --id Docker.DockerDesktop -e` | `brew install --cask docker-desktop` | [Docker Engine](https://docs.docker.com/engine/install/) |
+
+Give Docker at least 4 GB of memory (SQL Server needs 2 GB) and leave about 5 GB of disk for the images and the build.
+Everything else, from the SQL Server and Aspire images to every NuGet and npm package, is downloaded by `docker compose`.
+
+To work on the code, also:
+
+| Download | Version | Windows | macOS | Linux |
+| --- | --- | --- | --- | --- |
+| [.NET SDK](https://dotnet.microsoft.com/download/dotnet/10.0) | 10.0.100 or later in the 10.0 line (`backend/global.json`) | `winget install --id Microsoft.DotNet.SDK.10 -e` | `brew install --cask dotnet-sdk` | [Install .NET on Linux](https://learn.microsoft.com/dotnet/core/install/linux) |
+| [Node.js](https://nodejs.org/en/download) | 22, as CI and the image use (22 or later works) | `winget install --id OpenJS.NodeJS.22 -e` | `brew install node@22` | [Node.js downloads](https://nodejs.org/en/download) |
+| Playwright's Chromium | For `npm run e2e` | `npx playwright install chromium`, from `frontend/` | The same | `npx playwright install --with-deps chromium` |
+| [Bicep CLI](https://learn.microsoft.com/azure/azure-resource-manager/bicep/install) | Optional, to validate `infra/` | `winget install --id Microsoft.Bicep -e` | `brew install azure/bicep/bicep` | The release binary |
+
+`dotnet restore` and `npm ci` fetch the packages; the integration tests start their own SQL Server through Docker.
+
+## Free to run
+
+Nothing here needs a paid service, an account, or a cloud subscription.
+
+| Piece | Cost |
+| --- | --- |
+| SQL Server 2025, Developer edition (`MSSQL_PID=Developer`) | Free; licensed for development and test, not production |
+| Aspire dashboard (traces, metrics, logs) | Free and open source |
+| .NET 10, Node.js, Next.js, and every NuGet and npm package | Free; all open source (MIT, Apache 2.0, and similar), except two native helpers SqlClient brings in under free Microsoft license terms |
+| The card acquirer | Simulated inside the API: no payment-provider account and no real card numbers |
+| Docker | Docker Engine (Linux, and what CI runs) is free and open source; Docker Desktop is free for personal use, education, non-commercial open source, and businesses with fewer than 250 employees and under $10 million in revenue ([license](https://docs.docker.com/subscription/desktop-license/)), and larger organizations need a paid subscription for it |
+| CI: GitHub Actions, CodeQL, Dependabot | Free for public repositories |
+| Azure | Not needed: the Bicep is validated offline and never deployed |
+
+Any runtime that provides `docker compose` v2 should work; Docker Desktop and Docker Engine are the ones tested.
+
 ## Develop
 
-You need the .NET 10 SDK, Node 22, and Docker.
+You need the .NET 10 SDK, Node 22, and Docker ([Prerequisites](#prerequisites)).
 
 ```sh
 # Infrastructure only: SQL Server, the database bootstrap, the Aspire dashboard

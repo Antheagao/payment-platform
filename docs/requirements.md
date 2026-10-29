@@ -53,8 +53,8 @@ Added by the repository's owner on 2026-10-28, for demos and for reviewers who d
 | Id | Requirement | Where it lives | Task | Status |
 | --- | --- | --- | --- | --- |
 | O1 | One command starts everything, with no setup | `docker compose up --build`; passwords and ports have defaults; the CI `stack` job runs it on a clean runner | T33 | Done |
-| O2 | Every download it needs is listed | [README.md](../README.md#prerequisites) | T34 | Planned |
-| O3 | Fully functional without any paid service | [README.md](../README.md#free-to-run) | T34 | Planned |
+| O2 | Every download it needs is listed | README, Prerequisites: to run, Git and Docker; to develop, the .NET SDK, Node.js 22, Playwright's Chromium, and optionally Bicep; each with its official page and a verified `winget` and Homebrew command | T34 | Done |
+| O3 | Fully functional without any paid service | README, Free to run: every piece and its cost, with Docker Desktop's license limit and the free Docker Engine; every package license checked | T34 | Done |
 | O4 | Loads sample data and sample dashboards for a demo | A demo guide for what runs today; sample payments arrive with the payment features | T35 | Planned |
 
 ## Documentation deliverables
