@@ -21,9 +21,9 @@ The backend is complete against the exercise's requirements; the dashboard signs
 | Built | Planned next |
 | --- | --- |
 | The payment lifecycle state machine with every transition tested | The service status behind an operator role |
-| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | |
-| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile; from the API or from a payment's page in the dashboard | A load test |
-| List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | The documentation rewritten against what was built |
+| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | The documentation rewritten against what was built |
+| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile; from the API or from a payment's page in the dashboard | |
+| List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | |
 | A payment's page in the dashboard: its details and its audit timeline, each change with who made it, when, and its correlation id | |
 | A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | |
 | Settlement through a T-SQL stored procedure, every minute in compose | |
@@ -32,6 +32,7 @@ The backend is complete against the exercise's requirements; the dashboard signs
 | RFC 9457 problem details for every error | |
 | 557 backend tests, 152 frontend unit tests, 70 browser runs, and a golden path through the whole composed stack in CI (sign in, a payment's history, capture, refund, the signed webhooks); CodeQL, containers, Bicep | |
 | One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
+| A [load test](docs/load-test.md) with k6 on the composed stack: 2,000 requests a second within the objectives on one machine, and the worker named as the first bottleneck | |
 
 ## Run it
 
@@ -190,7 +191,7 @@ The API owns every rule and writes each state change, its audit row, and its out
 | `backend/` | The .NET solution: `src/` (Domain, Persistence, Application, ServiceDefaults, Api, Worker) and `tests/` |
 | `frontend/` | The Next.js dashboard |
 | `infra/` | Bicep for the Azure shape, validated in CI and never deployed |
-| `docs/` | Architecture, requirements, assumptions, tradeoffs, production considerations, decision records |
+| `docs/` | Architecture, requirements, assumptions, tradeoffs, production considerations, the load test, decision records |
 | `notes/` | The rotating past, present, and future notes the work is planned from |
 | `scripts/` | The documentation and contrast checks, the stack check, the screenshot capture, and the local database bootstrap |
 | `.claude/` | Agent configuration and the engineering guides the code follows |
@@ -203,6 +204,7 @@ The API owns every rule and writes each state change, its audit row, and its out
 - [Assumptions](docs/assumptions.md): what we decided where the brief was open.
 - [Tradeoffs](docs/tradeoffs.md): what we chose and what we gave up.
 - [Production considerations](docs/production.md): what changes before real money.
+- [Load test](docs/load-test.md): the numbers on one machine, and where the stack gives first.
 - [Future improvements](docs/future-improvements.md): what we would build with more time.
 - [Decision records](docs/decisions/README.md): the choices that are hard to reverse.
 - [Infrastructure](infra/README.md): the Azure resources and what a deployment would add.

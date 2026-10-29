@@ -145,8 +145,8 @@ Card numbers, CVVs, tokens, passwords, and secrets never reach a log line: reque
 ## Scaling
 
 - The API is stateless (JWT, no session affinity), so it scales horizontally behind a load balancer.
-- The worker scales by adding instances; row claiming with `READPAST` keeps them from colliding.
-- List queries use keyset pagination over `(MerchantId, CreatedAt, Id)` indexes, so page cost stays flat as the table grows.
+- The worker scales by adding instances; row claiming with `READPAST` keeps them from colliding, and a second worker halved the webhook backlog in the [load test](load-test.md), where the worker was the first thing to fall behind.
+- List queries use keyset pagination over the clustered `(MerchantId, CreatedAt, Sequence)` index, so page cost stays flat as the table grows: 2 ms at the p95 up to 700 requests a second in the load test.
 - Beyond one database's write capacity, the outbox relay moves to Azure Service Bus and consumers become Service Bus-triggered functions; search moves to a read replica or a search index fed from the same events.
 
 ## Running in Azure (validated, never deployed)

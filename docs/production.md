@@ -38,7 +38,8 @@ The Azure shape is already written down in [infra/](../infra/README.md); this pa
 
 - The API is stateless and scales out behind the load balancer; the worker scales by instance count, because outbox and delivery rows are claimed with `UPDLOCK, READPAST`.
 - Beyond one database's write capacity, the outbox relays to Service Bus and consumers move to Service Bus-triggered Azure Functions; search moves to a read replica or a search index fed by the same events.
-- A k6 load test against the composed stack (T31) sets the first real numbers and names the first bottleneck.
+- The [load test](load-test.md) on the composed stack: the API met its objectives up to 600 checkouts a second (about 2,000 requests a second) on one machine, and the webhooks fell behind first, at the single worker; a second worker bounded the backlog, and SQL Server's CPU, shared by everything, is the ceiling after that.
+  So production starts with two worker instances and an alert on `webhook.deliveries.lag`, and the outbox's relay to Service Bus is the step that takes the queue off the database.
 
 ## Operations
 

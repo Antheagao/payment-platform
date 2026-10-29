@@ -418,3 +418,10 @@ Update this file when a task lands; keep the present and future notes in sync.
 - `frontend: trace the dashboard's server, joined to the API's traces`: `src/instrumentation.ts` with `@vercel/otel` 2.1.3 and its OpenTelemetry 2.x peers at exact versions (each at least two weeks old; `npm audit` clean), OTLP/HTTP to the Aspire dashboard's port 18890 in compose; `traceparent` only to `API_ORIGIN` and `WORKER_ORIGIN`; health probes left out.
 - Checked on the composed stack after the golden path: the capture and the refund are each one trace of `payment-dashboard` (13 spans), `payment-api` (12), and `payment-worker` (5), from the Server Action to the webhook delivery; page renders join the API's `/me` and list calls.
 - In Azure the dashboard needs an OTLP endpoint (a collector or Azure Monitor's OTLP ingestion); recorded in `infra/README.md`.
+
+## 2026-10-29: the load test (T31)
+
+- `test: load-test the composed stack with k6, and name the first bottleneck`: `scripts/load/payments.js` (k6 2.2.0, the `load` compose profile, never started by `docker compose up`), a constant arrival rate of checkouts (create, read, capture every second one, the newest page of the list) against the real API, judged by p95 thresholds; `docs/load-test.md` holds the method, the machine, and the results.
+- Results on one machine (Docker Desktop, 32 CPUs): every threshold met from 20 to 600 checkouts a second (70 to 2,090 requests a second), no failed request; create's p95 from 120 ms (the acquirer's 80 ms plus the API's work) to 294 ms.
+- The first bottleneck is the asynchronous path: at 600 a second the single worker's outbox and delivery queues grew for the whole minute, while it drained 13,800 deliveries in 14 s once the load stopped, because it shares SQL Server with the API. A second worker bounded the backlog at about 7,000 and cleared it within 10 s; SQL Server's CPU (6 to 7.5 cores) is the next limit.
+- Found on the way: `docs/architecture.md` named the list's index `(MerchantId, CreatedAt, Id)`; it is `(MerchantId, CreatedAt, Sequence)`, fixed.
