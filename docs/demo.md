@@ -1,6 +1,6 @@
 # Demo guide
 
-A ten-minute walkthrough of what runs today, in the order that tells the story.
+A fifteen-minute walkthrough of what runs today, in the order that tells the story.
 Each step gives the command, what you will see, and the point it makes.
 Everything here was run against the composed stack; the payment features arrive in the order [notes/future.md](../notes/future.md) ranks them, and this guide grows with them.
 
@@ -64,7 +64,33 @@ That is `405` with `Allow: GET, HEAD`, in the same shape.
 
 **The point:** every error, including the framework's own, is RFC 9457 problem details with a stable `code` a client can switch on, and carries the ids that find it again ([ADR 006](decisions/006-errors-as-problem-details.md)).
 
-## 4. Follow the request in the Aspire dashboard
+## 4. Log in as the demo merchant
+
+Compose seeds one merchant and its dashboard user (`Demo:Seed`, refused in Production):
+
+```sh
+curl -s -X POST http://localhost:5080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo@example.com","password":"LocalOnly_Demo_2026!"}'
+```
+
+The answer is `{"access_token":"eyJ...","token_type":"Bearer","expires_at":"...","expires_in":1800}`: an HS256 token for 30 minutes, with no refresh.
+Send it back as a bearer token:
+
+```sh
+curl -s http://localhost:5080/api/v1/me -H "Authorization: Bearer <access_token>"
+```
+
+That names the user and the merchant (`Demo Merchant`); the merchant id every later call is scoped to comes from the token, never from the request.
+Then the ways it says no:
+
+- No token, or a forged, tampered, or unsigned one: `401` with `code` `unauthorized` and a `WWW-Authenticate: Bearer` challenge; an expired one is `token_expired`, so a client knows to log in again.
+- A wrong password and an unknown email: the same `401 invalid_credentials`, after the same hashing work, so neither the answer nor its timing confirms an account.
+- A sixth attempt for one email within five minutes: `429 rate_limited` with `Retry-After`.
+
+**The point:** a request is validated by signature, issuer, audience, algorithm, and lifetime on every call, with no session lookup, and a login expires by itself ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)).
+
+## 5. Follow the request in the Aspire dashboard
 
 Open `http://localhost:18888/traces/detail/` followed by the `trace_id` from step 3.
 The trace shows the `payment-api` span and how long it took; select it for its attributes, among them `correlation.id`, the status code, and the path.
@@ -80,7 +106,7 @@ The yellow "Endpoint is unsecured" banner is expected: the dashboard runs withou
 
 **The point:** logs, traces, and metrics share one id from the first request, through OpenTelemetry and OTLP ([ADR 005](decisions/005-observability-on-opentelemetry.md)); in Azure the same export goes to Application Insights.
 
-## 5. Take the database away
+## 6. Take the database away
 
 Keep the dashboard open beside the terminal.
 
@@ -115,7 +141,7 @@ To show the other failure, stop the API instead (`docker compose stop api`): the
 
 **The point:** a load balancer routes only to instances that can serve, a restart policy only restarts processes that are stuck, and the dashboard tells a merchant which of the two is happening.
 
-## 6. The code and its gates
+## 7. The code and its gates
 
 With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), from `backend/`:
 
@@ -134,9 +160,9 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 
 **The point:** the habits a payment system needs (tests on a real database, enforced boundaries, a pipeline that proves the run instructions) are in place before the first payment.
 
-## 7. Where it goes next
+## 8. Where it goes next
 
-- Sample payments arrive with the payment features: merchant login (T19), then create, read, capture, refund, and search (T20 to T22).
+- Sample payments arrive with the payment features: create and read (T20), capture and refund (T21), and search (T22), each beside the demo merchant.
   The startup seed will load a demo merchant and payments in every status, each with its audit trail, so this guide can then log in and walk a payment's timeline.
 - The asynchronous workflow: the outbox, signed webhooks with retries and dead-lettering, and settlement (T23, T24).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).

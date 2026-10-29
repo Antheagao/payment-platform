@@ -7,26 +7,26 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-28.
 
-The scaffold (T1 to T18) is complete; its history is in `past.md`.
-The scaffold run stopped here on purpose: the owner asked for the initial structure, and the payment slice below starts the features.
+The scaffold (T1 to T18) and merchant login (T19) are complete; their history is in `past.md`.
+The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T19. Merchant accounts and login
+### T20. Create and read payments
 
-First slice, ready to start:
-- Migration `InitialSchema`: `Merchants` and `MerchantUsers` (email `nvarchar(254)` unique under the default case-insensitive collation, password hash, created time), and `READ_COMMITTED_SNAPSHOT ON` to match Azure SQL (database overlay).
-- `PaymentsDbContext.OnModelCreating` gains `ApplyConfigurationsFromAssembly` with the first `IEntityTypeConfiguration` (it was removed while there were none, because EF Core warns on every start; `StartupTests` keeps a healthy start free of warnings).
-- `Application/Auth/LogIn.cs`: ASP.NET Core Identity's `PasswordHasher`, a dummy-hash comparison for unknown emails, one "email or password is incorrect" error, a JWT per ADR 004 (HS256 pinned, 30 minutes, issuer, audience, `sub`, `merchant_id`, `jti`).
-- `Api/Endpoints/AuthEndpoints.cs`: `POST /api/v1/auth/login`, rate limited per email and per address with `Retry-After`; JwtBearer validation registered for the `/api/v1` group.
-- A development seed (one demo merchant and user) applied with the startup migration, never in production: `Demo:Seed` on in compose only, refused at startup when the environment is Production, idempotent by fixed ids; the demo login's email and password are shown on the login page in Development (T26) and in `docs/demo.md`.
-- Gate: integration tests for success, wrong password, unknown email (same response and similar timing), malformed body, rate limit, an expired token, a tampered token, and a token with another algorithm; the gates in `AGENTS.md`.
+Three slices, each its own commit:
+- **T20a. The payment and its audit trail, created and read.**
+  Tables `Payments` (clustered on `(MerchantId, CreatedAt, Id)`, nonclustered primary key on `Id`, status as `varchar` with a `CHECK`, `AmountMinor bigint`, `Currency char(3)`, card brand, last four, expiry, the acquirer reference and decline code, `rowversion`) and `PaymentEvents` (one row per `PaymentStatusChanged`: from, to, actor kind and id, time, reason, correlation id), written in one transaction by saving the aggregate (Persistence drains `DequeueEvents`).
+  `Application/Payments/CreatePayment.cs`: validates amount, currency, and card fields; tokenizes the card number at the edge with a simulated vault (Luhn check, brand from the prefix, keep only token, brand, last four, expiry; the CVV is passed to the simulated authorization and never stored); saves `Pending`, calls the acquirer outside the transaction, then saves `Authorized` or `Failed` (assumption 7).
+  `GET /api/v1/payments/{id}` scoped to the caller's merchant (another merchant's payment is `404`), with its events.
+  Gate: the five-case checklist for both endpoints, the no-token and another-merchant tests, and the log-capture test over a full create (no card number or CVV in any log line, problem, or stored row).
+- **T20b. Idempotency for create (ADR 007).** `Idempotency-Key` required on `POST /payments`; the stored response replays with `Idempotent-Replayed: true`, `409` while the first request runs, `422` for the same key with a different body; keys kept 24 hours.
+- **T20c. Sample payments.** The demo seed gains payments in every status, created through the domain so each carries a real audit trail, spread over the last 90 days with deterministic amounts and references; `docs/demo.md` gains the step that reads one.
 
 ### Then
 
-- **T20. Create and read payments.** The demo seed gains payments in every status, created through the domain (`Payment.Authorize`, `Capture`, and the rest) so each carries a real audit trail, spread over the last 90 days with deterministic amounts and references. Payments and payment-event (audit) tables, `POST /api/v1/payments` with `Idempotency-Key`, `GET /api/v1/payments/{id}`, merchant scoping (another merchant's payment is a 404), card tokenization at the edge with the simulated vault, the simulated authorization, and the log-capture test that proves no card number or CVV is logged.
 - **T21. Capture and refund.** `POST /payments/{id}/capture` and `/refund`, idempotent, every transition audited with actor, time, and correlation id; the demo seed's captured and refunded payments now go through these use cases.
 - **T22. List and search.** Filters by status, date range, amount, and reference; keyset pagination with an opaque cursor; the indexes that serve it; enough seeded payments (a few hundred) that paging shows in the demo.
 - **T23. Outbox and webhook delivery.** Outbox rows written in the same transaction as the state change, a dispatcher claiming rows with `READPAST`, HMAC-signed webhooks, exponential backoff with jitter, a dead-letter state, SSRF rules for merchant URLs, and trace context carried across the hop; the worker's first integration tests.

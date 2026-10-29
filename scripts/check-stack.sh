@@ -1,7 +1,8 @@
 #!/bin/sh
-# Waits until every service of `docker compose up` answers, then prints where to open each one.
-# Exits non-zero if anything is still down after the timeout. CI runs it after starting the stack
-# exactly the way the README says; run it locally the same way: `sh scripts/check-stack.sh`.
+# Waits until every service of `docker compose up` answers, checks that the API and the worker started
+# without a warning, then prints where to open each one. Exits non-zero if anything is still down after
+# the timeout or a start logged a warning. CI runs it after starting the stack exactly the way the
+# README says; run it locally the same way: `sh scripts/check-stack.sh`.
 #
 # Honors the same port variables as docker-compose.yml (DASHBOARD_PORT, API_PORT, and the rest),
 # from the environment or from .env. CHECK_STACK_TIMEOUT sets the wait in seconds (default 180).
@@ -44,6 +45,17 @@ wait_for() {
   done
 }
 
+# startup_warnings SERVICE: the Warning, Error, and Critical lines SERVICE logged in its current start,
+# up to "Application started". Later lines (an outage you caused on purpose) are not a start's fault.
+startup_warnings() {
+  id=$(docker compose ps -q "$1" 2>/dev/null)
+  [ -n "$id" ] || return 0
+  since=$(docker inspect -f '{{.State.StartedAt}}' "$id")
+  docker compose logs --no-log-prefix --since "$since" "$1" 2>/dev/null |
+    awk '/Application started/ { exit } { print }' |
+    grep -E '"LogLevel":"(Warning|Error|Critical)"' || true
+}
+
 echo "Waiting up to ${timeout}s for the stack:"
 failed=0
 wait_for "API ready" "$api/health/ready" 200 || failed=1
@@ -52,6 +64,20 @@ wait_for "OpenAPI document" "$api/openapi/v1.json" 200 '"openapi"' || failed=1
 wait_for "Dashboard" "$dashboard/" 200 'API ready' || failed=1
 # The Aspire dashboard redirects / to its first page.
 wait_for "Aspire dashboard" "$aspire/" 302 || failed=1
+
+for service in api worker; do
+  warnings=$(startup_warnings "$service")
+  if [ -n "$warnings" ]; then
+    printf '  FAIL  %-18s logged warnings while starting:
+' "$service start"
+    printf '%s
+' "$warnings" | cut -c1-400 | sed 's/^/          /'
+    failed=1
+  else
+    printf '  ok    %-18s %s
+' "$service start" "no warnings"
+  fi
+done
 
 if [ "$failed" -ne 0 ]; then
   echo "Something is down: \`docker compose ps -a\` and \`docker compose logs <service>\` say why."

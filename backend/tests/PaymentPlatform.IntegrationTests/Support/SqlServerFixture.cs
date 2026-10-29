@@ -30,8 +30,11 @@ public sealed class SqlServerFixture : IAsyncLifetime
             InitialCatalog = $"t_{Guid.NewGuid():N}",
         }.ConnectionString;
 
-        var options = new DbContextOptionsBuilder<PaymentsDbContext>().UseSqlServer(connectionString).Options;
-        await using var db = new PaymentsDbContext(options);
+        // The API's own provider settings, so the migration history lands where the API looks for it
+        // (payments.__EFMigrationsHistory) and readiness sees no pending migration.
+        var options = new DbContextOptionsBuilder<PaymentsDbContext>();
+        PersistenceServiceCollectionExtensions.Configure(options, connectionString);
+        await using var db = new PaymentsDbContext(options.Options);
         await db.Database.MigrateAsync(cancellationToken);
         return connectionString;
     }

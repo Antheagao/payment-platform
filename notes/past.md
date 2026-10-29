@@ -232,3 +232,18 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Lesson: OpenTelemetry's meter listener is process-wide, so an in-memory exporter in one `WebApplicationFactory` also sees the requests of test classes running in parallel; the first run counted three 404s for two. The tests assert lower bounds and absence by route.
 - Gate: locked restore, format, Release build, 174 tests green three runs in a row; docs.
 
+## 2026-10-28: merchant accounts and login (T19)
+
+- `backend: add merchant accounts, login with short-lived JWTs, and the demo merchant`: R1 and R7 are done on the API side; the dashboard's sign-in is T26.
+  - Domain `Merchants/` (`Merchant`, `MerchantUser`); Persistence configurations and the migrations `InitialSchema` and `EnableReadCommittedSnapshot`; Application `Auth/` (`LogIn`, `GetCurrentUser`, `PasswordVerifier`) and `Demo/DemoSeed`; Api `Auth/` (JwtBearer, `TokenIssuer`, `CallerClaims`, `LoginThrottle`, options) and `Endpoints/AuthEndpoints.cs` (`POST /api/v1/auth/login`, `GET /api/v1/me`).
+  - 57 new tests (15 domain, 42 integration); two deliberate mutations (allowing HS512, skipping the dummy hash) each failed a test.
+- Found on the way:
+  - The test fixture migrated with plain `UseSqlServer`, so the history went to `dbo.__EFMigrationsHistory` while the API reads `payments.__EFMigrationsHistory`: with the first real migration, readiness reported it pending and the startup migration tried to create `Merchants` twice. The fixture now uses the API's provider settings.
+  - The sealed-class architecture rule flagged EF's generated migration classes; `Migrations/` is now `generated_code` in `.editorconfig` and skipped by the rule.
+  - In the Linux container, the first start logged three warnings that no test saw: EF Core's warning for a migration that mixes a non-transactional operation (read committed snapshot) with transactional ones, and Data Protection's two warnings about unpersisted, unencrypted keys (on Windows the keys are stored and DPAPI-protected, so the tests stayed quiet). The snapshot setting moved to its own migration, Data Protection is at `Error` because the API protects nothing with it, and `check-stack.sh` now fails on any warning before "Application started", so CI's stack job catches this class.
+  - 400s for unreadable bodies and 415s had no `detail`, and 429s had no `type` (RFC 9110 does not define 429); both are filled in.
+- Lessons:
+  - Minimal APIs throw on a body that does not bind when the environment is Development (`RouteHandlerOptions.ThrowOnBadRequest`); it is off, so every environment answers `400`.
+  - `docker compose up --wait` returns before a .NET service listens (they have no container healthcheck); scripts wait for `/health/ready`.
+- Gate: format, locked restore, Release build, 231 backend tests green three runs in a row; from an empty compose volume, `check-stack.sh` green with no startup warnings, and the demo guide's new step 4 run as written.
+

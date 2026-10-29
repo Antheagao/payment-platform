@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PaymentPlatform.Domain.Merchants;
 
 namespace PaymentPlatform.Persistence;
 
@@ -13,10 +14,15 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
 {
     public const string Schema = "payments";
 
+    public DbSet<Merchant> Merchants => Set<Merchant>();
+
+    public DbSet<MerchantUser> MerchantUsers => Set<MerchantUser>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
         modelBuilder.HasDefaultSchema(Schema);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(PaymentsDbContext).Assembly);
     }
 }

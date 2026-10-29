@@ -39,10 +39,12 @@ public sealed class TypeRuleTests
         Assert.Empty(fields);
     }
 
-    // Types a person wrote: closures, iterators, and other compiler output follow their own rules.
+    // Types a person wrote: closures, iterators, and other compiler output follow their own rules, and so do
+    // the migrations EF Core scaffolds (the files .editorconfig marks as generated code).
     private static IEnumerable<Type> WrittenTypes(Assembly assembly) =>
         assembly.GetTypes().Where(type =>
             !type.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false)
+            && type.Namespace != "PaymentPlatform.Persistence.Migrations"
             && !type.Name.Contains('<', StringComparison.Ordinal)
             && (type.DeclaringType is null || !type.DeclaringType.Name.Contains('<', StringComparison.Ordinal)));
 }

@@ -20,13 +20,13 @@ Project facts only; the generic module, port, and ADR rules live in the global `
 | Project | Key files |
 | --- | --- |
 | `Domain` | `Payments/Payment.cs` (the aggregate), `Payments/PaymentLifecycle.cs` (the transition table), `Monetary/Money.cs`, `Result.cs`, `Actor.cs` |
-| `Persistence` | `PaymentsDbContext.cs`, `PersistenceServiceCollectionExtensions.cs` (`AddPersistence`), `DatabaseHealthCheck.cs`, `PaymentsDbContextFactory.cs` |
-| `Application` | `ApplicationServiceCollectionExtensions.cs` (`AddApplication`), `Acquiring/` (`IAcquirer`, `SimulatedAcquirer`), `ApplicationTelemetry.cs` |
+| `Persistence` | `PaymentsDbContext.cs` (`Merchants`, `MerchantUsers`), `Configurations/`, `Migrations/` (`InitialSchema`, `EnableReadCommittedSnapshot`), `PersistenceServiceCollectionExtensions.cs` (`AddPersistence`), `DatabaseHealthCheck.cs`, `DatabaseMigrator.cs`, `PaymentsDbContextFactory.cs` |
+| `Application` | `ApplicationServiceCollectionExtensions.cs` (`AddApplication`), `Acquiring/` (`IAcquirer`, `SimulatedAcquirer`), `Auth/` (`LogIn`, `GetCurrentUser`, `PasswordVerifier`), `Demo/DemoSeed.cs`, `ApplicationTelemetry.cs` |
 | `ServiceDefaults` | `ServiceDefaultsExtensions.cs` (`AddServiceDefaults`, `UseCorrelationIds`, `MapDefaultEndpoints`), `CorrelationIds.cs`, `HealthResponseWriter.cs` |
-| `Api` | `Program.cs`, `Endpoints/ApiRoutes.cs`, `Errors/`, `SecurityHeadersMiddleware.cs` |
+| `Api` | `Program.cs`, `Auth/` (`AuthenticationSetup`, `JwtOptions`, `TokenIssuer`, `CallerClaims`, `LoginThrottle`, `LoginRateLimitOptions`), `Endpoints/ApiRoutes.cs`, `Endpoints/AuthEndpoints.cs`, `Errors/`, `SecurityHeadersMiddleware.cs` |
 | `Worker` | `Program.cs`, `Jobs/PeriodicJob.cs` (the loop), `Jobs/WorkerTelemetry.cs`, `Jobs/JobsServiceCollectionExtensions.cs` |
 
-No use case, endpoint resource, table, or job exists yet; the queue in `notes/future.md` (T19 onward) adds them.
+The domain also has `Merchants/` (`Merchant`, `MerchantUser`, and their ids). Login and the caller lookup are the only use cases and endpoints so far, and no job exists yet; the queue in `notes/future.md` (T20 onward) adds them.
 
 ## Where new work goes
 
@@ -43,6 +43,10 @@ No use case, endpoint resource, table, or job exists yet; the queue in `notes/fu
 | `ConnectionStrings:Payments` | API, worker | Required at startup; environment or user secrets locally (compose connects as `payments_app`, never `sa`), Key Vault in Azure |
 | `Database:MigrateOnStartup` | API only | `true` only in compose; deployments migrate in the pipeline |
 | `Acquirer:Simulated:LatencyMilliseconds` | API, worker | 0 to 5000, validated at startup |
+| `Jwt:SigningKey` | API | Base64, 32 bytes or more; Key Vault in Azure (`Jwt__SigningKey`); unset, Development generates one per process and every other environment refuses to start; compose passes `JWT_SIGNING_KEY` from `.env`, empty by default |
+| `Jwt:Issuer`, `Jwt:Audience`, `Jwt:LifetimeMinutes` | API | Defaults `payment-platform-api`, `payment-platform`, and 30 (1 to 60) |
+| `Auth:LoginRateLimit:PerEmailPermits`, `PerEmailWindow`, `PerAddressPermits`, `PerAddressWindow` | API | Defaults 5 per 5 minutes and 60 per minute, validated at startup |
+| `Demo:Seed` | API only | `true` only in compose; refused in Production |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` | API, worker | Export only when the endpoint is set; the service name defaults to the assembly name (compose sets `payment-api` and `payment-worker`) |
 | `ASPNETCORE_ENVIRONMENT` | API, worker | `Development` enables OpenAPI and disables HSTS |
 

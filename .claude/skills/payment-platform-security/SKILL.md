@@ -22,6 +22,11 @@ ADR 004 (authentication) and `docs/assumptions.md` (card data) come first.
 - Supply chain: NuGet audit of transitive packages fails the build at any severity; lock files are restored in locked mode in CI; transitive security pins live in `Directory.Packages.props` with the advisory named.
 - Containers: chiseled runtime images (no shell, no package manager, non-root); compose binds every port to 127.0.0.1; the app connects as `payments_app` (one database) and only the bootstrap uses `sa`.
 - Local passwords: public, local-only defaults in `docker-compose.yml`, so the stack starts with no setup; a gitignored `.env` overrides them. They guard containers reachable only from this machine; Azure has no passwords at all (Entra managed identities, `infra/`), and no other secret may ever get a committed default.
+- Authentication (T19, ADR 004): bearer JWTs validated with HS256 pinned, issuer, audience, signature, and lifetime (30 s skew), claims kept under their JWT names (`MapInboundClaims = false`); the default policy on the `/api/v1` group also requires parseable `sub` and `merchant_id` claims; `CallerClaims` is the only way an endpoint learns who is calling.
+  Passwords: Identity's `PasswordHasher` (PBKDF2-HMAC-SHA512) behind `PasswordVerifier`, which spends the same work on an unknown email; a weaker stored hash is replaced at the next login.
+  Login limits: per email in `LoginThrottle` (5 per 5 minutes, successes included) and per address in the `login-per-address` policy (60 a minute); both answer `429` with `Retry-After`.
+  The signing key `Jwt:SigningKey` has no committed default: generated per process in Development, a startup failure elsewhere (`SigningKeyTests`).
+- Demo login: `demo@example.com` / `LocalOnly_Demo_2026!`, seeded only when `Demo:Seed` is true (compose); the API refuses the setting in Production (`DemoSeedTests`). It is public like the compose passwords, for the same reason.
 - Secrets: none in the repository; the API reads `ConnectionStrings:Payments` from the environment or user secrets (`UserSecretsId` is set), and the EF design-time factory holds no credentials.
 
 ## Card data (PCI mindset)
@@ -33,7 +38,8 @@ ADR 004 (authentication) and `docs/assumptions.md` (card data) come first.
 
 ## Planned, with the task that lands it
 
-- T19: JWT bearer validation (signature, issuer, audience, lifetime, HS256 pinned), passwords with ASP.NET Core Identity's `PasswordHasher`, a dummy hash for unknown emails, login rate limits with `Retry-After`, and no-token and wrong-merchant tests on every protected route.
+- T20: the no-token and another-merchant tests on every payment route, as `AccessTokenTests` does for `/me`.
+- T26: the dashboard forwards the client address (`X-Forwarded-For` from a known proxy only), so the per-address login limit applies per person.
 - T23: webhook URLs are merchant-supplied, so delivery is an SSRF surface: `https` only, resolve the host and refuse private, loopback, and link-local ranges, follow no redirects, 10 s timeout, and sign every body with HMAC-SHA256 over the timestamp and raw bytes.
 - T16: CodeQL for C# and TypeScript, Dependabot, and `npm audit --omit=dev` in CI.
 

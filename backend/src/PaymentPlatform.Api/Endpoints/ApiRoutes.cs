@@ -7,12 +7,13 @@ public static class ApiRoutes
 
     /// <summary>
     /// Maps the versioned API. Each resource adds one <c>Map*Endpoints</c> call on this group from its own
-    /// file in <c>Endpoints/</c>; authentication arrives with the first resource (T19).
+    /// file in <c>Endpoints/</c>. Every endpoint requires a valid access token unless it opts out with
+    /// <c>AllowAnonymous</c>, as only the login does.
     /// </summary>
     public static RouteGroupBuilder MapApiV1(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        return endpoints.MapGroup(V1).WithTags("v1");
+        return endpoints.MapGroup(V1).WithTags("v1").RequireAuthorization();
     }
 }

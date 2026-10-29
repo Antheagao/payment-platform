@@ -29,12 +29,25 @@ public static class ProblemDetailsSetup
             problem.Detail = "an unexpected error occurred; quote the correlation_id when reporting it";
         }
 
-        // Status code pages answer unknown routes and wrong methods with no detail; say which in plain words.
-        problem.Detail ??= status switch
+        // Status code pages answer unknown routes, wrong methods, unreadable bodies, and rate limits with no
+        // detail; say which in plain words. A validation problem lists its fields instead.
+        if (problem is not HttpValidationProblemDetails)
         {
-            StatusCodes.Status404NotFound => "no resource matches this path",
-            StatusCodes.Status405MethodNotAllowed => "this path does not accept that method",
-            _ => null,
-        };
+            problem.Detail ??= status switch
+            {
+                StatusCodes.Status400BadRequest => "the request could not be read; check the JSON body and its Content-Type",
+                StatusCodes.Status404NotFound => "no resource matches this path",
+                StatusCodes.Status405MethodNotAllowed => "this path does not accept that method",
+                StatusCodes.Status415UnsupportedMediaType => "send the body as application/json",
+                StatusCodes.Status429TooManyRequests => "too many requests; try again after Retry-After seconds",
+                _ => null,
+            };
+        }
+
+        // The framework links each status to RFC 9110, which does not define 429; RFC 6585 does.
+        if (status == StatusCodes.Status429TooManyRequests)
+        {
+            problem.Type ??= "https://www.rfc-editor.org/rfc/rfc6585#section-4";
+        }
     }
 }

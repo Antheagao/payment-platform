@@ -91,5 +91,10 @@ dotnet_naming_style.pascal.capitalization = pascal_case
 # Test names are sentences with underscores: Capturing_a_pending_payment_is_rejected.
 dotnet_diagnostic.CA1707.severity = none
 
+# EF Core scaffolds migrations; style analyzers judge hand-written code, not its output. A migration's Up and
+# Down are still reviewed by hand, along with the SQL from `dotnet ef migrations script`.
+[backend/src/PaymentPlatform.Persistence/Migrations/**.cs]
+generated_code = true
+
 [*.{csproj,props,targets,slnx,xml,json}]
 indent_size = 2

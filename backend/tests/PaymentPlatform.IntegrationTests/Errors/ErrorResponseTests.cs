@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using PaymentPlatform.IntegrationTests.Support;
 
 namespace PaymentPlatform.IntegrationTests.Errors;
@@ -17,7 +16,7 @@ public sealed class ErrorResponseTests(SqlServerFixture sqlServer) : ApiTestBase
         using var response = await client.GetAsync(path, Cancellation);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        using var problem = await ReadProblemAsync(response);
+        using var problem = await Problems.ReadAsync(response);
         Assert.Equal("not_found", problem.RootElement.GetProperty("code").GetString());
         Assert.Equal(404, problem.RootElement.GetProperty("status").GetInt32());
     }
@@ -30,7 +29,7 @@ public sealed class ErrorResponseTests(SqlServerFixture sqlServer) : ApiTestBase
         using var response = await client.DeleteAsync("/health/live", Cancellation);
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
-        using var problem = await ReadProblemAsync(response);
+        using var problem = await Problems.ReadAsync(response);
         Assert.Equal("method_not_allowed", problem.RootElement.GetProperty("code").GetString());
     }
 
@@ -44,7 +43,7 @@ public sealed class ErrorResponseTests(SqlServerFixture sqlServer) : ApiTestBase
         using var response = await client.SendAsync(request, Cancellation);
 
         Assert.Equal("merchant-retry-42", Assert.Single(response.Headers.GetValues("X-Correlation-Id")));
-        using var problem = await ReadProblemAsync(response);
+        using var problem = await Problems.ReadAsync(response);
         Assert.Equal("merchant-retry-42", problem.RootElement.GetProperty("correlation_id").GetString());
         Assert.Matches("^[0-9a-f]{32}$", problem.RootElement.GetProperty("trace_id").GetString());
         Assert.False(problem.RootElement.TryGetProperty("traceId", out _), "the camelCase framework field must be gone");
@@ -63,11 +62,5 @@ public sealed class ErrorResponseTests(SqlServerFixture sqlServer) : ApiTestBase
         Assert.Contains("default-src 'none'", Assert.Single(response.Headers.GetValues("Content-Security-Policy")), StringComparison.Ordinal);
         Assert.True(response.Headers.CacheControl?.NoStore, "payment responses must never be cached");
         Assert.False(response.Headers.Contains("Server"));
-    }
-
-    private static async Task<JsonDocument> ReadProblemAsync(HttpResponseMessage response)
-    {
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        return JsonDocument.Parse(await response.Content.ReadAsStringAsync(Cancellation));
     }
 }

@@ -86,6 +86,11 @@ services:
       OTEL_SERVICE_NAME: payment-api
       ConnectionStrings__Payments: *payments-connection
       Database__MigrateOnStartup: "true"
+      # The demo merchant and its login (docs/demo.md); the API refuses this setting in Production.
+      Demo__Seed: "true"
+      # Empty by default: in Development the API then signs tokens with a key it generates at startup, so
+      # logins end when it restarts. Set JWT_SIGNING_KEY in .env to keep them across restarts.
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-}
     ports:
       - "127.0.0.1:${API_PORT:-5080}:8080"
 

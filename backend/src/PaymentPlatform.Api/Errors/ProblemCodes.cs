@@ -16,6 +16,8 @@ public static class ProblemCodes
     public const string UnsupportedMediaType = "unsupported_media_type";
     public const string Unprocessable = "unprocessable";
     public const string RateLimited = "rate_limited";
+    public const string InvalidCredentials = "invalid_credentials";
+    public const string TokenExpired = "token_expired";
     public const string Internal = "internal_error";
     public const string Unavailable = "service_unavailable";
 

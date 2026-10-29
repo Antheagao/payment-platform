@@ -20,7 +20,12 @@
   </ItemGroup>
 
   <ItemGroup Label="Web">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup Label="Identity">
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup Label="Hosting">

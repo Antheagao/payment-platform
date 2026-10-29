@@ -8,13 +8,13 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 
 | Id | Requirement | Where it lives | Task | Status |
 | --- | --- | --- | --- | --- |
-| R1 | A merchant user can log in | `POST /api/v1/auth/login`, [ADR 004](decisions/004-authentication-with-short-lived-jwts.md) | T19 | Planned |
+| R1 | A merchant user can log in | `POST /api/v1/auth/login` (`Api/Endpoints/AuthEndpoints.cs`, `Application/Auth/LogIn.cs`): Identity's PBKDF2 hasher, one answer for an unknown email and a wrong password with the same hashing work, an upgraded hash at the next login, per-email and per-address limits answering `429` with `Retry-After`; `GET /api/v1/me` names the caller; the demo login is seeded in compose; `Auth/LoginTests` | T19 | Done |
 | R2 | Create a payment | `POST /api/v1/payments` | T20 | Planned |
 | R3 | Retrieve a payment's details | `GET /api/v1/payments/{id}` | T20 | Planned |
 | R4 | Capture a payment | `POST /api/v1/payments/{id}/capture` | T21 | Planned |
 | R5 | Refund a payment | `POST /api/v1/payments/{id}/refund` | T21 | Planned |
 | R6 | List and search payments | `GET /api/v1/payments` with filters and a cursor | T22 | Planned |
-| R7 | Payment endpoints require a logged-in merchant; the validation and expiry of a login are explainable | JWT bearer validation, [ADR 004](decisions/004-authentication-with-short-lived-jwts.md) | T19 | Planned |
+| R7 | Payment endpoints require a logged-in merchant; the validation and expiry of a login are explainable | Every `/api/v1` endpoint requires the default policy unless it opts out, as only login does; HS256 pinned, issuer, audience, signature, and a 30-minute lifetime with 30 s of skew ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)); `401 token_expired` tells an expired token apart; the merchant id comes only from the token; `Auth/AccessTokenTests` (missing, expired, forged, tampered, unsigned, HS512, wrong issuer or audience, not yet valid, missing ids, another merchant) | T19 | Done |
 | R8 | Lifecycle `Pending -> Authorized -> Captured -> Settled`, with `Failed` and `Refunded` as terminal branches | `PaymentLifecycle` and `Payment` in `PaymentPlatform.Domain`, every pair tested | T4 | Done |
 | R9 | At least one asynchronous workflow | Webhook delivery over a transactional outbox, plus settlement, [ADR 003](decisions/003-async-workflow-on-a-transactional-outbox.md) | T23, T24 | Planned |
 
@@ -34,7 +34,7 @@ Task ids point at `notes/future.md`; where the brief was ambiguous, the choice i
 | R14 | Structured (JSON) logs | JSON console formatter with scopes in `PaymentPlatform.ServiceDefaults` | T5 | Done |
 | R15 | A correlation id carried from the API through the async workflow | `CorrelationIdMiddleware` (`X-Correlation-Id`); the id and W3C trace context stored on each outbox row | T5, T23 | Scaffolded |
 | R16 | Log levels used deliberately | The policy in [ADR 005](decisions/005-observability-on-opentelemetry.md) (`Error` needs a person, `Warning` is unexpected but handled, `Information` is a business event, `Debug` is off); framework categories at `Warning` in `appsettings.json`; every message through `LoggerMessage` at a chosen level; `StartupTests` asserts a healthy start logs nothing at `Warning` or above. Done once the payment flows log their business events (T20, T21) | T5, T20 | Scaffolded |
-| R17 | No card numbers, CVV, or secrets in logs | Tokenization at the edge, no body logging, a test that greps the captured logs | T5, T20 | Planned |
+| R17 | No card numbers, CVV, or secrets in logs | Tokenization at the edge, no body logging, a test that greps the captured logs: done for login (no password, email, or token in any log line at Trace and up, `LoginTests`); card data with T20 | T5, T19, T20 | Scaffolded |
 | R18 | Request rate, error rate, and latency (RED) | `http.server.request.duration` from the ASP.NET Core and HttpClient instrumentation: its count is the rate, `http.response.status_code` and `error.type` the errors, the histogram the latency; health probes are left out, as they are of the traces; `Telemetry/RequestMetricsTests` reads it back through the OpenTelemetry pipeline; charted in the Aspire dashboard | T5, T40 | Done |
 | R19 | Payments created, captured, refunded, and failed, by state | `PaymentPlatform.Payments` meter | T25 | Planned |
 | R20 | Queue depth, processing lag, retries, and failures for the async workflow | `PaymentPlatform.Outbox` meter | T25 | Planned |

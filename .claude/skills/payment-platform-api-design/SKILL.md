@@ -10,7 +10,9 @@ ADR 006 (errors) and ADR 007 (idempotency) come first.
 
 ## What exists (`backend/src/PaymentPlatform.Api`)
 
-- `Endpoints/ApiRoutes.cs`: `MapApiV1()` creates the `/api/v1` group; no resources yet (auth lands with T19).
+- `Endpoints/ApiRoutes.cs`: `MapApiV1()` creates the `/api/v1` group and requires the default authorization policy on all of it; an endpoint opts out only with `AllowAnonymous`, as login does.
+- `Endpoints/AuthEndpoints.cs`: `POST /api/v1/auth/login` (`{"email", "password"}` to `{"access_token", "token_type": "Bearer", "expires_at", "expires_in"}`; `400` with `errors` codes such as `email_invalid`, `401 invalid_credentials` with `WWW-Authenticate: Bearer`, `429 rate_limited` with `Retry-After`) and `GET /api/v1/me` (`user_id`, `merchant_id`, `email`, `merchant_name`).
+- A missing or rejected token is `401` with `code` `unauthorized`, or `token_expired` for an expired one, and an RFC 6750 `WWW-Authenticate` header; a body that does not bind is `400` in every environment (`ThrowOnBadRequest` is off), and 400, 415, and 429 problems carry a plain `detail`.
   Health stays outside it at `/health/live` and `/health/ready`.
 - JSON: `JsonNamingPolicy.SnakeCaseLower` for properties and enums (`"status": "captured"`); unknown request fields are ignored (System.Text.Json's default).
 - Errors: `Errors/ProblemDetailsSetup.cs` gives every non-2xx response, including unknown routes (404) and wrong methods (405), the RFC 9457 shape with `code`, `correlation_id`, and `trace_id`; `Errors/ProblemCodes.cs` holds the default code per status.

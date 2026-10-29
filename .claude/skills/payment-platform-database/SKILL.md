@@ -9,8 +9,10 @@ The global `database` guide is written for PostgreSQL and sqlx; its principles h
 
 ## What exists
 
-- `PaymentPlatform.Persistence`: `PaymentsDbContext` (default schema `payments`; no entities yet, so it does not scan for configurations, which EF Core warns about on every start when there are none; T19 adds `ApplyConfigurationsFromAssembly` with the first `IEntityTypeConfiguration`), `AddPersistence()` (requires `ConnectionStrings:Payments`, pooled contexts, transient-fault retries, 30 s command timeout, migration history in `payments.__EFMigrationsHistory`), and the `database` readiness check (connects and has no pending migration; its own context options with no retries and 2 s connect and command timeouts; run on the thread pool and abandoned at its 3 s deadline, because SqlClient resolves host names synchronously inside `OpenAsync`).
-- No tables or migrations yet; the first lands with T19.
+- `PaymentPlatform.Persistence`: `PaymentsDbContext` (default schema `payments`; `ApplyConfigurationsFromAssembly` picks up `Configurations/`), `AddPersistence()` (requires `ConnectionStrings:Payments`, pooled contexts, transient-fault retries, 30 s command timeout, migration history in `payments.__EFMigrationsHistory`), and the `database` readiness check (connects and has no pending migration; its own context options with no retries and 2 s connect and command timeouts; run on the thread pool and abandoned at its 3 s deadline, because SqlClient resolves host names synchronously inside `OpenAsync`).
+- Tables: `Merchants` (clustered on `Id`: a handful of rows written once) and `MerchantUsers` (unique `Email` under the case-insensitive collation, `PasswordHash varchar(256)`, a restricting foreign key to `Merchants`).
+- Migrations: `InitialSchema` (the two tables) and `EnableReadCommittedSnapshot` (its only operation, outside a transaction, because EF Core warns when a migration mixes the two); `Migrations/` is marked `generated_code` in `.editorconfig` and skipped by the sealed-class architecture rule.
+- The test fixture migrates with the API's own provider settings (`PersistenceServiceCollectionExtensions.Configure`), so the history lands in `payments.__EFMigrationsHistory` where readiness looks for it; with plain `UseSqlServer` it went to `dbo` and every test saw a pending migration.
 
 ## Migrations
 

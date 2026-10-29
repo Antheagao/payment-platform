@@ -35,3 +35,10 @@ The API should stay stateless so it scales horizontally, and the token must be o
 - Logging out deletes the dashboard cookie; a copied token stays valid until it expires, which is the tradeoff of statelessness.
   If revocation becomes a requirement, a per-user security stamp checked on each request is the smallest step.
 - The signing key is a secret with a rotation story: accept the current and previous key during a rotation window.
+
+## Amendments
+
+- 2026-10-28, as built (T19): the API, not the login use case, issues the token (`Api/Auth/TokenIssuer.cs`); `Application/Auth/LogIn.cs` only decides who the caller is, so the token format stays with the rest of HTTP authentication.
+  The key is `Jwt:SigningKey` (`Jwt__SigningKey` from Key Vault in Azure); with none set, Development generates one at startup and every other environment refuses to start, so no key is ever committed.
+  `GET /api/v1/me` returns the caller for the dashboard; a token whose user no longer exists, or no longer belongs to its merchant, is `401`; a genuine token without both ids is `403`.
+  The per-address login limit is 60 a minute because every dashboard login reaches the API from the dashboard's server; it becomes per person when the dashboard forwards the client address from a known proxy (T26).

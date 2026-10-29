@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PaymentPlatform.Application.Acquiring;
+using PaymentPlatform.Application.Auth;
+using PaymentPlatform.Domain.Merchants;
 
 namespace PaymentPlatform.Application;
 
@@ -20,6 +23,11 @@ public static class ApplicationServiceCollectionExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddSingleton<IAcquirer, SimulatedAcquirer>();
+
+        services.TryAddSingleton<IPasswordHasher<MerchantUser>, PasswordHasher<MerchantUser>>();
+        services.AddSingleton<PasswordVerifier>();
+        services.AddScoped<LogIn>();
+        services.AddScoped<GetCurrentUser>();
         return services;
     }
 }
