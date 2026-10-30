@@ -2,8 +2,9 @@
 # Security updates are not grouped and arrive as soon as an advisory is published.
 #
 # Major versions that must move together with a runtime or a framework are ignored here and upgraded
-# deliberately: Node stays on the 22 LTS line (image and types), TypeScript and ESLint follow what
-# Next.js supports, and the .NET images follow the target framework in Directory.Build.props.
+# deliberately: Node stays on the 22 LTS line (images, compose's included, and types), TypeScript and
+# ESLint follow what Next.js supports, and the .NET images follow the target framework in
+# Directory.Build.props. k6 stays on the version docs/load-test.md was measured with.
 
 version: 2
 updates:
@@ -61,3 +62,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The webhook receiver runs on the same Node line as the dashboard (pull request #9 proposed 25).
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      # The load test's results are k6 2.2.0's; a new k6 comes with a new run of docs/load-test.md.
+      - dependency-name: grafana/k6
