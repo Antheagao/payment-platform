@@ -172,7 +172,7 @@ services:
   # Stands in for a merchant's server: verifies each delivery's signature and lists what arrived
   # (scripts/webhook-receiver.mjs).
   webhook-receiver:
-    image: node:22-bookworm-slim
+    image: node:25-bookworm-slim
     command: ["node", "/app/webhook-receiver.mjs"]
     environment:
       WEBHOOK_SECRET: *demo-webhook-secret
