@@ -1,8 +1,10 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace PaymentPlatform.Persistence;
 
@@ -51,12 +53,18 @@ public static class PersistenceServiceCollectionExtensions
 
     /// <summary>The provider settings, shared with the design-time factory so migrations match runtime.</summary>
     internal static void Configure(DbContextOptionsBuilder options, string connectionString) =>
-        options.UseSqlServer(connectionString, sql =>
-        {
-            UseMigrationsHistory(sql);
-            sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
-            sql.CommandTimeout(30);
-        });
+        options
+            .UseSqlServer(connectionString, sql =>
+            {
+                UseMigrationsHistory(sql);
+                sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+                sql.CommandTimeout(30);
+            })
+            // EF Core logs every failed save at Error before the caller sees it, but several are the design working:
+            // a retry meeting its own idempotency key, a row-version conflict a move or reconciliation re-reads.
+            // A failure nothing handles still reaches Error once, from whoever catches it last: the API's exception
+            // handler or the worker's job runner (ADR 005; ErrorLogTests).
+            .ConfigureWarnings(warnings => warnings.Log((CoreEventId.SaveChangesFailed, LogLevel.Debug)));
 
     /// <summary>
     /// The readiness probe's settings: one attempt, no transient-fault retries, and connect and command

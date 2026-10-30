@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { staffSignInAction } from "@/app/operator/login/actions";
 import { LoginForm } from "@/components/login-form";
 import { Container } from "@/components/ui/container";
@@ -28,9 +27,11 @@ export default async function OperatorLoginPage({ searchParams }: PageProps<"/op
         <h1 className="text-2xl font-semibold tracking-tight text-balance">Operator sign-in</h1>
         <p className="mt-2 text-sm text-pretty text-muted">
           For the platform&apos;s staff. Merchants use{" "}
-          <Link href="/login" className="font-medium text-fg underline underline-offset-4">
+          {/* A full page load, not a client navigation: the header belongs to the area and the session, and the root
+              layout that holds it is kept across client navigations (ADR 011). */}
+          <a href="/login" className="font-medium text-fg underline underline-offset-4">
             the merchant sign-in
-          </Link>
+          </a>
           .
         </p>
         {expired && (

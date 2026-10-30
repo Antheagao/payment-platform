@@ -1,5 +1,4 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 import { staffSignOutAction } from "@/app/operator/login/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { getCurrentStaff } from "@/lib/auth-api";
@@ -16,12 +15,14 @@ export async function StaffMenu() {
   const result = await getCurrentStaff(token);
   if (result.kind === "signed_out") {
     return (
-      <Link
+      // A full page load: the header, which the root layout keeps across client navigations, must render
+      // again for the sign-in page, where it stays quiet.
+      <a
         href="/operator/login?reason=expired"
         className={buttonClasses({ variant: "secondary", size: "sm" })}
       >
         Sign in
-      </Link>
+      </a>
     );
   }
 

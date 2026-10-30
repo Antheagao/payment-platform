@@ -1,5 +1,4 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 import { cache } from "react";
 import { signOutAction } from "@/app/login/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -21,12 +20,14 @@ export async function UserMenu() {
   const result = await currentUser(token);
   if (result.kind === "signed_out") {
     return (
-      <Link
+      // A full page load: the header, which the root layout keeps across client navigations, must render
+      // again for the sign-in page, where it stays quiet.
+      <a
         href="/login?reason=expired"
         className={buttonClasses({ variant: "secondary", size: "sm" })}
       >
         Sign in
-      </Link>
+      </a>
     );
   }
 

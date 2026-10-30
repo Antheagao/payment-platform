@@ -141,6 +141,23 @@ test.describe("operator area", () => {
     ).toContainText("The dead letters could not be read.");
   });
 
+  test("leaves the operator header behind on the way to the merchant sign-in", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "the header's area badge shows from the sm breakpoint");
+    await page.goto("/operator/login");
+    await expect(page.getByRole("banner").getByText("Operator", { exact: true })).toBeVisible();
+
+    await page.getByRole("link", { name: "the merchant sign-in" }).click();
+
+    await expect(page).toHaveURL("/login");
+    await expect(page.getByRole("banner").getByText("Operator", { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("banner").getByText(/API (ready|unreachable|not ready)/),
+    ).toHaveCount(0);
+  });
+
   test("signs out to the staff sign-in", async ({ page, context, baseURL, isMobile }) => {
     test.skip(isMobile, "the same button at every width; once is enough");
     await staffSession(context, baseURL!);

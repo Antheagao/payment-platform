@@ -131,11 +131,18 @@ test.describe("payments list", () => {
   }) => {
     test.skip(isMobile, "the header's sections show from the sm breakpoint");
     await session(context, baseURL!);
-    await page.goto("/payments");
+    // Arriving by a client navigation, as a person does: the header is kept from the page before.
+    await page.goto("/");
+    const section = page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Payments" });
+    await expect(section).not.toHaveAttribute("aria-current");
+    await page.getByRole("link", { name: "View payments" }).click();
 
-    await expect(
-      page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Payments" }),
-    ).toHaveAttribute("aria-current", "page");
+    await expect(page).toHaveURL("/payments");
+    await expect(section).toHaveAttribute("aria-current", "page");
+    await page.getByRole("main").locator("tbody tr").first().getByRole("link").click();
+    await expect(section).toHaveAttribute("aria-current", "true");
   });
 
   test("reaches payments from the home page at any width, and never scrolls sideways", async ({
