@@ -20,8 +20,15 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # The dashboard's tracing (src/instrumentation.ts) moves as one: @vercel/otel pins each OpenTelemetry
+      # package to a range, and a bump of one without the others does not install (the npm group's
+      # pull request #6 failed `npm ci` that way). This group can merge once @vercel/otel supports the
+      # versions it proposes; CI says when.
+      opentelemetry:
+        patterns: ["@opentelemetry/*", "@vercel/otel"]
       npm-minor-and-patch:
         update-types: [minor, patch]
+        exclude-patterns: ["@opentelemetry/*", "@vercel/otel"]
     ignore:
       - dependency-name: "@types/node"
         update-types: [version-update:semver-major]

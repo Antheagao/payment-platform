@@ -468,3 +468,10 @@ Update this file when a task lands; keep the present and future notes in sync.
 - The row assumed each test class spent about 3.5 s migrating its database. Measured: a migration takes about 0.8 s, and a restore of a migrated template's backup about 0.6 s; with the template in place the integration suite took 1 min 15 s, against 1 min 14 s and 1 min 16 s without it.
 - The 0.2 s saved per test disappears across the parallel run, so the change was reverted rather than kept for its complexity; the 3.5 s figure in `notes/present.md` and `docs/tradeoffs.md` is corrected. (Database snapshots were ruled out first: they are read-only.)
 - Queue close-out: no workable row is left. The two rows waiting on the owner (the local SDK update and the Dependabot pull requests) and the parked rows stay in `future.md` with their conditions.
+
+## 2026-10-29: the SDK and the dependency pull requests (owner approved)
+
+- This machine's .NET SDK went from 10.0.101 to 10.0.403 (winget), the band CI uses, so local builds now report what CI's analyzers report; the Release build and `dotnet format` were clean on it.
+- Dependabot had already closed #1 to #5: the four majors are held back by the ignore rules, and #6 replaced #2. #6 failed `npm ci`: it moved `@opentelemetry/api` to 1.10 and `@opentelemetry/instrumentation` to 0.300 but not the rest of the set, which `@opentelemetry/resources` 2.12 and every `@vercel/otel` release up to 2.1.4 refuse.
+  - Its safe half, React and React DOM 19.3.1 (released 2026-10-14), is on `main` with every frontend gate green.
+  - `.github/dependabot.yml` now groups `@opentelemetry/*` with `@vercel/otel`, kept out of the general npm group, so tracing packages only move together; #6 was closed with the reason.

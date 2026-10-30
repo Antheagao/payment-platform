@@ -12,14 +12,9 @@ The owner asked on 2026-10-28 for the loop to run continuously through the requi
 
 ## Now
 
-Every requirement in `docs/requirements.md` is done, and so is every feature row; the queue holds no workable row: what is left is what only the owner can unblock, below, and the parked rows. A new row starts from `docs/future-improvements.md` or the owner's next request.
+Every requirement in `docs/requirements.md` is done, and so is every feature row; the queue holds no workable row and nothing waits on the owner; what is left is the parked rows below. A new row starts from `docs/future-improvements.md` or the owner's next request.
 
 Every feature row also updates `docs/demo.md` with the step that shows it, verified against the composed stack, and a row that changes what a page shows remakes `docs/images/` with `node scripts/capture-screenshots.mjs`.
-
-## Waiting on the owner
-
-- Update this machine's .NET SDK past 10.0.101: CI's 10.0.4xx analyzers caught an unused using, and the container build a `CA1873`, that the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]
-- Five Dependabot pull requests (#1 to #5) from the first scan: #2 groups minor and patch bumps and can merge once CI is green; #1, #3, #4, and #5 are majors the new ignore rules now hold back. [USER-GATED: merging or closing them is the owner's call.]
 
 ## Later: parked
 
