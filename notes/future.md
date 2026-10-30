@@ -14,7 +14,9 @@ The owner asked on 2026-10-28 for the loop to run continuously through the requi
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T26c. The operator view
+### T26c. The operator view [USER-GATED: the owner picks the operator model, asked on 2026-10-29]
+
+Every requirement in `docs/requirements.md` is done; this is the last queued row, and it turns on a product choice: an `operator` role on a merchant user (small, but a merchant's user then sees platform internals across merchants), platform staff as an identity of their own (the sound model, with a second sign-in path to build or Entra ID), or no roles at all and the status panel reworded in a merchant's terms (the README's outage GIF and screenshots would change).
 
 The service status panel shows every merchant the platform's internals (the database, the worker), which only an operator needs.
 - **Roles.** A role on the merchant user (`merchant` or `operator`), seeded for a second demo login, carried in the token as a claim and checked by the API's policies, never by the dashboard alone.
