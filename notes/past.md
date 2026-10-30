@@ -425,3 +425,9 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Results on one machine (Docker Desktop, 32 CPUs): every threshold met from 20 to 600 checkouts a second (70 to 2,090 requests a second), no failed request; create's p95 from 120 ms (the acquirer's 80 ms plus the API's work) to 294 ms.
 - The first bottleneck is the asynchronous path: at 600 a second the single worker's outbox and delivery queues grew for the whole minute, while it drained 13,800 deliveries in 14 s once the load stopped, because it shares SQL Server with the API. A second worker bounded the backlog at about 7,000 and cleared it within 10 s; SQL Server's CPU (6 to 7.5 cores) is the next limit.
 - Found on the way: `docs/architecture.md` named the list's index `(MerchantId, CreatedAt, Id)`; it is `(MerchantId, CreatedAt, Sequence)`, fixed.
+
+## 2026-10-29: the documentation checked against what was built (T30)
+
+- `docs: check the tradeoffs, assumptions, production notes, and future improvements against the code`: each claim read against the code and the tests, not only the other docs.
+- Found and fixed: `docs/architecture.md` said the worker reconciles payments stuck in `Pending`, which nothing does (queued as T41, and marked planned in the architecture, assumptions, and production pages); two sections still headed "planned" were built long ago; the webhook retries were described as lasting about a day, but the schedule's 12 attempts take at most about 3.4 hours; the integration tests were "about 20 seconds" and take about a minute; `future-improvements.md` still listed the dashboard's OpenTelemetry, a nonce-based CSP, and a parallel idempotency test, all built.
+- Checked and still true: the event names (`payment.{status}` from `OutboxMessage`), the full-amount capture and refund, UTC everywhere, and the 30-minute login.

@@ -127,9 +127,11 @@ A third request the same day added:
 | T29 | The golden path through the composed stack, in CI | Done |
 | T29b | Traces that start at the dashboard's server | Done |
 | T31 | Load test with k6, and the first bottleneck named | Done |
-| T26c | The operator view: roles, the status panel for operators, a banner for merchants | Next |
+| T30 | The documentation checked against what was built | Done |
+| T41 | Reconcile payments left `Pending` (found missing in T30) | Next |
+| T26c | The operator view: roles, the status panel for operators, a banner for merchants | Queued |
 
-The scaffold (T1 to T18) is complete; the rest of the payment slice (T26c, T30) is ranked in `future.md`.
+The scaffold (T1 to T18) is complete; the rest of the payment slice (T41, T26c) is ranked in `future.md`.
 
 ## How it runs
 

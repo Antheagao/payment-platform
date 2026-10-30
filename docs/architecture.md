@@ -25,7 +25,7 @@ flowchart LR
 | **Edge proxy** (`infra/edge/Caddyfile`) | The only way to the dashboard: it writes the address each browser connected from into `X-Forwarded-For`, replacing any the browser sent. Caddy in compose; App Service's front end in Azure ([ADR 010](decisions/010-client-address-from-the-dashboard.md)). |
 | **Dashboard** (`frontend/`) | Merchant-facing UI: log in, list and search payments, view a payment and its history. Holds the login token in an HttpOnly cookie on its own server and calls the API from server code only; its server also asks the worker's readiness probe for the home page's service status. |
 | **API** (`backend/src/PaymentPlatform.Api`) | Authenticates merchants, owns every business rule, and writes each state change, its audit entry, and its outbox message in one transaction. |
-| **Worker** (`backend/src/PaymentPlatform.Worker`) | Runs the asynchronous work: dispatches outbox messages into webhook deliveries, delivers webhooks with retries, settles captured payments, and reconciles payments stuck in `Pending`. |
+| **Worker** (`backend/src/PaymentPlatform.Worker`) | Runs the asynchronous work: dispatches outbox messages into webhook deliveries, delivers webhooks with retries, settles captured payments, measures its queues, and deletes expired idempotency keys; reconciling payments stuck in `Pending` is *planned* (T41). |
 | **SQL Server** | The single source of truth: payments, the audit trail, idempotency records, the outbox, and webhook deliveries. |
 | **Simulated acquirer** | A deterministic stand-in for the card network behind a port, so the real integration is one adapter away. |
 | **Observability backend** | Locally the Aspire dashboard receives traces, metrics, and logs over OTLP; in production the same signals go to Application Insights. |
@@ -70,7 +70,7 @@ stateDiagram-v2
 The transition table lives in the Domain project and is the only code allowed to change a payment's status.
 Every transition produces a domain event; when the change is saved, the event becomes one audit row in `PaymentEvents` (who, when, from, to, the correlation id) and one outbox message, in the same transaction as the status change.
 
-## Creating a payment (planned, T20)
+## Creating a payment
 
 ```mermaid
 sequenceDiagram
@@ -87,10 +87,11 @@ sequenceDiagram
 ```
 
 - The acquirer call happens between two short transactions, never inside one, so a slow acquirer cannot hold locks.
-- If the process dies after the acquirer answers, the payment stays `Pending`; the worker's reconciliation job asks the acquirer for the outcome by payment id, which is also the acquirer-side idempotency key.
+- If the acquirer does not answer, or the process dies after it answers, the payment stays `Pending`, visibly, rather than becoming a charge with no record.
+  A reconciliation job that asks the acquirer again by payment id, which is also the acquirer-side idempotency key, is *planned* (T41); until then a `Pending` payment stays as it is.
 - A retry with the same `Idempotency-Key` replays the stored response; a retry while the first is still running gets `409`, and the same key with a different body gets `422` ([ADR 007](decisions/007-idempotency-keys.md)).
 
-## The asynchronous workflow (planned, T23 and T24)
+## The asynchronous workflow
 
 ```mermaid
 sequenceDiagram
@@ -116,7 +117,8 @@ sequenceDiagram
 
 - **Transactional outbox.** The message is written in the same transaction as the change that causes it, so there is never an event without a change or a change without an event ([ADR 003](decisions/003-async-workflow-on-a-transactional-outbox.md)).
 - **Competing consumers.** Rows are claimed with `UPDLOCK, READPAST`, so several worker instances share the load without double-processing; a claim is a lease that expires if the worker dies.
-- **Retries.** Exponential backoff with full jitter from 10 seconds to 1 hour, bounded by attempt count; after the last attempt the delivery is dead-lettered and counted.
+- **Retries.** Exponential backoff with full jitter from 10 seconds to 1 hour, 12 attempts at most (the waits add up to about 3.4 hours at the longest); after the last the delivery is dead-lettered, logged at `Error`, and counted.
+- **Throughput.** One worker kept up to about 400 checkouts a second in the [load test](load-test.md) and fell behind at 600; a second one shared the queues and bounded the backlog.
 - **Trace continuity.** The outbox row stores the W3C `traceparent` and the correlation id of the request that wrote it; the worker restores both, so the webhook delivery appears in the same trace as the API call and its logs carry the same correlation id.
 - **Settlement.** A scheduled job calls a T-SQL stored procedure that moves due `Captured` payments to `Settled` in batches, writing the audit rows and outbox messages set-based in the same transaction.
 

@@ -28,7 +28,8 @@ Each is cheap to revisit; the ones that would be expensive to change have an ADR
 ## The lifecycle
 
 7. **Authorization happens during the create request.**
-   The payment is stored as `Pending` before the acquirer is called and moves to `Authorized` or `Failed` after it answers, so a crash between the two leaves a visible `Pending` row that a reconciliation job can resolve, rather than a charge with no record.
+   The payment is stored as `Pending` before the acquirer is called and moves to `Authorized` or `Failed` after it answers, so a crash between the two, or an acquirer that does not answer, leaves a visible `Pending` row rather than a charge with no record.
+   A job that resolves those rows by asking the acquirer again is planned (T41); today they stay `Pending`.
 8. **Capture is for the full authorized amount**; partial capture is out of scope.
 9. **Refunds are full refunds**, allowed from `Captured` or `Settled`.
    Partial refunds need a refunded amount and a different state model, so they are a future improvement.
@@ -41,7 +42,7 @@ Each is cheap to revisit; the ones that would be expensive to change have an ADR
     Each merchant has one webhook endpoint and a signing secret; receivers deduplicate by the event id.
     Events: `payment.authorized`, `payment.failed`, `payment.captured`, `payment.settled`, `payment.refunded`.
 12. **Retries are bounded.**
-    A delivery that keeps failing is retried with exponential backoff and jitter for about a day, then dead-lettered for a human to inspect and replay.
+    A delivery that keeps failing is tried 12 times with exponential backoff and full jitter, over at most about 3.4 hours, then dead-lettered for a person to inspect; a replay for operators is planned with the operator role (T26c).
 
 ## Operations
 

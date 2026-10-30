@@ -64,7 +64,7 @@ Added by the repository's owner on 2026-10-28, for demos and for reviewers who d
 | --- | --- | --- | --- | --- |
 | D1 | Setup instructions for a local run | [README.md](../README.md), verified from a fresh clone | T18 | Done |
 | D2 | Architectural overview | [architecture.md](architecture.md) | T2 | Done |
-| D3 | Tradeoffs made | [tradeoffs.md](tradeoffs.md) and the ADRs; revisited in T30 | T18, T30 | Done |
-| D4 | Assumptions | [assumptions.md](assumptions.md) | T2, T30 | Done |
-| D5 | Production considerations | [production.md](production.md); revisited in T30 | T18, T30 | Done |
-| D6 | Areas for future improvement | [future-improvements.md](future-improvements.md); revisited in T30 | T18, T30 | Done |
+| D3 | Tradeoffs made | [tradeoffs.md](tradeoffs.md) and the ADRs; checked against the built system on 2026-10-29 (T30) | T18, T30 | Done |
+| D4 | Assumptions | [assumptions.md](assumptions.md); checked against the built system on 2026-10-29 (T30) | T2, T30 | Done |
+| D5 | Production considerations | [production.md](production.md), with the [load test](load-test.md); checked against the built system on 2026-10-29 (T30) | T18, T30, T31 | Done |
+| D6 | Areas for future improvement | [future-improvements.md](future-improvements.md); checked against the built system on 2026-10-29 (T30) | T18, T30 | Done |
