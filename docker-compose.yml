@@ -188,7 +188,7 @@ services:
 
   # The load test (scripts/load/payments.js); only with `--profile load`, never by `docker compose up`.
   load:
-    image: grafana/k6:2.2.0
+    image: grafana/k6:2.3.0
     profiles: ["load"]
     depends_on:
       api:
