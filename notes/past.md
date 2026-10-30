@@ -462,3 +462,9 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Found while capturing the outage: with the database stopped, the failed read of the dead letters took the whole operator page to its error boundary, status panel and all; the list now reports its own failure in place, and a test with the list down holds the panel on screen.
 - Found while testing: Playwright's `addCookies` with a URL puts a cookie on `/` whatever the URL's path, so the test's staff cookie survived sign-out; the helper sets the path as the server does.
 - At 360px the header's **Operator** badge collided with **Sign out**, and the dead letters' ids wrapped; the badge shows from `sm` up, and each id sits under its label at phone width.
+
+## 2026-10-29: the template database, measured and dropped (T42)
+
+- The row assumed each test class spent about 3.5 s migrating its database. Measured: a migration takes about 0.8 s, and a restore of a migrated template's backup about 0.6 s; with the template in place the integration suite took 1 min 15 s, against 1 min 14 s and 1 min 16 s without it.
+- The 0.2 s saved per test disappears across the parallel run, so the change was reverted rather than kept for its complexity; the 3.5 s figure in `notes/present.md` and `docs/tradeoffs.md` is corrected. (Database snapshots were ruled out first: they are read-only.)
+- Queue close-out: no workable row is left. The two rows waiting on the owner (the local SDK update and the Dependabot pull requests) and the parked rows stay in `future.md` with their conditions.
