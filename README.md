@@ -5,7 +5,7 @@
 
 A simplified payment processing platform: a C# / .NET 10 API, a background worker, SQL Server, and a Next.js merchant dashboard.
 
-Merchants log in, create payments, capture and refund them, and search their payment history.
+Merchants log in, create payments, capture and refund them, and search their payment history; the platform's staff have an operator area of their own for the services' health and the webhooks that gave up.
 Every state change is audited, every money-moving call is idempotent, and a single payment's journey can be traced from the API request through the asynchronous settlement and webhook work.
 
 <picture>
@@ -15,26 +15,20 @@ Every state change is audited, every money-moving call is idempotent, and a sing
 
 ## Status
 
-The backend is complete against the exercise's requirements; the dashboard signs merchants in and lists and filters their payments, and a payment's own page is next.
-[requirements.md](docs/requirements.md) shows each requirement's status, and [`notes/future.md`](notes/future.md) is the ranked plan.
+Complete against the exercise's requirements: each one, where it lives, and the tests that hold it are in [requirements.md](docs/requirements.md).
 
-| Built | Planned next |
-| --- | --- |
-| The payment lifecycle state machine with every transition tested | |
-| Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | The documentation rewritten against what was built |
-| Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile; from the API or from a payment's page in the dashboard | |
-| List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | |
-| A payment's page in the dashboard: its details and its audit timeline, each change with who made it, when, and its correlation id | |
-| A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | |
-| Settlement through a T-SQL stored procedure, every minute in compose | |
-| Reconciliation of payments the acquirer did not answer for: asked again, moved on, or failed after a day | |
-| Platform staff as an identity of their own, with their own sign-in, a `staff` policy no merchant token passes, and an operator area in the dashboard: the service status and the dead-letter replay | |
-| Merchant login with 30-minute HS256 tokens and rate limits per email and per person's address; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy, behind an edge proxy | |
-| JSON logs, OpenTelemetry traces from the dashboard's server through the API and the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes | |
-| RFC 9457 problem details for every error | |
-| 586 backend tests, 171 frontend unit tests, 82 browser runs, and a golden path through the whole composed stack in CI (sign in, a payment's history, capture, refund, the signed webhooks); CodeQL, containers, Bicep | |
-| One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
-| A [load test](docs/load-test.md) with k6 on the composed stack: 2,000 requests a second within the objectives on one machine, and the worker named as the first bottleneck | |
+- The payment lifecycle state machine, every one of its 36 status pairs tested.
+- Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice.
+- Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile; from the API or from a payment's page in the dashboard.
+- List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard.
+- A payment's page in the dashboard: its details and its audit timeline, each change with who made it, when, and its correlation id.
+- The asynchronous work: a transactional outbox, signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters; settlement through a T-SQL stored procedure; and reconciliation of payments the acquirer did not answer for.
+- Merchant login with 30-minute HS256 tokens and rate limits per email and per person's address; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy, behind an edge proxy.
+- Platform staff as an identity of their own, with their own sign-in, a `staff` policy no merchant token passes, and an operator area: the service status and the dead-letter replay.
+- JSON logs, OpenTelemetry traces from the dashboard's server through the API and the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes, and RFC 9457 problem details for every error.
+- 586 backend tests, 171 frontend unit tests, 82 browser runs, and a golden path through the whole composed stack in CI (sign in, a payment's history, capture, refund, the signed webhooks); CodeQL, containers, and Bicep validated, never deployed.
+- One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status.
+- A [load test](docs/load-test.md) with k6 on the composed stack: 2,000 requests a second within the objectives on one machine, and the worker named as the first bottleneck.
 
 ## Run it
 
@@ -53,16 +47,18 @@ To run it in the background instead, use `docker compose up --build -d --wait`, 
 
 | Open | For |
 | --- | --- |
-| <http://localhost:3080> | The merchant dashboard |
+| <http://localhost:3080> | The merchant dashboard: sign in with `demo@example.com` and `LocalOnly_Demo_2026!` |
+| <http://localhost:3080/operator> | The operator area, for platform staff: `operator@example.com` and `LocalOnly_Operator_2026!` |
 | <http://localhost:5080/openapi/v1.json> | The API's OpenAPI document |
 | <http://localhost:5080/health/ready> and <http://localhost:5081/health/ready> | API and worker readiness |
 | <http://localhost:18888> | The Aspire dashboard: traces, metrics, and structured logs from every service |
 | <http://localhost:8090/events> | The webhook receiver standing in for the demo merchant's server: the signed events it verified |
 
+Both logins are public, local-only defaults seeded by compose, and the sign-in pages show them; the API refuses to seed them in Production.
 For a guided tour of what to show and what each step proves, follow the [demo guide](docs/demo.md).
 
 `docker compose down` stops everything and keeps the database; `docker compose down -v` deletes it too.
-Every port binds to 127.0.0.1, and each can move: if one is taken, copy `.env.example` to `.env` and set its variable, such as `DASHBOARD_PORT=3090`.
+Every port binds to 127.0.0.1, and each can move: if one is taken, copy `.env.example` to `.env` and set its variable, such as `DASHBOARD_PORT=3180`.
 SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 
 ### If something goes wrong
@@ -72,9 +68,9 @@ SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 | `port is already allocated` (another container) or `ports are not available` (another program) | Something else uses that port: set the matching variable in `.env` (`DASHBOARD_PORT`, `API_PORT`, `WORKER_PORT`, `SQL_PORT`, `ASPIRE_DASHBOARD_PORT`, `OTLP_PORT`) |
 | `Cannot connect to the Docker daemon`, or on Windows `open //./pipe/dockerDesktopLinuxEngine` | Docker is not running: start Docker Desktop (or the Docker service) and run the command again |
 | `sqlserver` restarts or never turns healthy | Give Docker at least 4 GB of memory; on Apple silicon, turn on "Use Rosetta for x86_64/amd64 emulation" in Docker Desktop's settings |
-| The dashboard badge says "API not ready" and the Database tile "Unavailable" | The API runs but its database does not answer yet: `docker compose ps -a`, then `docker compose logs sqlserver` |
+| The operator area's badge says "API not ready" and the Database tile "Unavailable" | The API runs but its database does not answer yet: `docker compose ps -a`, then `docker compose logs sqlserver` |
 | The operator area's badge says "API unreachable", or a merchant's home page says payments are delayed | The API is not running: `docker compose logs api` |
-| The Background worker tile says "Unreachable" | The worker is not running: `docker compose logs worker` |
+| The operator area's Background worker tile says "Unreachable" | The worker is not running: `docker compose logs worker` |
 | `Login failed for user 'sa'` after changing `MSSQL_SA_PASSWORD` | That password is set only when the database volume is created: `docker compose down -v`, then start again |
 
 ## A look around
@@ -164,6 +160,7 @@ dotnet format --verify-no-changes
 npm ci
 npm run dev                     # http://localhost:3080
 npm run typecheck && npm run lint && npm test && npm run e2e
+npm run e2e:stack               # the golden path, with the whole stack running (docker compose up)
 ```
 
 To run the API or worker with `dotnet run`, point `ConnectionStrings__Payments` at the compose database: `Server=localhost,14333;Database=payments;User Id=payments_app;Password=LocalOnly_App_2026!;TrustServerCertificate=True`.
@@ -174,7 +171,7 @@ The full list of gates is in [AGENTS.md](AGENTS.md); CI runs exactly those.
 
 ```mermaid
 flowchart LR
-    user([Merchant]) --> edge[Edge<br/>Caddy]
+    user([Merchant or operator]) --> edge[Edge<br/>Caddy]
     edge --> web[Dashboard<br/>Next.js 16]
     web -->|server side, JWT| api[API<br/>ASP.NET Core]
     api --> db[(SQL Server)]
@@ -183,7 +180,7 @@ flowchart LR
     api & worker & web -.->|OTLP| otel[Aspire dashboard]
 ```
 
-The API owns every rule and writes each state change, its audit row, and its outbox message in one transaction; the worker turns outbox messages into webhook deliveries and settles captured payments.
+The API owns every rule and writes each state change, its audit row, and its outbox message in one transaction; the worker turns outbox messages into webhook deliveries, settles captured payments, and reconciles payments the acquirer did not answer for.
 [architecture.md](docs/architecture.md) walks through the components, the lifecycle, the request and async flows, and the observability seams.
 
 ## Repository
