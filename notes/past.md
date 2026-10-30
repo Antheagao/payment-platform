@@ -451,3 +451,14 @@ Update this file when a task lands; keep the present and future notes in sync.
   - 20 new integration tests; mutations that let a token claiming a merchant pass the staff policy, or that passed every token, failed them.
 - Checked on the composed stack: the staff login, `403` both ways, a delivery dead-lettered by hand listed with its host, replayed, and delivered by the worker within a second, and the replay's log line.
 - Found on the way: `sqlcmd` writes to a table with filtered indexes only with `-I`; the demo's command carries it.
+
+## 2026-10-29: the operator area in the dashboard (T26d)
+
+- `frontend: give platform staff an operator area, and merchants one line about the platform`: `/operator/login` (the merchant login's form, through `signInFromForm`, against the staff route) with `pp_staff_session` on `/operator` only; `/operator` with the service status panel moved from the merchant's home page and the dead letters with **Replay**; the header marks the area and shows the API badge there only; `src/proxy.ts` keeps each area to its own session.
+  - A merchant's home page shows **Payments are delayed** when the API is not ready, and nothing of the database or the worker; the payments error page no longer points merchants at a status they cannot see.
+  - `scripts/check-stack.sh` checks the API badge on `/operator/login`; the golden path signs in as the operator too; the capture script signs in as each kind and makes `operator-*.png` and `dashboard-home.png` in place of the old home-page images, and the outage from the operator area.
+  - 19 new Vitest tests and 8 Playwright checks; the stub answers the staff routes.
+- Found on the way: a query on the operator area's home (`/operator?tab=x`) lost its query on the way to sign-in; the proxy now keeps `next` whenever there is a query.
+- Found while capturing the outage: with the database stopped, the failed read of the dead letters took the whole operator page to its error boundary, status panel and all; the list now reports its own failure in place, and a test with the list down holds the panel on screen.
+- Found while testing: Playwright's `addCookies` with a URL puts a cookie on `/` whatever the URL's path, so the test's staff cookie survived sign-out; the helper sets the path as the server does.
+- At 360px the header's **Operator** badge collided with **Sign out**, and the dead letters' ids wrapped; the badge shows from `sm` up, and each id sits under its label at phone width.

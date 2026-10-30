@@ -9,8 +9,8 @@ Merchants log in, create payments, capture and refund them, and search their pay
 Every state change is audited, every money-moving call is idempotent, and a single payment's journey can be traced from the API request through the asynchronous settlement and webhook work.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
-  <img alt="The merchant dashboard: live readiness for the payments API, its database, and the background worker, above the payment lifecycle drawn as four steps with its two terminal branches" src="docs/images/dashboard-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/operator-dark.png">
+  <img alt="The dashboard's operator area: live readiness for the payments API, its database, and the background worker, above the dead-lettered webhooks an operator can replay" src="docs/images/operator-light.png">
 </picture>
 
 ## Status
@@ -20,7 +20,7 @@ The backend is complete against the exercise's requirements; the dashboard signs
 
 | Built | Planned next |
 | --- | --- |
-| The payment lifecycle state machine with every transition tested | The operator area in the dashboard: the service status and the dead-letter replay for staff only |
+| The payment lifecycle state machine with every transition tested | |
 | Create and read payments: the card tokenized at the edge, authorized by the simulated acquirer, every change in the audit trail, and idempotency keys so a retry never charges twice | The documentation rewritten against what was built |
 | Capture and refund, checked against the lifecycle before the card network is called, and saved against the payment's new state if it changed meanwhile; from the API or from a payment's page in the dashboard | |
 | List and search: keyset pages and filters by status, date, amount, currency, and reference, in the API and in the dashboard | |
@@ -28,11 +28,11 @@ The backend is complete against the exercise's requirements; the dashboard signs
 | A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | |
 | Settlement through a T-SQL stored procedure, every minute in compose | |
 | Reconciliation of payments the acquirer did not answer for: asked again, moved on, or failed after a day | |
-| Platform staff as an identity of their own, with their own sign-in, a `staff` policy no merchant token passes, and the dead-letter replay | |
+| Platform staff as an identity of their own, with their own sign-in, a `staff` policy no merchant token passes, and an operator area in the dashboard: the service status and the dead-letter replay | |
 | Merchant login with 30-minute HS256 tokens and rate limits per email and per person's address; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy, behind an edge proxy | |
 | JSON logs, OpenTelemetry traces from the dashboard's server through the API and the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes | |
 | RFC 9457 problem details for every error | |
-| 584 backend tests, 152 frontend unit tests, 70 browser runs, and a golden path through the whole composed stack in CI (sign in, a payment's history, capture, refund, the signed webhooks); CodeQL, containers, Bicep | |
+| 584 backend tests, 171 frontend unit tests, 80 browser runs, and a golden path through the whole composed stack in CI (sign in, a payment's history, capture, refund, the signed webhooks); CodeQL, containers, Bicep | |
 | One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
 | A [load test](docs/load-test.md) with k6 on the composed stack: 2,000 requests a second within the objectives on one machine, and the worker named as the first bottleneck | |
 
@@ -73,7 +73,7 @@ SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 | `Cannot connect to the Docker daemon`, or on Windows `open //./pipe/dockerDesktopLinuxEngine` | Docker is not running: start Docker Desktop (or the Docker service) and run the command again |
 | `sqlserver` restarts or never turns healthy | Give Docker at least 4 GB of memory; on Apple silicon, turn on "Use Rosetta for x86_64/amd64 emulation" in Docker Desktop's settings |
 | The dashboard badge says "API not ready" and the Database tile "Unavailable" | The API runs but its database does not answer yet: `docker compose ps -a`, then `docker compose logs sqlserver` |
-| The dashboard badge says "API unreachable" | The API is not running: `docker compose logs api` |
+| The operator area's badge says "API unreachable", or a merchant's home page says payments are delayed | The API is not running: `docker compose logs api` |
 | The Background worker tile says "Unreachable" | The worker is not running: `docker compose logs worker` |
 | `Login failed for user 'sa'` after changing `MSSQL_SA_PASSWORD` | That password is set only when the database volume is created: `docker compose down -v`, then start again |
 
@@ -81,16 +81,16 @@ SQL Server's image is built for x64 and runs under emulation on Apple silicon.
 
 Every image here is a real capture of the composed stack, made by `node scripts/capture-screenshots.mjs`.
 
-Stopping SQL Server and starting it again: the dashboard follows on its own every 5 seconds and says which piece is down.
+Stopping SQL Server and starting it again: the operator area follows on its own every 5 seconds and says which piece is down, while a merchant's home page says only that payments are delayed.
 The API stays up but reports not ready, so a load balancer would stop sending it traffic, and nothing restarts.
 
 ![The service status panel as SQL Server stops and starts again: the API and the worker turn Not ready and the database Unavailable, then all three return to Ready](docs/images/outage.gif)
 
-The same page on a phone, in both color schemes; the design tokens follow the operating system, and a script holds every color pair to its contrast target.
+The operator area on a phone, in both color schemes; the design tokens follow the operating system, and a script holds every color pair to its contrast target.
 
 | Light | Dark |
 | --- | --- |
-| <img src="docs/images/dashboard-mobile-light.png" alt="The dashboard at phone width in the light scheme" width="300"> | <img src="docs/images/dashboard-mobile-dark.png" alt="The dashboard at phone width in the dark scheme" width="300"> |
+| <img src="docs/images/operator-mobile-light.png" alt="The operator area at phone width in the light scheme" width="300"> | <img src="docs/images/operator-mobile-dark.png" alt="The operator area at phone width in the dark scheme" width="300"> |
 
 A payment's own page, opened from the list: its card and references beside its audit trail, each change with who made it (here the `settlement` job among them), when, and its correlation id; an authorized payment offers **Capture**, a captured or settled one **Refund…**, each sent with an idempotency key.
 

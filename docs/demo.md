@@ -29,15 +29,24 @@ A wrong password says so and keeps the email; the sixth attempt for one email wi
 The 21st attempt from one address within a minute is refused too, whatever the emails: the page comes through a Caddy edge that writes the address it saw, and the dashboard passes that on to the API under a key only the two share, so a browser cannot dodge the limit by sending its own `X-Forwarded-For` ([ADR 010](decisions/010-client-address-from-the-dashboard.md)).
 The dashboard's server made the call and keeps the token in an `HttpOnly` cookie: in the browser's developer tools, `document.cookie` does not show it, and no request from the page goes to the API.
 
-![The merchant dashboard with all three services ready](images/dashboard-light.png)
+![The merchant's home page: the way in to the payments and the lifecycle legend](images/dashboard-home.png)
 
-- The header names the merchant and offers **Sign out**; the badge beside it reads **API ready**.
-  The dashboard's server asked the API's readiness probe; the browser never talks to the API and never sees its address or a token ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)).
-- **Service status** has a tile for the payments API, its database as the API reports it, and the background worker, each with its readiness and a measured time: the round trip from the dashboard's server, or the API's own connection and migration check.
-  It asks again every 5 seconds while the tab is visible; **Pause** stops it, because content that updates itself must be stoppable (WCAG 2.2.2).
+- The header names the merchant and offers **Sign out**; the browser never talks to the API and never sees its address or a token ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)).
+- A merchant is told nothing about the platform's internals: when the API is not ready, the home page says only **Payments are delayed** ([ADR 011](decisions/011-platform-staff-as-their-own-identity.md)).
 - **Payment lifecycle** draws the four steps (`Pending`, `Authorized`, `Captured`, `Settled`) as a flow, with each terminal branch (`Failed`, `Refunded`) under the step it leaves.
   It mirrors `PaymentLifecycle` in the domain project, where every one of the 36 status pairs is tested.
 - Switch the operating system between light and dark, or narrow the window to a phone's width: the design tokens follow, and a script checks their contrast in CI, including that no status pill reads louder than another.
+
+Now the platform's side. Open <http://localhost:3080/operator>: it has its own sign-in, for staff, and a merchant's session opens nothing there.
+Sign in with `operator@example.com` and `LocalOnly_Operator_2026!`.
+
+![The operator area: the three services ready, and no dead-lettered webhooks](images/operator-light.png)
+
+- The header marks the area **Operator**, names the staff user, and shows the API's readiness, **API ready**, as the dashboard's server asked it.
+- **Service status** has a tile for the payments API, its database as the API reports it, and the background worker, each with its readiness and a measured time: the round trip from the dashboard's server, or the API's own connection and migration check.
+  It asks again every 5 seconds while the tab is visible; **Pause** stops it, because content that updates itself must be stoppable (WCAG 2.2.2).
+- **Dead-lettered webhooks** lists every merchant's deliveries that used up their attempts, each with **Replay** (step 5 shows how to make one at once).
+- The staff session is a cookie of its own, `pp_staff_session`, sent on `/operator` only; a staff session opens no merchant page either.
 
 - Every response carries a Content-Security-Policy with a nonce made for that request, and only scripts with it run: in the developer tools, each `<script>` has a `nonce` that changes on every reload ([ADR 009](decisions/009-strict-csp-with-per-request-rendering.md)).
 
@@ -231,7 +240,7 @@ The `webhook-fail` delivery above dead-letters only after its 12 attempts, about
 docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -I -U sa -P 'LocalOnly_Admin_2026!' -d payments -Q "UPDATE TOP (1) payments.WebhookDeliveries SET Status = 'DeadLettered', Attempts = 12, LastError = 'HTTP 503' WHERE Status = 'Delivered'"
 ```
 
-Then `POST /api/v1/staff/webhook-deliveries/{id}/replay` with the staff token answers `{"status":"pending","attempts":0,...}`, the worker delivers it within a second, and the API's log says `Webhook delivery 37 of merchant ... replayed by staff user ...`; a second replay is `409 delivery_not_dead_lettered`.
+It then appears on the operator page with **Replay**; or, with the API, `POST /api/v1/staff/webhook-deliveries/{id}/replay` with the staff token answers `{"status":"pending","attempts":0,...}`, the worker delivers it within a second, and the API's log says `Webhook delivery 37 of merchant ... replayed by staff user ...`; a second replay is `409 delivery_not_dead_lettered`.
 
 **The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
 The payment is saved before the card network is called, so an outage leaves a visible `pending` payment rather than a charge with no record, and every status change writes its audit row in the same transaction.
@@ -278,7 +287,7 @@ The yellow "Endpoint is unsecured" banner is expected: the dashboard runs withou
 
 ## 7. Take the database away
 
-Keep the dashboard open beside the terminal.
+Keep the operator area (<http://localhost:3080/operator>) open beside the terminal, and a merchant's home page in another window.
 
 ```sh
 docker compose stop sqlserver
@@ -288,10 +297,11 @@ curl -i http://localhost:5080/health/ready
 
 - Liveness stays `200`: the process is fine, so nothing restarts it.
 - Readiness is `503` with `{"status":"unhealthy",...,"checks":{"database":"unhealthy","self":"healthy"}}`, and it answers within its three-second deadline, outage or not; the body never says why, so it leaks nothing.
-- Within five seconds, with no reload, the dashboard's badge turns amber, **API not ready**; the API and worker tiles read **Not ready** (both need the database) and the Database tile **Unavailable**.
+- Within five seconds, with no reload, the operator area's badge turns amber, **API not ready**; the API and worker tiles read **Not ready** (both need the database) and the Database tile **Unavailable**.
+- A merchant's home page, on its next load, says only **Payments are delayed**, and that nothing already taken is lost.
 - The Aspire dashboard's structured logs show the unhealthy check at `Error`, once per probe, each linked to its trace.
 
-![The dashboard with the database stopped: the API and worker not ready, the database unavailable](images/dashboard-database-down.png)
+![The operator area with the database stopped: the API and worker not ready, the database unavailable](images/dashboard-database-down.png)
 
 ![The Aspire dashboard's structured logs filtered to the API's errors during the outage](images/aspire-logs.png)
 
@@ -307,7 +317,7 @@ Readiness returns to `200` within about fifteen seconds, and the tiles to **Read
 
 To show the other failure, stop the API instead (`docker compose stop api`): the badge turns red, **API unreachable**, the Database tile reads **Unknown** (only the API can say), and the worker stays **Ready**; `docker compose start api` restores it.
 
-![The dashboard with the API stopped](images/dashboard-api-down.png)
+![The operator area with the API stopped](images/dashboard-api-down.png)
 
 **The point:** a load balancer routes only to instances that can serve, a restart policy only restarts processes that are stuck, and the dashboard tells a merchant which of the two is happening.
 

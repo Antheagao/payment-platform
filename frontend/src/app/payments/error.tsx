@@ -11,7 +11,7 @@ export default function PaymentsError({ retry }: { error: unknown; retry: () => 
       <div role="alert" className="mt-8 rounded-lg border border-border bg-surface p-6">
         <p className="font-medium">The payments service did not answer.</p>
         <p className="mt-1 text-sm text-pretty text-muted">
-          Nothing was changed. Try again in a moment; the home page shows whether the API is up.
+          Nothing was changed. Try again in a moment.
         </p>
         <button type="button" onClick={retry} className={buttonClasses({ className: "mt-4" })}>
           Try again

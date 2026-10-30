@@ -19,7 +19,7 @@ const history = (page: Page) => page.getByRole("region", { name: "History" }).ge
 test("a merchant signs in, reads a payment's history, captures and refunds one, and is sent its webhooks", async ({
   page,
 }) => {
-  await test.step("sign in, and see the API ready", async () => {
+  await test.step("sign in, with no delay to report", async () => {
     await page.goto("/payments");
     await expect(page).toHaveURL(/\/login\?next=%2Fpayments/);
     await page.getByLabel("Email").fill("demo@example.com");
@@ -27,7 +27,10 @@ test("a merchant signs in, reads a payment's history, captures and refunds one, 
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL("/payments");
     await expect(page.getByRole("banner").getByText("Demo Merchant")).toBeVisible();
-    await expect(page.getByRole("banner").getByRole("status")).toHaveText(/API ready/);
+    await page.goto("/");
+    // A merchant hears of the platform only when payments are delayed (ADR 011); here they are not.
+    await expect(page.getByText("Payments are delayed.")).toHaveCount(0);
+    await page.goto("/payments");
   });
 
   await test.step("find INV-1004 and read its whole lifecycle", async () => {
@@ -96,5 +99,20 @@ test("a merchant signs in, reads a payment's history, captures and refunds one, 
     await expect(page).toHaveURL("/login");
     await page.goto(`/payments/${paymentId}`);
     await expect(page).toHaveURL(/\/login\?next=/);
+  });
+
+  await test.step("an operator signs in on their own page and sees every service ready", async () => {
+    await page.goto("/operator");
+    await expect(page).toHaveURL("/operator/login");
+    await page.getByLabel("Email").fill("operator@example.com");
+    await page.getByLabel("Password").fill("LocalOnly_Operator_2026!"); // DemoSeed's local-only staff login
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page).toHaveURL("/operator");
+    await expect(page.getByRole("banner").getByRole("status")).toHaveText(/API ready/);
+    const tiles = page.getByRole("region", { name: "Service status" }).getByRole("listitem");
+    await expect(tiles.nth(1)).toContainText("Connected");
+    await expect(tiles.nth(2)).toContainText("Ready");
+    await expect(page.getByRole("region", { name: "Dead-lettered webhooks" })).toBeVisible();
   });
 });

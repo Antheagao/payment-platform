@@ -16,39 +16,18 @@ test.describe("dashboard shell", () => {
     }
   });
 
-  test("says plainly in the header when the API cannot be reached", async ({ page, isMobile }) => {
-    test.skip(isMobile, "below sm the header leaves the API to the status panel, checked next");
-    await page.goto("/");
-
-    await expect(page.getByRole("status")).toHaveText("API unreachable");
-  });
-
-  test("shows each service on its own, and the database as unknown while the API is down", async ({
+  test("tells a merchant only that payments are delayed, and nothing of the services behind it", async ({
     page,
   }) => {
+    // The stub drops every health probe, so to the dashboard the API is unreachable.
     await page.goto("/");
 
-    const tiles = page.getByRole("region", { name: "Service status" }).getByRole("listitem");
-    await expect(tiles).toHaveCount(3);
-    await expect(tiles.nth(0)).toContainText("Payments API");
-    await expect(tiles.nth(0)).toContainText("Unreachable");
-    await expect(tiles.nth(1)).toContainText("Database");
-    await expect(tiles.nth(1)).toContainText("Unknown");
-    await expect(tiles.nth(2)).toContainText("Background worker");
-    await expect(tiles.nth(2)).toContainText("Unreachable");
-  });
-
-  test("lets live updates be paused and resumed", async ({ page }) => {
-    await page.goto("/");
-
-    const panel = page.getByRole("region", { name: "Service status" });
-    await expect(panel.getByText("Live, every 5 seconds")).toBeVisible();
-
-    await panel.getByRole("button", { name: "Pause" }).click();
-    await expect(panel.getByText("Updates paused")).toBeVisible();
-
-    await panel.getByRole("button", { name: "Resume" }).click();
-    await expect(panel.getByText("Live, every 5 seconds")).toBeVisible();
+    await expect(page.getByRole("main").getByRole("status")).toContainText("Payments are delayed.");
+    await expect(page.getByRole("region", { name: "Service status" })).toHaveCount(0);
+    await expect(page.getByText(/database|worker/i)).toHaveCount(0);
+    await expect(
+      page.getByRole("banner").getByText(/API (unreachable|ready|not ready)/),
+    ).toHaveCount(0);
   });
 
   test("offers a skip link on the first Tab", async ({ page }) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getCurrentUser, signIn } from "./auth-api";
+import { getCurrentStaff, getCurrentUser, signIn, staffSignIn } from "./auth-api";
 
 vi.mock("next/server", () => ({ connection: () => Promise.resolve() }));
 
@@ -121,5 +121,43 @@ describe("getCurrentUser", () => {
   it("is unavailable, not signed out, when the API is down", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
     await expect(getCurrentUser("token-1")).resolves.toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("staff (ADR 011)", () => {
+  it("signs staff in on their own route, with the same answers", async () => {
+    const fetch = answer(200, {
+      access_token: "staff-token",
+      token_type: "Bearer",
+      expires_at: "2026-10-29T12:30:00+00:00",
+      expires_in: 1800,
+    });
+
+    await expect(staffSignIn("operator@example.com", "secret")).resolves.toMatchObject({
+      kind: "signed_in",
+      token: "staff-token",
+    });
+    expect(fetch.mock.calls[0][0]).toBe("http://localhost:5080/api/v1/staff/auth/login");
+  });
+
+  it("names the staff user, and calls a refused token signed out", async () => {
+    answer(200, {
+      staff_id: "019a2c00-0000-7000-8000-0000000000d4",
+      email: "operator@example.com",
+    });
+    await expect(getCurrentStaff("staff-token")).resolves.toEqual({
+      kind: "staff",
+      staff: { staffId: "019a2c00-0000-7000-8000-0000000000d4", email: "operator@example.com" },
+    });
+
+    // A merchant's token on the staff route is 403: no session here, not an outage.
+    answer(403, { code: "forbidden" });
+    await expect(getCurrentStaff("merchant-token")).resolves.toEqual({
+      kind: "signed_out",
+      expired: false,
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    await expect(getCurrentStaff("staff-token")).resolves.toEqual({ kind: "unavailable" });
   });
 });

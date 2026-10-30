@@ -37,3 +37,10 @@ The owner weighed three models on 2026-10-29: an `operator` role on a merchant u
 - There are two sign-in paths to keep secure instead of one; they share the hasher, the limits, the token format, and the tests' shape, so a fix to one is a fix to both.
 - A person who is both a merchant's user and an operator has two accounts and two sessions, which is how most payment platforms keep their staff tools apart.
 - The dashboard gets an operator area of its own (T26d); until it does, staff use the API directly, as `docs/demo.md` shows.
+
+## Amendments
+
+- 2026-10-29, the operator area as built (T26d): `/operator/login` signs staff in with the merchant login's form and keeps the token in `pp_staff_session`, `HttpOnly`, `Secure`, `SameSite=Strict`, and sent on `/operator` only, so no merchant page receives it; `src/proxy.ts` keeps each area to its own session, both ways.
+  `/operator` holds the service status panel, moved from the merchant's home page, and the dead letters with **Replay**; the header marks the area and shows the API's readiness there only.
+  A merchant's home page says only **Payments are delayed** when the API is not ready.
+  Found while capturing the outage: a failed read of the dead letters took the whole page, panel and all, at the moment the operator needed it; the list now reports its own failure in place.

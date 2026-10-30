@@ -7,29 +7,24 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), the client's address per person (T26b), the golden path through the composed stack (T29), traces from the dashboard's server (T29b), the load test (T31), the documentation checked against the code (T30), the reconciliation of payments left `Pending` (T41), and platform staff as their own identity in the API (T26c) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), the client's address per person (T26b), the golden path through the composed stack (T29), traces from the dashboard's server (T29b), the load test (T31), the documentation checked against the code (T30), the reconciliation of payments left `Pending` (T41), platform staff as their own identity in the API (T26c), and the operator area in the dashboard (T26d) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
-## Now: the payment slice
+## Now
 
-Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
+Every requirement in `docs/requirements.md` is done, and so is every feature row; what is left is one engineering row, and the rows only the owner can unblock.
 
-### T26d. The operator view in the dashboard
+### T42. Integration tests on one migrated template database
 
-- `/operator/login` signs staff in (its own cookie, `pp_staff_session`, same flags; ADR 004), and `/operator` shows the service status panel (moved from the home page), with the header's API badge, and the dead-lettered deliveries with **Replay**.
-- A merchant's home page loses the panel and shows one "payments are delayed" banner when the API reports not ready; the header's API badge shows for staff only.
-- The proxy sends `/operator/*` without a staff cookie to `/operator/login`; a merchant cookie opens nothing there, and a staff cookie opens no merchant page.
-- Gate: Vitest for the banner and the staff session; Playwright against the stub for both kinds of sign-in, the operator page, the replay, and the banner; the composed walk-through as each; the capture script signs in as the operator for the status panel, the outage GIF, and the stills; `docs/demo.md`, the README images, and the tradeoffs row on the status panel.
+The suite migrates 30-odd databases, one per test class, about 3.5 s each before its first test; the integration tests take about a minute and grow with every migration.
+- Migrate one template database per run in `SqlServerFixture`, and give each test class a copy (a backup and restore, or `CREATE DATABASE ... AS SNAPSHOT` where the edition allows), checking first which of the two SQL Server 2025 in Testcontainers supports and how long each takes.
+- Gate: the whole suite green three runs in a row, no container left behind, the time before and after written down, and the startup tests that migrate on purpose still migrating an empty database themselves.
 
-### Then
+Every feature row also updates `docs/demo.md` with the step that shows it, verified against the composed stack, and a row that changes what a page shows remakes `docs/images/` with `node scripts/capture-screenshots.mjs`.
 
-- Every feature row also updates `docs/demo.md` with the step that shows it, verified against the composed stack, and a row that changes what a page shows remakes `docs/images/` with `node scripts/capture-screenshots.mjs`.
+## Waiting on the owner
 
-## Smaller items to fold in
-
-- A replay for dead-lettered webhook deliveries (ADR 003): `POST` on a delivery that puts it back to `Pending` with its attempts reset, for an operator role; fold into T26c, which brings roles to the API and the dashboard (the `webhook.deliveries.dead_lettered` gauge already counts what it would replay).
-- Integration tests: migrate one template database per run and copy it for each test class (a backup and restore, or `CREATE DATABASE ... AS SNAPSHOT` where the edition allows), instead of migrating 30-odd databases; the per-class setup is now about 3.5 s and the suite about 60 s, and it grows with every migration.
-- Update this machine's .NET SDK past 10.0.101: CI runs 10.0.403, whose analyzers caught an unused using the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]
+- Update this machine's .NET SDK past 10.0.101: CI's 10.0.4xx analyzers caught an unused using, and the container build a `CA1873`, that the local SDK missed. [USER-GATED: installing an SDK changes the machine; the owner's call.]
 - Five Dependabot pull requests (#1 to #5) from the first scan: #2 groups minor and patch bumps and can merge once CI is green; #1, #3, #4, and #5 are majors the new ignore rules now hold back. [USER-GATED: merging or closing them is the owner's call.]
 
 ## Later: parked

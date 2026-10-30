@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { signInAction } from "@/app/login/actions";
 import { LoginForm } from "@/components/login-form";
 import { Container } from "@/components/ui/container";
 import { safeRedirectTarget } from "@/lib/redirect-target";
@@ -31,7 +32,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             Your session ended. Sign in again to continue.
           </p>
         )}
-        <LoginForm next={next} />
+        <LoginForm next={next} action={signInAction} />
         {showDemoLogin && (
           <p className="mt-6 border-t border-border pt-4 text-sm text-muted">
             Local demo: <span className="font-medium text-fg">demo@example.com</span> with{" "}

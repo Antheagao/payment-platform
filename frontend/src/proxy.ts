@@ -1,10 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { inOperatorArea, staffArea } from "@/lib/areas";
 
-// The session cookie's name, repeated from src/lib/session.ts, which is server-only and cannot load here.
+// The session cookies' names, repeated from src/lib/session.ts and src/lib/staff-session.ts, which are
+// server-only and cannot load here.
 const sessionCookie = "pp_session";
+const staffSessionCookie = "pp_staff_session";
 
-/** Pages a browser without a session may open. */
-const publicPaths = new Set(["/login"]);
+/** Pages a browser without a session may open: each area's sign-in. */
+const publicPaths = new Set(["/login", `${staffArea}/login`]);
 
 /** The policy for one response: scripts and styles only from this site and only with this request's nonce. */
 export function contentSecurityPolicy(nonce: string, development: boolean): string {
@@ -25,14 +28,19 @@ export function contentSecurityPolicy(nonce: string, development: boolean): stri
 
 /**
  * Runs before every page (ADR 009): a fresh nonce and the policy that requires it, and a redirect to the
- * login page for a browser with no session. The redirect is only a convenience: a cookie is not proof of a
- * session, so every read of a merchant's data checks the token with the API itself.
+ * area's sign-in for a browser without that area's session (ADR 011): a merchant's session opens no operator
+ * page, and a staff session no merchant page. The redirect is only a convenience: a cookie is not proof of a
+ * session, so every read checks the token with the API itself.
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (!publicPaths.has(pathname) && !request.cookies.has(sessionCookie)) {
-    const login = new URL("/login", request.url);
-    if (pathname !== "/") login.searchParams.set("next", `${pathname}${search}`);
+  const operator = inOperatorArea(pathname);
+  const cookie = operator ? staffSessionCookie : sessionCookie;
+  if (!publicPaths.has(pathname) && !request.cookies.has(cookie)) {
+    const home = operator ? staffArea : "/";
+    const login = new URL(operator ? `${staffArea}/login` : "/login", request.url);
+    // Home needs no way back, unless it was asked for with a query that should survive the sign-in.
+    if (pathname !== home || search) login.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(login);
   }
 

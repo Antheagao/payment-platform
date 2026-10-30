@@ -29,6 +29,25 @@ describe("proxy", () => {
     expect(response.headers.get("content-security-policy")).toContain("script-src 'self' 'nonce-");
   });
 
+  it("keeps each area to its own session (ADR 011)", () => {
+    const location = (path: string, cookie?: string) =>
+      proxy(request(path, cookie)).headers.get("location");
+
+    // The operator area needs a staff session; a merchant's opens nothing there.
+    expect(location("/operator")).toBe("http://localhost:3080/operator/login");
+    expect(location("/operator?tab=x", "pp_session=merchant")).toBe(
+      "http://localhost:3080/operator/login?next=%2Foperator%3Ftab%3Dx",
+    );
+    expect(location("/operator", "pp_staff_session=staff")).toBeNull();
+    expect(location("/operator/login")).toBeNull();
+    // And a staff session opens no merchant page.
+    expect(location("/payments", "pp_staff_session=staff")).toBe(
+      "http://localhost:3080/login?next=%2Fpayments",
+    );
+    // A path that only starts like the area is not in it.
+    expect(location("/operators", "pp_session=merchant")).toBeNull();
+  });
+
   it("gives every page a fresh nonce and a policy that requires it", () => {
     const first = proxy(request("/", "pp_session=token")).headers.get("content-security-policy")!;
     const second = proxy(request("/", "pp_session=token")).headers.get("content-security-policy")!;

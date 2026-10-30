@@ -68,33 +68,68 @@ async function waitForStatus(page, { api: apiLabel, database, worker }) {
 }
 const healthy = { api: "API ready", database: "Connected", worker: "Ready" };
 
-/** Signs in as the seeded demo merchant (DemoSeed's local-only login); the context keeps the session. */
-async function signIn(page) {
-  await page.goto(`${dashboard}/login`);
-  await page.getByLabel("Email").fill("demo@example.com");
-  await page.getByLabel("Password").fill("LocalOnly_Demo_2026!");
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(`${dashboard}/`);
+async function waitForReady(url) {
+  const deadline = Date.now() + settleTimeout;
+  while (Date.now() < deadline) {
+    const answered = await fetch(url).then((response) => response.ok, () => false);
+    if (answered) return;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error(`${url} was not ready within ${settleTimeout / 1000} s`);
 }
 
 /**
- * One sign-in for the whole run, shared by every context through its storage state: the API allows five
- * sign-ins per email in five minutes, and a run with one per context would spend them all.
+ * Signs in at `path` with one of DemoSeed's local-only logins, the merchant's or the operator's (ADR 011); the
+ * context keeps the session.
  */
-let session;
-async function signedIn(browser, options) {
-  if (!session) {
-    const first = await browser.newContext(desktop);
-    await signIn(await first.newPage());
-    session = await first.storageState();
-    await first.close();
-  }
-  return browser.newContext({ ...options, storageState: session });
+async function signIn(page, path, email, password, landing) {
+  await page.goto(`${dashboard}${path}`);
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(`${dashboard}${landing}`);
 }
 
-async function openDashboard(context) {
+/**
+ * One sign-in per kind for the whole run, shared by every context through its storage state: the API allows
+ * five sign-ins per email in five minutes, and a run with one per context would spend them all.
+ */
+const sessions = {};
+async function sessionOf(browser, kind) {
+  if (!sessions[kind]) {
+    const first = await browser.newContext(desktop);
+    const page = await first.newPage();
+    if (kind === "staff") {
+      await signIn(page, "/operator/login", "operator@example.com", "LocalOnly_Operator_2026!", "/operator");
+    } else {
+      await signIn(page, "/login", "demo@example.com", "LocalOnly_Demo_2026!", "/");
+    }
+    sessions[kind] = await first.storageState();
+    await first.close();
+  }
+  return sessions[kind];
+}
+
+/** A context signed in as the demo merchant. */
+async function signedIn(browser, options) {
+  return browser.newContext({ ...options, storageState: await sessionOf(browser, "merchant") });
+}
+
+/** A context signed in as the demo operator, for the operator area. */
+async function signedInStaff(browser, options) {
+  return browser.newContext({ ...options, storageState: await sessionOf(browser, "staff") });
+}
+
+/** The operator area, where the service status panel lives (ADR 011). */
+async function openOperator(context) {
   const page = await context.newPage();
-  await page.goto(dashboard);
+  await page.goto(`${dashboard}/operator`);
+  // The dead letters stream in after the panel; a still taken before them shows their loading shape.
+  await page
+    .getByRole("region", { name: "Dead-lettered webhooks" })
+    .getByText(/No dead-lettered deliveries|could not be read|attempts, last/)
+    .first()
+    .waitFor({ timeout: settleTimeout });
   return page;
 }
 
@@ -129,23 +164,33 @@ async function dashboardStills(browser) {
   const signedOut = await browser.newContext({ ...desktop, colorScheme: "light", reducedMotion: "reduce" });
   const login = await signedOut.newPage();
   await login.goto(`${dashboard}/login`);
-  await login.getByRole("banner").getByRole("status").filter({ hasText: "API ready" }).waitFor();
+  // Merchants are shown no readiness (ADR 011), so the page is ready when its form is.
+  await login.getByRole("button", { name: "Sign in" }).waitFor();
   await shoot(login, "dashboard-login.png");
   await signedOut.close();
 
   for (const colorScheme of ["light", "dark"]) {
-    const wide = await signedIn(browser, { ...desktop, colorScheme, reducedMotion: "reduce" });
-    const page = await openDashboard(wide);
+    // The operator area: the service status, and the dead letters (none on a fresh stack).
+    const wide = await signedInStaff(browser, { ...desktop, colorScheme, reducedMotion: "reduce" });
+    const page = await openOperator(wide);
     await waitForStatus(page, healthy);
-    await shoot(page, `dashboard-${colorScheme}.png`, { fullPage: true });
+    await shoot(page, `operator-${colorScheme}.png`, { fullPage: true });
     await wide.close();
 
-    const narrow = await signedIn(browser, { ...phone, colorScheme, reducedMotion: "reduce" });
-    const mobile = await openDashboard(narrow);
+    const narrow = await signedInStaff(browser, { ...phone, colorScheme, reducedMotion: "reduce" });
+    const mobile = await openOperator(narrow);
     await waitForStatus(mobile, healthy);
-    await shoot(mobile, `dashboard-mobile-${colorScheme}.png`);
+    await shoot(mobile, `operator-mobile-${colorScheme}.png`);
     await narrow.close();
   }
+
+  // The merchant's home: the way in to the payments and the lifecycle, and no infrastructure.
+  const homeWide = await signedIn(browser, { ...desktop, colorScheme: "light", reducedMotion: "reduce" });
+  const home = await homeWide.newPage();
+  await home.goto(dashboard);
+  await home.getByRole("region", { name: "Payment lifecycle" }).waitFor();
+  await shoot(home, "dashboard-home.png", { fullPage: true });
+  await homeWide.close();
 
   // The payments list over the seeded payments: the table at desktop width, the cards at phone width.
   const listWide = await signedIn(browser, { ...desktop, colorScheme: "light", reducedMotion: "reduce" });
@@ -176,17 +221,17 @@ async function dashboardStills(browser) {
 async function outage(browser) {
   const videoDir = mkdtempSync(join(tmpdir(), "payment-platform-video-"));
   // Reduced motion stills the live dot, so frames change only when a status does.
-  const recorder = await signedIn(browser, {
+  const recorder = await signedInStaff(browser, {
     viewport: recording,
     colorScheme: "light",
     reducedMotion: "reduce",
     recordVideo: { dir: videoDir, size: recording },
   });
   const recordingStarted = Date.now();
-  const stills = await signedIn(browser, { ...desktop, colorScheme: "light", reducedMotion: "reduce" });
+  const stills = await signedInStaff(browser, { ...desktop, colorScheme: "light", reducedMotion: "reduce" });
   try {
-    const live = await openDashboard(recorder);
-    const watch = await openDashboard(stills);
+    const live = await openOperator(recorder);
+    const watch = await openOperator(stills);
     await waitForStatus(live, healthy);
     const trimStart = (Date.now() - recordingStarted) / 1000;
     await caption(live, "Everything ready; the panel asks again every 5 seconds");
@@ -213,7 +258,9 @@ async function outage(browser) {
     await waitForStatus(watch, { api: "API unreachable", database: "Unknown", worker: "Ready" });
     await shoot(watch, "dashboard-api-down.png");
     compose("start", "api");
-    await waitForStatus(watch, healthy);
+    // Not on the page: in compose the restarted API signs with a new key, so the operator's session has ended
+    // and the operator area rightly asks for a sign-in again. Readiness says when the API is back.
+    await waitForReady(`${api}/health/ready`);
 
     if (hasFfmpeg) toGif(video, join(out, "outage.gif"), trimStart);
   } finally {

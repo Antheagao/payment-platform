@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { signInAction, type SignInError, type SignInState } from "@/app/login/actions";
+import type { SignInError, SignInState } from "@/lib/sign-in-form";
 import { buttonClasses } from "@/components/ui/button";
 
 const messages: Record<SignInError, string> = {
@@ -25,8 +25,14 @@ const inputClasses =
   "mt-1.5 block min-h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-fg aria-invalid:border-danger";
 
 /** The sign-in form: submits to the Server Action, keeps the email on a failure, and names the field at fault. */
-export function LoginForm({ next }: { next: string }) {
-  const [state, formAction, pending] = useActionState(signInAction, { email: "" });
+type Props = {
+  next: string;
+  /** The merchant login's action or the staff login's (ADR 011); the form is the same. */
+  action: (previous: SignInState, form: FormData) => Promise<SignInState>;
+};
+
+export function LoginForm({ next, action }: Props) {
+  const [state, formAction, pending] = useActionState(action, { email: "" });
   const message = messageFor(state);
   const emailError = state.field === "email" ? message : undefined;
   const passwordError = state.field === "password" ? message : undefined;

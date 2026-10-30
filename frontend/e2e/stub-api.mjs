@@ -14,12 +14,74 @@
 //                             token, so tests that sign in with their own token never see each other's
 //                             moves; a key sent again replays the first answer. A token that starts with
 //                             "stub-decline" has every move declined, "stub-acquirer-down" the network down
+//   POST /api/v1/staff/auth/login   operator@example.com / LocalOnly_Operator_2026! signs in as staff (ADR 011)
+//   GET  /api/v1/staff/me           a staff token this stub issued is the operator; a merchant's token is 403
+//   GET  /api/v1/staff/webhook-deliveries   three fixed dead letters, newest first, less those this staff token
+//                             replayed; "staff-down" has the list answer 503
+//   POST /api/v1/staff/webhook-deliveries/{id}/replay   takes one off that token's list; again is 409
 
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 
 const port = Number(process.env.STUB_API_PORT ?? 9095);
 const demo = { email: "demo@example.com", password: "LocalOnly_Demo_2026!" };
+const operator = {
+  email: "operator@example.com",
+  password: "LocalOnly_Operator_2026!",
+  id: "019a2c00-0000-7000-8000-0000000000d4",
+};
+
+// Three deliveries that used up their attempts, newest first, and what each staff token has replayed.
+const deadLetters = [103, 102, 101].map((id, index) => ({
+  id,
+  merchant_id: "019a2c00-0000-7000-8000-0000000000d1",
+  payment_id: `019a2c00-0000-7000-8000-${String(2000 + index).padStart(12, "0")}`,
+  event_type: "payment.settled",
+  attempts: 12,
+  last_status_code: 503,
+  last_error: "HTTP 503",
+  endpoint_host: "hooks.example.com",
+  created_at: new Date(Date.UTC(2026, 9, 29, 9) - index * 3_600_000).toISOString(),
+}));
+const replayed = new Map();
+const replayedBy = (token) => replayed.get(token) ?? replayed.set(token, new Set()).get(token);
+
+function staffRoute(request, url, token, response) {
+  if (!token) return send(response, 401, problem(401, "unauthorized"));
+  if (!token.startsWith("staff-")) return send(response, 403, problem(403, "forbidden"));
+  const done = replayedBy(token);
+  if (request.method === "GET" && url.pathname === "/api/v1/staff/me") {
+    return send(response, 200, { staff_id: operator.id, email: operator.email });
+  }
+  if (request.method === "GET" && url.pathname === "/api/v1/staff/webhook-deliveries") {
+    if (token === "staff-down") return send(response, 503, problem(503, "service_unavailable"));
+    if (url.searchParams.get("status") !== "dead_lettered") {
+      return send(response, 400, {
+        ...problem(400, "invalid_request"),
+        errors: { status: ["invalid_status"] },
+      });
+    }
+    return send(response, 200, {
+      data: deadLetters.filter(({ id }) => !done.has(id)),
+      next_cursor: null,
+    });
+  }
+  const replay = url.pathname.match(/^\/api\/v1\/staff\/webhook-deliveries\/(\d+)\/replay$/);
+  if (request.method === "POST" && replay) {
+    const id = Number(replay[1]);
+    if (!deadLetters.some((row) => row.id === id))
+      return send(response, 404, problem(404, "not_found"));
+    if (done.has(id)) return send(response, 409, problem(409, "delivery_not_dead_lettered"));
+    done.add(id);
+    return send(response, 200, {
+      id,
+      status: "pending",
+      attempts: 0,
+      next_attempt_at: new Date().toISOString(),
+    });
+  }
+  return send(response, 404, problem(404, "not_found"));
+}
 
 function send(response, status, body, headers = {}) {
   response.writeHead(status, { "content-type": "application/json", ...headers });
@@ -185,8 +247,28 @@ createServer((request, response) => {
     return;
   }
 
+  if (request.method === "POST" && request.url === "/api/v1/staff/auth/login") {
+    let raw = "";
+    request.on("data", (chunk) => (raw += chunk));
+    request.on("end", () => {
+      const { email, password } = JSON.parse(raw || "{}");
+      if (email === operator.email && password === operator.password) {
+        send(response, 200, {
+          access_token: `staff-${randomUUID()}`,
+          token_type: "Bearer",
+          expires_at: new Date(Date.now() + 30 * 60_000).toISOString(),
+          expires_in: 1800,
+        });
+      } else {
+        send(response, 401, problem(401, "invalid_credentials"));
+      }
+    });
+    return;
+  }
+
   const url = new URL(request.url, "http://stub");
   const token = (request.headers.authorization ?? "").replace(/^Bearer /, "");
+  if (url.pathname.startsWith("/api/v1/staff/")) return staffRoute(request, url, token, response);
   if (request.method === "GET" && url.pathname === "/api/v1/payments") {
     if (token === "expired" || !token) return send(response, 401, problem(401, "token_expired"));
     return listPayments(url, token, response);
