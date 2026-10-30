@@ -160,7 +160,7 @@ services:
 
   # The dashboard's edge (infra/edge/Caddyfile), as App Service's front end is in Azure (ADR 010).
   edge:
-    image: caddy:2.10.2-alpine
+    image: caddy:2.11.7-alpine
     depends_on:
       frontend:
         condition: service_started
