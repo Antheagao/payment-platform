@@ -151,4 +151,4 @@ The scaffold (T1 to T18) is complete; the rest of the payment slice (none workab
 
 ## Decisions pending
 
-None. The owner approved the SDK update and the pull requests on 2026-10-29: this machine has SDK 10.0.403, and no Dependabot pull request is open (#1 to #5 were closed by Dependabot, #6's React bump landed on `main`, and its OpenTelemetry half waits in a group of its own for `@vercel/otel`).
+None. A real deployment is not planned: the repository is a job application's technical exercise, and its Azure shape stays validated only. The owner approved the SDK update and the pull requests on 2026-10-29: this machine has SDK 10.0.403, and no Dependabot pull request is open (#1 to #5 were closed by Dependabot, #6's React bump landed on `main`, and its OpenTelemetry half waits in a group of its own for `@vercel/otel`).

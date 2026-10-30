@@ -20,4 +20,7 @@ Every feature row also updates `docs/demo.md` with the step that shows it, verif
 
 - **Python reconciliation export** for a Power BI dataset. [BLOCKED: only if the settlement work (T24) shows a pipeline is needed; the brief says Python only if needed.]
 - **Azure DevOps pipeline** mirroring the GitHub Actions gates. [USER-GATED: an Azure DevOps organization to run it in; an unrun pipeline would be unverified.]
-- **Real Azure deployment.** [USER-GATED: never for this repository; portfolio rule is validate only.]
+
+## Not planned
+
+- **A real Azure deployment.** This repository is a job application's technical exercise: the Bicep is built, linted, and parameter-checked in CI and never deployed, and `infra/README.md` lists what a deployment would add (the owner, 2026-10-29).
