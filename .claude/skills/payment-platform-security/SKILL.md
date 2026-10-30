@@ -38,6 +38,8 @@ ADR 004 (authentication) and `docs/assumptions.md` (card data) come first.
 - `CreatePaymentTests.No_card_number_or_cvv_is_stored_logged_or_returned` captures every log record at Trace and up, every column the create wrote, and the responses, and fails on the number, its grouped form, the CVV, or the token.
 - Only the simulator's test card numbers are ever used; a real card number in a test, fixture, or screenshot is a defect.
 
+- Staff (ADR 011): `StaffUser` and its own login, `POST /api/v1/staff/auth/login`, with the same limits under a `staff:` prefix in `LoginThrottle`; its token has `role` `staff` and no `merchant_id`. Merchant routes stay behind the default policy (`CallerClaims.HasCallerIds`), staff routes are a group of their own behind the `staff` policy (`CallerClaims.IsStaff`, which also refuses a token that claims a merchant). Never put a staff route in the merchant group, or a merchant route in the staff group: the two policies would combine and neither kind could pass. `StaffAuthTests` holds both directions.
+
 ## Planned, with the task that lands it
 
 - Every new payment route gets the no-token and another-merchant tests that `CreatePaymentTests` and `GetPaymentTests` have.

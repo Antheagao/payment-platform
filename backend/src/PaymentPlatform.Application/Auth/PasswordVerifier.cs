@@ -32,6 +32,13 @@ public sealed class PasswordVerifier
         return _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
     }
 
-    /// <summary>The same work as <see cref="Verify"/> for a login whose email matched nobody; it always fails.</summary>
+    /// <summary>Checks a stored hash of any kind of user: staff sign in with the same hasher (ADR 011).</summary>
+    public PasswordVerificationResult Verify(string passwordHash, string password)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+        return _hasher.VerifyHashedPassword(null!, passwordHash, password);
+    }
+
+    /// <summary>The same work as <see cref="Verify(string, string)"/> for a login whose email matched nobody; it always fails.</summary>
     public void VerifyUnknownUser(string password) => _hasher.VerifyHashedPassword(null!, _unknownUserHash, password);
 }

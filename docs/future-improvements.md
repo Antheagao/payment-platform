@@ -8,13 +8,13 @@ Each item names the gap it closes.
 - **Partial captures and partial refunds**, with a refunded amount on the payment and a state model that allows several refunds up to the captured total; today a capture or a refund is always the whole amount.
 - **Voids:** cancelling an authorization before capture, so reserved funds are released without a refund.
 - **Authorization expiry:** an uncaptured authorization lapses after the network's window and is recorded as such; today it stays `Authorized` until captured.
-- **Webhook endpoint management in the dashboard:** the API already sets, reads, and rotates the endpoint (`/webhook-endpoint`); the dashboard would add a page for it, the deliveries with their attempts, and a replay for a dead-lettered one.
+- **Webhook endpoint management in the dashboard:** the API already sets, reads, and rotates the endpoint (`/webhook-endpoint`); the dashboard would add a page for it and the merchant's deliveries with their attempts; the replay of a dead letter stays staff work ([ADR 011](decisions/011-platform-staff-as-their-own-identity.md)).
 - **Merchant API keys** with scopes and rotation, for server-to-server integrations; today a merchant's server signs in as a user, as the load test does.
 - **Settlement reports per currency**, grouped by currency and never summed across them, from the batches `SettlePayments` already logs.
 
 ## Engineering
 
-- **Platform staff with an identity of their own** (Entra ID), apart from merchant users, for the service status panel, the dead-letter replay, and anything else that crosses merchants.
+- **Staff sign-in through Microsoft Entra ID** in Azure, feeding the same `staff` policy, in place of the local staff passwords ([ADR 011](decisions/011-platform-staff-as-their-own-identity.md)), and roles within staff (read-only support, operators who may replay).
 - **Refresh tokens** with rotation and reuse detection, so a session can outlive the 30-minute access token without a new password.
 - **Property-based tests** (FsCheck) for the lifecycle and the money rules, beside the table-driven ones over all 36 status pairs.
 - **A Python reconciliation export** that compares settled payments with the acquirer's settlement file and feeds a Power BI dataset; settlement exists, the acquirer's file does not, because the acquirer is simulated.

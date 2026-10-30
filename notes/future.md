@@ -7,20 +7,12 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), the client's address per person (T26b), the golden path through the composed stack (T29), traces from the dashboard's server (T29b), the load test (T31), the documentation checked against the code (T30), and the reconciliation of payments left `Pending` (T41) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), the client's address per person (T26b), the golden path through the composed stack (T29), traces from the dashboard's server (T29b), the load test (T31), the documentation checked against the code (T30), the reconciliation of payments left `Pending` (T41), and platform staff as their own identity in the API (T26c) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
-
-### T26c. Platform staff: their own identity in the API
-
-The owner chose on 2026-10-29: platform operators are staff with an identity of their own, apart from merchant users (over a role on a merchant user, or rewording the panel). Write it down as ADR 011 first.
-- **Domain and data.** `StaffUser` (`Domain/Staff/`: id, email, password hash, created at), table `StaffUsers` (migration `StaffUsers`), the same hasher and plausibility rules as `MerchantUser`; no merchant id, because staff cross merchants. Seeded in compose as `operator@example.com` / `LocalOnly_Operator_2026!` (the demo seed, refused in Production). In Azure staff sign in with Entra ID instead (ADR only; not built).
-- **Sign-in.** `POST /api/v1/staff/auth/login`, the same limits per email and per address (ADR 010), a token with `sub` the staff id, a `role` claim `staff`, and no `merchant_id`; the default policy already refuses such a token on every merchant route (`403`), and a new `staff` policy requires the role and refuses a merchant's token. `GET /api/v1/staff/me`.
-- **The dead-letter replay** (ADR 003): `GET /api/v1/staff/webhook-deliveries?status=dead_lettered` (keyset paged, newest first, with merchant, event type, attempts, last error) and `POST /api/v1/staff/webhook-deliveries/{id}/replay`, which puts a dead-lettered delivery back to `Pending` with its attempts reset and due now, idempotent (a delivery not dead-lettered is `409 delivery_not_dead_lettered`), logged with the staff id, and counted.
-- Gate: integration tests for the login (every refusal the merchant login has), the token's claims, a staff token on a merchant route and a merchant token on a staff route (`403` both ways), the list and the replay (delivered on the worker's next run), the replay's `409`, and no secret in a log line; `docs/demo.md` with the curl steps; the security, api-design, and architecture overlays.
 
 ### T26d. The operator view in the dashboard
 

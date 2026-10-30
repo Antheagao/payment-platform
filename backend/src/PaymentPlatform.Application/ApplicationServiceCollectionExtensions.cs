@@ -7,6 +7,7 @@ using PaymentPlatform.Application.Cards;
 using PaymentPlatform.Application.Idempotency;
 using PaymentPlatform.Application.Payments;
 using PaymentPlatform.Application.Settlement;
+using PaymentPlatform.Application.Staff;
 using PaymentPlatform.Application.Webhooks;
 using PaymentPlatform.Domain.Merchants;
 
@@ -34,6 +35,10 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<PasswordVerifier>();
         services.AddScoped<LogIn>();
         services.AddScoped<GetCurrentUser>();
+        services.AddScoped<LogInStaff>();
+        services.AddScoped<GetCurrentStaff>();
+        services.AddScoped<ListDeadLetteredDeliveries>();
+        services.AddScoped<ReplayDeadLetteredDelivery>();
         services.AddScoped<CreatePayment>();
         services.AddScoped<GetPayment>();
         services.AddScoped<ListPayments>();

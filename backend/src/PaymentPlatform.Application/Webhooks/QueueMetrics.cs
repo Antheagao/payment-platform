@@ -30,6 +30,7 @@ public sealed class QueueMetrics
     public const string OutcomeTag = "webhook.outcome";
 
     private readonly Counter<long> _attempts;
+    private readonly Counter<long> _replays;
     private QueueSnapshot? _snapshot;
 
     public QueueMetrics(IMeterFactory meterFactory)
@@ -38,6 +39,8 @@ public sealed class QueueMetrics
         var meter = meterFactory.Create(MeterName);
         _attempts = meter.CreateCounter<long>(
             "webhook.delivery.attempts", unit: "{attempt}", description: "Webhook delivery attempts, by how they ended: delivered, retried, dead_lettered.");
+        _replays = meter.CreateCounter<long>(
+            "webhook.delivery.replays", unit: "{delivery}", description: "Dead-lettered webhook deliveries an operator put back on the queue.");
         Gauge(meter, "outbox.messages.pending", "{message}", "Outbox messages not yet dispatched into deliveries.", snapshot => snapshot.OutboxPending);
         Gauge(meter, "outbox.messages.oldest_age", "s", "How long the oldest undispatched outbox message has waited.", snapshot => snapshot.OutboxOldestAge.TotalSeconds);
         Gauge(meter, "webhook.deliveries.due", "{delivery}", "Webhook deliveries due to be sent now.", snapshot => snapshot.DeliveriesDue);
@@ -53,6 +56,9 @@ public sealed class QueueMetrics
     public void Update(QueueSnapshot snapshot) => _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
 
     public void RecordAttempt(string outcome) => _attempts.Add(1, new KeyValuePair<string, object?>(OutcomeTag, outcome));
+
+    /// <summary>A dead-lettered delivery an operator put back on the queue (ADR 011).</summary>
+    public void RecordReplay() => _replays.Add(1);
 
     private void Gauge<T>(Meter meter, string name, string unit, string description, Func<QueueSnapshot, T> read)
         where T : struct =>

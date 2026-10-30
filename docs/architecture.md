@@ -140,6 +140,8 @@ Card numbers, CVVs, tokens, passwords, and secrets never reach a log line: reque
   The API validates the signature, issuer, audience, and lifetime on every request ([ADR 004](decisions/004-authentication-with-short-lived-jwts.md)).
 - **The browser never holds the token.** The dashboard's server keeps it in an HttpOnly, Secure, SameSite=Strict cookie and calls the API from server code, so injected script cannot read it.
 - **Authorization.** Every query is scoped to the caller's merchant id; a foreign id is a `404`.
+  Platform staff are an identity of their own, signed in at `/api/v1/staff/auth/login`: their token carries `role` `staff` and no merchant id, so the default policy refuses it on every merchant route and the `staff` policy refuses a merchant's token on every staff route ([ADR 011](decisions/011-platform-staff-as-their-own-identity.md)).
+  The dead-letter replay is staff work, logged with the staff user's id.
 - **Abuse.** Login is rate limited per account and per person's address; the dashboard names the address its edge saw, under a key it shares with the API, and the API believes no other caller's claim ([ADR 010](decisions/010-client-address-from-the-dashboard.md)).
   Request bodies are size-capped and requests time-limited.
 - **Secrets.** Local secrets come from `.env` and user secrets; in production they come from Key Vault through managed identity.

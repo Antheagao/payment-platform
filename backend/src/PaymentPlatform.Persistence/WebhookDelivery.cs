@@ -80,6 +80,25 @@ public sealed class WebhookDelivery
         LeasedUntil = null;
     }
 
+    /// <summary>
+    /// Puts a dead-lettered delivery back on the queue, due now and with its attempts counted from zero, so it gets
+    /// the whole retry schedule again: an operator's replay once the receiver is fixed (ADR 011). The last error
+    /// stays until the next attempt replaces it.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The delivery is not dead-lettered.</exception>
+    public void Replay(DateTimeOffset now)
+    {
+        if (Status != WebhookDeliveryStatus.DeadLettered)
+        {
+            throw new InvalidOperationException($"delivery {Id} is {Status}, not dead-lettered");
+        }
+
+        Status = WebhookDeliveryStatus.Pending;
+        Attempts = 0;
+        NextAttemptAt = now;
+        LeasedUntil = null;
+    }
+
     /// <summary>Records a failed attempt and schedules the next one, or dead-letters when <paramref name="nextAttemptAt"/> is null.</summary>
     public void Failed(int? statusCode, string error, DateTimeOffset? nextAttemptAt)
     {

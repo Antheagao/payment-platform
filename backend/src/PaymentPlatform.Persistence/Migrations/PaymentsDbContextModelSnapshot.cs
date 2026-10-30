@@ -208,6 +208,33 @@ namespace PaymentPlatform.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PaymentPlatform.Domain.Staff.StaffUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("StaffUsers", "payments");
+                });
+
             modelBuilder.Entity("PaymentPlatform.Persistence.IdempotencyKey", b =>
                 {
                     b.Property<Guid>("MerchantId")

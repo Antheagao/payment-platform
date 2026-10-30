@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PaymentPlatform.Domain.Merchants;
 using PaymentPlatform.Domain.Payments;
+using PaymentPlatform.Domain.Staff;
 
 namespace PaymentPlatform.Persistence;
 
@@ -31,6 +32,9 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
     public DbSet<Merchant> Merchants => Set<Merchant>();
 
     public DbSet<MerchantUser> MerchantUsers => Set<MerchantUser>();
+
+    /// <summary>The platform's operators, who belong to no merchant (ADR 011).</summary>
+    public DbSet<StaffUser> StaffUsers => Set<StaffUser>();
 
     public DbSet<Payment> Payments => Set<Payment>();
 

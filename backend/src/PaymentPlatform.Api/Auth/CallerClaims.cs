@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.IdentityModel.JsonWebTokens;
 using PaymentPlatform.Domain.Merchants;
+using PaymentPlatform.Domain.Staff;
 
 namespace PaymentPlatform.Api.Auth;
 
@@ -11,6 +12,26 @@ namespace PaymentPlatform.Api.Auth;
 public static class CallerClaims
 {
     public const string MerchantId = "merchant_id";
+
+    /// <summary>On a staff token only, as <see cref="StaffRole"/> (ADR 011); a merchant user's token has no role.</summary>
+    public const string Role = "role";
+
+    public const string StaffRole = "staff";
+
+    /// <summary>
+    /// True for a staff token: the staff role, a well-formed subject, and no merchant id; the <c>staff</c> policy
+    /// requires it.
+    /// </summary>
+    public static bool IsStaff(ClaimsPrincipal principal)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+        return principal.HasClaim(Role, StaffRole)
+            && Guid.TryParse(principal.FindFirstValue(JwtRegisteredClaimNames.Sub), out _)
+            && principal.FindFirstValue(MerchantId) is null;
+    }
+
+    public static StaffUserId GetStaffId(this ClaimsPrincipal principal) =>
+        new(ParseRequired(principal, JwtRegisteredClaimNames.Sub));
 
     /// <summary>True when both ids are present and well formed; the default authorization policy requires it.</summary>
     public static bool HasCallerIds(ClaimsPrincipal principal)

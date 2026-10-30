@@ -440,3 +440,14 @@ Update this file when a task lands; keep the present and future notes in sync.
 - Found on the composed stack, twice: counting the next attempt from the acquirer's answer, and then from the run's start, both let the next run miss the payment by milliseconds and leave it for the one after; the next attempt now counts from the run's start, less 5 s. Two late-answer payments then resolved in 97 and 107 s.
 - Found by the container build, not the local one: `CA1873` on a computed log argument, which this machine's SDK 10.0.101 does not report and CI's 10.0.4xx does (the queued SDK update).
 - A retried create that resumes a payment reconciliation has just finished gets a `500`, its key is released, and its own retry answers with the reconciled payment; handling it in `CreatePayment` was written and taken out again, because no test could make the race happen on demand.
+
+## 2026-10-29: platform staff as their own identity in the API (T26c)
+
+- The owner chose the model when asked: staff as an identity of their own, over an `operator` role on a merchant user or a reworded panel; ADR 011.
+- `backend: give platform staff their own identity, sign-in, and the dead-letter replay`: `StaffUser` (`Domain/Staff/`, table `StaffUsers`, migration `StaffUsers`), `LogInStaff` and `GetCurrentStaff`, the shared `PasswordVerifier`, and `POST /api/v1/staff/auth/login` with the merchant login's limits under a `staff:` prefix; a staff token has `role` `staff` and no `merchant_id`.
+  - Staff routes are a group of their own (`MapStaffApiV1`) behind the `staff` policy; merchant routes keep the default policy, so each kind is `403` on the other's routes, and a token claiming both is refused on the staff side.
+  - `GET /api/v1/staff/webhook-deliveries?status=dead_lettered` (keyset paged, endpoint by host only) and `POST .../{id}/replay` (`WebhookDelivery.Replay`: back to `Pending`, attempts from zero, due now; `409` unless dead-lettered and its endpoint enabled), logged with the staff id and counted as `webhook.delivery.replays`.
+  - Compose seeds `operator@example.com` beside the demo merchant.
+  - 20 new integration tests; mutations that let a token claiming a merchant pass the staff policy, or that passed every token, failed them.
+- Checked on the composed stack: the staff login, `403` both ways, a delivery dead-lettered by hand listed with its host, replayed, and delivered by the worker within a second, and the replay's log line.
+- Found on the way: `sqlcmd` writes to a table with filtered indexes only with `-I`; the demo's command carries it.

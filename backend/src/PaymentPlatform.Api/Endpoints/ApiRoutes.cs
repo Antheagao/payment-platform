@@ -16,4 +16,15 @@ public static class ApiRoutes
 
         return endpoints.MapGroup(V1).WithTags("v1").RequireAuthorization();
     }
+
+    /// <summary>
+    /// Maps the staff API, <c>/api/v1/staff</c> (ADR 011): a group of its own, beside the merchant group rather than
+    /// in it, so its routes need the staff policy and only it.
+    /// </summary>
+    public static RouteGroupBuilder MapStaffApiV1(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+
+        return endpoints.MapGroup($"{V1}/staff").WithTags("staff").RequireAuthorization(Auth.AuthenticationSetup.StaffPolicy);
+    }
 }

@@ -216,6 +216,23 @@ The endpoint's URL is the merchant's choice, so `PUT /api/v1/webhook-endpoint` c
 Only `webhook-receiver` is let through, by a setting both services refuse outside Development.
 A `PUT` with a public `https` URL would point the demo merchant's events away from the receiver; `docker compose down -v` brings the seeded endpoint back, and `POST /api/v1/webhook-endpoint/rotate-secret` would issue a secret the receiver does not know, so its `/events` would show `bad_signature`.
 
+A dead-lettered delivery is for the platform's staff to put back, not the merchant ([ADR 011](decisions/011-platform-staff-as-their-own-identity.md)).
+Staff sign in on a route of their own, with the seeded local-only operator login:
+
+```sh
+curl -s -X POST http://localhost:5080/api/v1/staff/auth/login -H "Content-Type: application/json"   -d '{"email":"operator@example.com","password":"LocalOnly_Operator_2026!"}'
+```
+
+The token has `"role":"staff"` and no merchant id, so `GET /api/v1/payments` with it is `403`, as `GET /api/v1/staff/me` is with the merchant's token.
+`GET /api/v1/staff/webhook-deliveries?status=dead_lettered` lists every merchant's dead letters, newest first, with the event, the attempts, the last error, and the endpoint by host only.
+The `webhook-fail` delivery above dead-letters only after its 12 attempts, about three hours; to see one at once, mark a delivery as the worker would (`-I`, because the table has filtered indexes):
+
+```sh
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -I -U sa -P 'LocalOnly_Admin_2026!' -d payments -Q "UPDATE TOP (1) payments.WebhookDeliveries SET Status = 'DeadLettered', Attempts = 12, LastError = 'HTTP 503' WHERE Status = 'Delivered'"
+```
+
+Then `POST /api/v1/staff/webhook-deliveries/{id}/replay` with the staff token answers `{"status":"pending","attempts":0,...}`, the worker delivers it within a second, and the API's log says `Webhook delivery 37 of merchant ... replayed by staff user ...`; a second replay is `409 delivery_not_dead_lettered`.
+
 **The point:** a retried create can never charge twice ([ADR 007](decisions/007-idempotency-keys.md)), and the card number is exchanged for a token on arrival and goes no further; nothing stores, logs, or returns it, and a test proves that for every log line and column ([ADR 008](decisions/008-card-tokenization-at-the-edge.md)).
 The payment is saved before the card network is called, so an outage leaves a visible `pending` payment rather than a charge with no record, and every status change writes its audit row in the same transaction.
 
@@ -302,7 +319,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-564 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+584 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.
@@ -324,7 +341,7 @@ On GitHub, the CI badge leads to six jobs: backend, frontend, end to end (Playwr
 ## 9. Where it goes next
 
 - A replay for dead-lettered deliveries, and alert rules on the queue gauges.
-- The status panel behind an operator role, with a single "payments are delayed" banner for merchants (T26b).
+- The operator area in the dashboard: the status panel and the dead letters with their replay, for staff only, and a single "payments are delayed" banner for merchants (T26d).
 - The trade-offs behind each choice are in [tradeoffs.md](tradeoffs.md); what changes before real money is in [production.md](production.md).
 
 ## Remake the images

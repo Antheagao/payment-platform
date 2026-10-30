@@ -8,6 +8,7 @@ Each is cheap to revisit; the ones that would be expensive to change have an ADR
 1. **Merchants are provisioned out of band.**
    There is no self-service sign-up; a seed script creates a demo merchant and its dashboard user.
    The brief asks for logging in, not onboarding, and onboarding (KYC, contracts) is a product of its own.
+   Platform staff are provisioned the same way, as an identity of their own with no merchant ([ADR 011](decisions/011-platform-staff-as-their-own-identity.md)).
 2. **A dashboard user belongs to exactly one merchant**, and every query is scoped to that merchant.
    Another merchant's payment answers `404`, never `403`, so ids cannot be probed.
 3. **The same API serves the dashboard and merchant integrations.**

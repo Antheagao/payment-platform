@@ -18,6 +18,9 @@ public static partial class AuthenticationSetup
 {
     public const string LoginPerAddressPolicy = "login-per-address";
 
+    /// <summary>Every <c>/api/v1/staff</c> route but the staff login (ADR 011).</summary>
+    public const string StaffPolicy = "staff";
+
     /// <summary>
     /// Registers everything a protected endpoint and the login endpoint need. Returns true when no signing key is
     /// configured and the environment is Development, in which case a random key is generated for this process:
@@ -50,12 +53,19 @@ public static partial class AuthenticationSetup
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((bearer, jwtOptions) => ConfigureBearer(bearer, jwtOptions.Value));
 
-        // Every endpoint under /api/v1 requires this; the login endpoint opts out with AllowAnonymous.
-        services.AddAuthorizationBuilder().SetDefaultPolicy(
-            new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
+        // Every merchant endpoint under /api/v1 requires the default policy, which a staff token, with no merchant id,
+        // never meets; every staff endpoint requires the staff policy, which a merchant's token, with no role, never
+        // meets (ADR 011). The logins opt out with AllowAnonymous.
+        services.AddAuthorizationBuilder()
+            .SetDefaultPolicy(
+                new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context => CallerClaims.HasCallerIds(context.User))
+                    .Build())
+            .AddPolicy(StaffPolicy, policy => policy
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
-                .RequireAssertion(context => CallerClaims.HasCallerIds(context.User))
-                .Build());
+                .RequireAssertion(context => CallerClaims.IsStaff(context.User)));
 
         services.AddOptions<LoginRateLimitOptions>()
             .BindConfiguration(LoginRateLimitOptions.Section)

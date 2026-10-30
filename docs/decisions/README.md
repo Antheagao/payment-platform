@@ -16,3 +16,4 @@ An accepted record is never rewritten; a new record supersedes it, and the old o
 | [008](008-card-tokenization-at-the-edge.md) | Card tokenization at the edge, with a vault that holds only test cards | Accepted |
 | [009](009-strict-csp-with-per-request-rendering.md) | A nonce-based Content-Security-Policy, with every dashboard page rendered per request | Accepted |
 | [010](010-client-address-from-the-dashboard.md) | The client's address reaches the API from the dashboard, under the dashboard's key | Accepted |
+| [011](011-platform-staff-as-their-own-identity.md) | Platform staff are an identity of their own, apart from merchant users | Accepted |

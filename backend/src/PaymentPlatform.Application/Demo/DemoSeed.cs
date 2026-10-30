@@ -7,6 +7,7 @@ using PaymentPlatform.Application.Cards;
 using PaymentPlatform.Application.Webhooks;
 using PaymentPlatform.Domain;
 using PaymentPlatform.Domain.Merchants;
+using PaymentPlatform.Domain.Staff;
 using PaymentPlatform.Persistence;
 
 namespace PaymentPlatform.Application.Demo;
@@ -42,6 +43,13 @@ public static partial class DemoSeed
 
     public static readonly Guid WebhookEndpointId = Guid.Parse("019a2c00-0000-7000-8000-0000000000d3");
 
+    /// <summary>The demo's platform operator (ADR 011): local-only and public, like the merchant's login.</summary>
+    public const string StaffEmail = "operator@example.com";
+
+    public const string StaffPassword = "LocalOnly_Operator_2026!";
+
+    public static readonly StaffUserId StaffId = new(Guid.Parse("019a2c00-0000-7000-8000-0000000000d4"));
+
     /// <summary>Adds whichever demo rows are missing; expects a migrated database.</summary>
     public static async Task RunAsync(IServiceProvider services, CancellationToken cancellationToken)
     {
@@ -63,6 +71,12 @@ public static partial class DemoSeed
         if (!await db.MerchantUsers.AnyAsync(user => user.Id == UserId, cancellationToken))
         {
             db.MerchantUsers.Add(MerchantUser.Create(UserId, MerchantId, Email, passwords.Hash(Password), now));
+            added++;
+        }
+
+        if (!await db.StaffUsers.AnyAsync(staff => staff.Id == StaffId, cancellationToken))
+        {
+            db.StaffUsers.Add(StaffUser.Create(StaffId, StaffEmail, passwords.Hash(StaffPassword), now));
             added++;
         }
 

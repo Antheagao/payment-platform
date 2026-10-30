@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using PaymentPlatform.Application.Auth;
+using PaymentPlatform.Application.Staff;
 
 namespace PaymentPlatform.Api.Auth;
 
@@ -19,7 +20,26 @@ public sealed class TokenIssuer(IOptions<JwtOptions> options, TimeProvider timeP
     public IssuedToken Issue(LoggedInUser user)
     {
         ArgumentNullException.ThrowIfNull(user);
+        return Issue(new Dictionary<string, object>
+        {
+            [JwtRegisteredClaimNames.Sub] = user.UserId.ToString(),
+            [CallerClaims.MerchantId] = user.MerchantId.ToString(),
+        });
+    }
 
+    /// <summary>A staff token (ADR 011): the staff user in <c>sub</c>, the <c>staff</c> role, and no merchant id.</summary>
+    public IssuedToken Issue(LoggedInStaff staff)
+    {
+        ArgumentNullException.ThrowIfNull(staff);
+        return Issue(new Dictionary<string, object>
+        {
+            [JwtRegisteredClaimNames.Sub] = staff.StaffId.ToString(),
+            [CallerClaims.Role] = CallerClaims.StaffRole,
+        });
+    }
+
+    private IssuedToken Issue(Dictionary<string, object> claims)
+    {
         var jwt = options.Value;
         var now = timeProvider.GetUtcNow();
         var expiresAt = now.AddMinutes(jwt.LifetimeMinutes);
@@ -30,10 +50,8 @@ public sealed class TokenIssuer(IOptions<JwtOptions> options, TimeProvider timeP
             IssuedAt = now.UtcDateTime,
             NotBefore = now.UtcDateTime,
             Expires = expiresAt.UtcDateTime,
-            Claims = new Dictionary<string, object>
+            Claims = new Dictionary<string, object>(claims)
             {
-                [JwtRegisteredClaimNames.Sub] = user.UserId.ToString(),
-                [CallerClaims.MerchantId] = user.MerchantId.ToString(),
                 [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString("N"),
             },
             SigningCredentials = new SigningCredentials(
