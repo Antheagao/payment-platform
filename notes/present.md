@@ -129,9 +129,10 @@ A third request the same day added:
 | T31 | Load test with k6, and the first bottleneck named | Done |
 | T30 | The documentation checked against what was built | Done |
 | T41 | Reconcile payments left `Pending` (found missing in T30) | Done |
-| T26c | The operator view: roles, the status panel for operators, a banner for merchants | Waiting on the owner's choice of operator model |
+| T26c | Platform staff with their own identity in the API, and the dead-letter replay (the owner chose this model) | Next |
+| T26d | The operator view in the dashboard, and a banner for merchants | Queued |
 
-The scaffold (T1 to T18) is complete; the rest of the payment slice (T26c) is ranked in `future.md`.
+The scaffold (T1 to T18) is complete; the rest of the payment slice (T26c, T26d) is ranked in `future.md`.
 
 ## How it runs
 

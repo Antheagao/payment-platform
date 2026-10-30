@@ -14,15 +14,20 @@ The owner asked on 2026-10-28 for the loop to run continuously through the requi
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
 
-### T26c. The operator view [USER-GATED: the owner picks the operator model, asked on 2026-10-29]
+### T26c. Platform staff: their own identity in the API
 
-Every requirement in `docs/requirements.md` is done; this is the last queued row, and it turns on a product choice: an `operator` role on a merchant user (small, but a merchant's user then sees platform internals across merchants), platform staff as an identity of their own (the sound model, with a second sign-in path to build or Entra ID), or no roles at all and the status panel reworded in a merchant's terms (the README's outage GIF and screenshots would change).
+The owner chose on 2026-10-29: platform operators are staff with an identity of their own, apart from merchant users (over a role on a merchant user, or rewording the panel). Write it down as ADR 011 first.
+- **Domain and data.** `StaffUser` (`Domain/Staff/`: id, email, password hash, created at), table `StaffUsers` (migration `StaffUsers`), the same hasher and plausibility rules as `MerchantUser`; no merchant id, because staff cross merchants. Seeded in compose as `operator@example.com` / `LocalOnly_Operator_2026!` (the demo seed, refused in Production). In Azure staff sign in with Entra ID instead (ADR only; not built).
+- **Sign-in.** `POST /api/v1/staff/auth/login`, the same limits per email and per address (ADR 010), a token with `sub` the staff id, a `role` claim `staff`, and no `merchant_id`; the default policy already refuses such a token on every merchant route (`403`), and a new `staff` policy requires the role and refuses a merchant's token. `GET /api/v1/staff/me`.
+- **The dead-letter replay** (ADR 003): `GET /api/v1/staff/webhook-deliveries?status=dead_lettered` (keyset paged, newest first, with merchant, event type, attempts, last error) and `POST /api/v1/staff/webhook-deliveries/{id}/replay`, which puts a dead-lettered delivery back to `Pending` with its attempts reset and due now, idempotent (a delivery not dead-lettered is `409 delivery_not_dead_lettered`), logged with the staff id, and counted.
+- Gate: integration tests for the login (every refusal the merchant login has), the token's claims, a staff token on a merchant route and a merchant token on a staff route (`403` both ways), the list and the replay (delivered on the worker's next run), the replay's `409`, and no secret in a log line; `docs/demo.md` with the curl steps; the security, api-design, and architecture overlays.
 
-The service status panel shows every merchant the platform's internals (the database, the worker), which only an operator needs.
-- **Roles.** A role on the merchant user (`merchant` or `operator`), seeded for a second demo login, carried in the token as a claim and checked by the API's policies, never by the dashboard alone.
-- **The dashboard.** The home page's service status panel for operators only; a merchant sees one "payments are delayed" banner when the API reports not ready, and nothing about the database or the worker. The header's API badge follows the same rule.
-- Fold in the dead-letter replay below, which needs the operator role.
-- Gate: integration tests for the role in the token, the policy on the replay (a merchant's token is `403`), the replay itself (back to `Pending`, attempts reset, delivered on the next run); Vitest for the banner; Playwright against the stub for both roles; the browser walk-through on the composed stack signed in as each; `docs/demo.md` and the images where the home page changes.
+### T26d. The operator view in the dashboard
+
+- `/operator/login` signs staff in (its own cookie, `pp_staff_session`, same flags; ADR 004), and `/operator` shows the service status panel (moved from the home page), with the header's API badge, and the dead-lettered deliveries with **Replay**.
+- A merchant's home page loses the panel and shows one "payments are delayed" banner when the API reports not ready; the header's API badge shows for staff only.
+- The proxy sends `/operator/*` without a staff cookie to `/operator/login`; a merchant cookie opens nothing there, and a staff cookie opens no merchant page.
+- Gate: Vitest for the banner and the staff session; Playwright against the stub for both kinds of sign-in, the operator page, the replay, and the banner; the composed walk-through as each; the capture script signs in as the operator for the status panel, the outage GIF, and the stills; `docs/demo.md`, the README images, and the tradeoffs row on the status panel.
 
 ### Then
 
