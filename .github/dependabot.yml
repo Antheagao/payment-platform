@@ -23,8 +23,7 @@ updates:
     groups:
       # The dashboard's tracing (src/instrumentation.ts) moves as one: @vercel/otel pins each OpenTelemetry
       # package to a range, and a bump of one without the others does not install (the npm group's
-      # pull request #6 failed `npm ci` that way). This group can merge once @vercel/otel supports the
-      # versions it proposes; CI says when.
+      # pull request #6 failed `npm ci` that way). The 3.0 SDK is ignored below until it does.
       opentelemetry:
         patterns: ["@opentelemetry/*", "@vercel/otel"]
       npm-minor-and-patch:
@@ -37,6 +36,22 @@ updates:
         update-types: [version-update:semver-major]
       - dependency-name: eslint
         update-types: [version-update:semver-major]
+      # OpenTelemetry JS 3.0 (API 1.10, SDK 3.0, experimental 0.300) is outside @vercel/otel 2.1's peer
+      # ranges, so `npm ci` fails (pull requests #10 and #11). Lift these when @vercel/otel accepts it.
+      - dependency-name: "@opentelemetry/api"
+        versions: [">=1.10.0"]
+      - dependency-name: "@opentelemetry/resources"
+        versions: [">=3.0.0"]
+      - dependency-name: "@opentelemetry/sdk-metrics"
+        versions: [">=3.0.0"]
+      - dependency-name: "@opentelemetry/sdk-trace-base"
+        versions: [">=3.0.0"]
+      - dependency-name: "@opentelemetry/api-logs"
+        versions: [">=0.300.0"]
+      - dependency-name: "@opentelemetry/instrumentation"
+        versions: [">=0.300.0"]
+      - dependency-name: "@opentelemetry/sdk-logs"
+        versions: [">=0.300.0"]
 
   - package-ecosystem: github-actions
     directory: /
