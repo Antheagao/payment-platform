@@ -39,6 +39,14 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasFilter("[Status] = 'Captured'")
             .HasDatabaseName("IX_Payments_Captured");
 
+        // Reconciliation's queue (ReconcilePendingPayments): payments still Pending, oldest first, with when each may be
+        // asked about again; small, because nearly every payment leaves Pending within its own request.
+        builder.Property<DateTimeOffset?>(PaymentsDbContext.PaymentReconcileAfter);
+        builder.HasIndex(payment => payment.CreatedAt)
+            .HasFilter("[Status] = 'Pending'")
+            .IncludeProperties(PaymentsDbContext.PaymentReconcileAfter)
+            .HasDatabaseName("IX_Payments_Pending");
+
         builder.Property(payment => payment.Id)
             .HasConversion(id => id.Value, value => new PaymentId(value))
             .ValueGeneratedNever();

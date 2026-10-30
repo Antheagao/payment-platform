@@ -386,6 +386,9 @@ public sealed class DeliveryTests(SqlServerFixture sqlServer) : ApiTestBase(sqlS
         using var deadLettered = new MetricCollector<long>(meters, QueueMetrics.MeterName, "webhook.deliveries.dead_lettered");
         deadLettered.RecordObservableInstruments();
         Assert.Equal(snapshot.DeliveriesDeadLettered, deadLettered.LastMeasurement!.Value);
+        using var reconciliationDue = new MetricCollector<long>(meters, QueueMetrics.MeterName, "reconciliation.payments.due");
+        reconciliationDue.RecordObservableInstruments();
+        Assert.Equal(snapshot.ReconciliationDue, reconciliationDue.LastMeasurement!.Value);
     }
 
     /// <summary>The snapshot written as plain SQL, independently of <see cref="MeasureQueues"/>.</summary>
@@ -397,6 +400,7 @@ public sealed class DeliveryTests(SqlServerFixture sqlServer) : ApiTestBase(sqlS
         async Task<TimeSpan> Age(FormattableString sql) =>
             (await db.Database.SqlQuery<DateTimeOffset?>(sql).ToListAsync(Cancellation)).Single() is { } at && now > at ? now - at : TimeSpan.Zero;
         var capturedBefore = now - TimeSpan.FromDays(1);
+        var createdBefore = now - TimeSpan.FromMinutes(2);
         return new QueueSnapshot(
             await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.OutboxMessages WHERE DispatchedAt IS NULL"),
             await Age($"SELECT MIN(OccurredAt) AS [Value] FROM payments.OutboxMessages WHERE DispatchedAt IS NULL"),
@@ -404,7 +408,8 @@ public sealed class DeliveryTests(SqlServerFixture sqlServer) : ApiTestBase(sqlS
             await Age($"SELECT MIN(NextAttemptAt) AS [Value] FROM payments.WebhookDeliveries WHERE Status = 'Pending' AND NextAttemptAt <= {now}"),
             await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.WebhookDeliveries WHERE Status = 'Pending' AND Attempts > 0"),
             await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.WebhookDeliveries WHERE Status = 'DeadLettered'"),
-            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.Payments WHERE Status = 'Captured' AND UpdatedAt < {capturedBefore}"));
+            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.Payments WHERE Status = 'Captured' AND UpdatedAt < {capturedBefore}"),
+            await Count($"SELECT COUNT_BIG(*) AS [Value] FROM payments.Payments WHERE Status = 'Pending' AND CreatedAt < {createdBefore} AND (ReconcileAfter IS NULL OR ReconcileAfter <= {now})"));
     }
 
     private async Task SeedUndispatchedAsync(TestUser user)

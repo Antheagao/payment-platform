@@ -16,7 +16,7 @@ The Azure shape is already written down in [infra/](../infra/README.md); this pa
    Front Door with a WAF policy in front of the API and the dashboard, rate limits at the edge as well as in the API, and the API reachable only from Front Door; the dashboard's `TRUSTED_PROXY_HOPS` becomes 2, so the per-person login limit still reads the person's address ([ADR 010](decisions/010-client-address-from-the-dashboard.md)).
 6. **Webhook egress** leaves through a NAT gateway with fixed addresses that merchants can allow-list, and the worker's subnet denies traffic to the platform's own address space, a second wall behind the SSRF rules; dead-lettered deliveries get a replay endpoint for operators.
 7. **Migrations in the pipeline** as an idempotent script under a migration identity, run with `sqlcmd -I` (filtered indexes need `QUOTED_IDENTIFIER ON`), before the new build takes traffic; the readiness probe already keeps an instance out of rotation until its schema is current. The full script was applied twice to an empty database on SQL Server 2025 with no errors.
-8. **Reconciliation of `Pending` payments** (T41): a job that asks the acquirer again for each payment left `Pending` past a deadline, by the payment id it already uses as the idempotency key, and moves it on, with an alert when one stays unresolved.
+8. **Reconciliation against the real acquirer:** the job that asks again about payments left `Pending` exists (`ReconcilePendingPayments`); with a real acquirer it asks for the authorization's status rather than authorizing again, a payment it gives up on is voided at the acquirer, and `reconciliation.payments.due` above a handful pages a person.
 9. **Settlement on the acquirer's schedule**: `Settlement:Delay` becomes the acquirer's daily cut-off, the job reconciles each batch's totals against the acquirer's settlement file, and a mismatch pages a person.
 
 ## Observability in production
@@ -44,6 +44,6 @@ The Azure shape is already written down in [infra/](../infra/README.md); this pa
 
 ## Operations
 
-- **Runbooks** for a dead-lettered delivery (inspect, fix the endpoint, replay), a payment stuck in `Pending` (the reconciliation job re-asks the acquirer, T41; until it exists, nothing moves such a payment), and a failed settlement batch.
+- **Runbooks** for a dead-lettered delivery (inspect, fix the endpoint, replay), a payment failed as `acquirer_unreachable` (check it with the acquirer, which may hold an authorization for it), and a failed settlement batch.
 - **Deployments:** blue-green slots on App Service, with the readiness probe gating the swap and a one-click swap back.
 - **Dependencies:** Dependabot and CodeQL already run; production adds a container image scan before release.

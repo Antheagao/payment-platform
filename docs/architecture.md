@@ -25,7 +25,7 @@ flowchart LR
 | **Edge proxy** (`infra/edge/Caddyfile`) | The only way to the dashboard: it writes the address each browser connected from into `X-Forwarded-For`, replacing any the browser sent. Caddy in compose; App Service's front end in Azure ([ADR 010](decisions/010-client-address-from-the-dashboard.md)). |
 | **Dashboard** (`frontend/`) | Merchant-facing UI: log in, list and search payments, view a payment and its history. Holds the login token in an HttpOnly cookie on its own server and calls the API from server code only; its server also asks the worker's readiness probe for the home page's service status. |
 | **API** (`backend/src/PaymentPlatform.Api`) | Authenticates merchants, owns every business rule, and writes each state change, its audit entry, and its outbox message in one transaction. |
-| **Worker** (`backend/src/PaymentPlatform.Worker`) | Runs the asynchronous work: dispatches outbox messages into webhook deliveries, delivers webhooks with retries, settles captured payments, measures its queues, and deletes expired idempotency keys; reconciling payments stuck in `Pending` is *planned* (T41). |
+| **Worker** (`backend/src/PaymentPlatform.Worker`) | Runs the asynchronous work: dispatches outbox messages into webhook deliveries, delivers webhooks with retries, settles captured payments, reconciles payments left `Pending`, measures its queues, and deletes expired idempotency keys. |
 | **SQL Server** | The single source of truth: payments, the audit trail, idempotency records, the outbox, and webhook deliveries. |
 | **Simulated acquirer** | A deterministic stand-in for the card network behind a port, so the real integration is one adapter away. |
 | **Observability backend** | Locally the Aspire dashboard receives traces, metrics, and logs over OTLP; in production the same signals go to Application Insights. |
@@ -88,7 +88,7 @@ sequenceDiagram
 
 - The acquirer call happens between two short transactions, never inside one, so a slow acquirer cannot hold locks.
 - If the acquirer does not answer, or the process dies after it answers, the payment stays `Pending`, visibly, rather than becoming a charge with no record.
-  A reconciliation job that asks the acquirer again by payment id, which is also the acquirer-side idempotency key, is *planned* (T41); until then a `Pending` payment stays as it is.
+  The worker's reconciliation job (`ReconcilePendingPayments`, every minute) asks the acquirer again by payment id, which is also the acquirer-side idempotency key, once a payment is past a grace period longer than any request; it moves it to `Authorized` or `Failed` as the `system` actor `reconciliation`, asks again after a retry interval while there is still no answer, and fails it as `acquirer_unreachable`, logged at `Error`, after a day.
 - A retry with the same `Idempotency-Key` replays the stored response; a retry while the first is still running gets `409`, and the same key with a different body gets `422` ([ADR 007](decisions/007-idempotency-keys.md)).
 
 ## The asynchronous workflow
@@ -128,7 +128,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Logs | JSON lines with timestamp, level, category, message template, and scope properties: `CorrelationId`, `TraceId`, `SpanId`, `MerchantId`, `PaymentId` (PascalCase, the .NET logging convention) | Console (collected by the platform) and OTLP |
 | Traces | The dashboard's page renders, Server Actions, and calls to the API (`src/instrumentation.ts`); ASP.NET Core, HttpClient, and SQL client spans, plus custom spans for the acquirer call, each outbox dispatch, and each webhook delivery, all in one trace from the dashboard's server to the merchant's endpoint | OTLP |
-| Metrics | RED metrics from the ASP.NET Core and HttpClient meters (health probes excluded); `PaymentPlatform.Payments` (`payments.transitions`, by the status left and entered, counted once a save commits); `PaymentPlatform.Outbox` (`webhook.delivery.attempts` by outcome, and gauges for outbox depth and oldest age, deliveries due and their lag, retries, dead letters, and the settlement backlog, measured every 10 s by the worker); `PaymentPlatform.Worker` (job durations and failures) | OTLP |
+| Metrics | RED metrics from the ASP.NET Core and HttpClient meters (health probes excluded); `PaymentPlatform.Payments` (`payments.transitions`, by the status left and entered, counted once a save commits); `PaymentPlatform.Outbox` (`webhook.delivery.attempts` by outcome, and gauges for outbox depth and oldest age, deliveries due and their lag, retries, dead letters, the settlement backlog, and the payments due for reconciliation, measured every 10 s by the worker); `PaymentPlatform.Worker` (job durations and failures) | OTLP |
 | Health | `/health/live` (the process answers) and `/health/ready` (the database answers and the schema is current) on the API and the worker | Load balancer and orchestrator probes |
 | Audit | One `PaymentEvents` row per transition: actor, time, from, to, correlation id | SQL Server, shown on the dashboard's payment page |
 

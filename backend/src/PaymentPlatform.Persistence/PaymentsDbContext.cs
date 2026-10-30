@@ -21,6 +21,13 @@ public sealed class PaymentsDbContext(DbContextOptions<PaymentsDbContext> option
     /// </summary>
     public const string PaymentSequence = "Sequence";
 
+    /// <summary>
+    /// A <c>Pending</c> payment's shadow column: when reconciliation may ask the acquirer about it again, after an
+    /// attempt the acquirer did not answer; null until the first. Bookkeeping, not part of the payment, so it is no
+    /// property of the domain type.
+    /// </summary>
+    public const string PaymentReconcileAfter = "ReconcileAfter";
+
     public DbSet<Merchant> Merchants => Set<Merchant>();
 
     public DbSet<MerchantUser> MerchantUsers => Set<MerchantUser>();

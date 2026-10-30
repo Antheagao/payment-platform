@@ -99,6 +99,9 @@ namespace PaymentPlatform.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTimeOffset?>("ReconcileAfter")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -175,6 +178,12 @@ namespace PaymentPlatform.Persistence.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_Payments_Pending")
+                        .HasFilter("[Status] = 'Pending'");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CreatedAt"), new[] { "ReconcileAfter" });
 
                     b.HasIndex("UpdatedAt")
                         .HasDatabaseName("IX_Payments_Captured")

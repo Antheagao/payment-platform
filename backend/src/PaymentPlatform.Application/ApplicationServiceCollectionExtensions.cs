@@ -58,6 +58,11 @@ public static class ApplicationServiceCollectionExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddScoped<SettlePayments>();
+        services.AddOptions<ReconciliationOptions>()
+            .BindConfiguration(ReconciliationOptions.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddScoped<ReconcilePendingPayments>();
         return services;
     }
 }

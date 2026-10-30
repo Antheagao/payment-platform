@@ -1,6 +1,7 @@
 using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using PaymentPlatform.Application.Payments;
 using PaymentPlatform.Application.Settlement;
 using PaymentPlatform.Persistence;
 
@@ -14,7 +15,8 @@ public sealed record QueueSnapshot(
     TimeSpan DeliveryLag,
     long DeliveriesRetrying,
     long DeliveriesDeadLettered,
-    long SettlementDue);
+    long SettlementDue,
+    long ReconciliationDue);
 
 /// <summary>
 /// The <c>PaymentPlatform.Outbox</c> meter (R20): how deep and how late the asynchronous workflow is, and what its
@@ -43,6 +45,7 @@ public sealed class QueueMetrics
         Gauge(meter, "webhook.deliveries.retrying", "{delivery}", "Webhook deliveries pending after at least one failed attempt.", snapshot => snapshot.DeliveriesRetrying);
         Gauge(meter, "webhook.deliveries.dead_lettered", "{delivery}", "Webhook deliveries that gave up, waiting for an operator.", snapshot => snapshot.DeliveriesDeadLettered);
         Gauge(meter, "settlement.payments.due", "{payment}", "Captured payments past the settlement delay, not yet settled.", snapshot => snapshot.SettlementDue);
+        Gauge(meter, "reconciliation.payments.due", "{payment}", "Payments still Pending past the grace period, due to be asked about again.", snapshot => snapshot.ReconciliationDue);
     }
 
     public QueueSnapshot? Last => _snapshot;
@@ -61,7 +64,12 @@ public sealed class QueueMetrics
 }
 
 /// <summary>Reads the queues' depth and age in a few small queries over their filtered indexes, and hands them to the gauges.</summary>
-public sealed class MeasureQueues(PaymentsDbContext db, QueueMetrics metrics, IOptions<SettlementOptions> settlement, TimeProvider timeProvider)
+public sealed class MeasureQueues(
+    PaymentsDbContext db,
+    QueueMetrics metrics,
+    IOptions<SettlementOptions> settlement,
+    IOptions<ReconciliationOptions> reconciliation,
+    TimeProvider timeProvider)
 {
     public async Task<QueueSnapshot> HandleAsync(CancellationToken cancellationToken)
     {
@@ -81,7 +89,8 @@ public sealed class MeasureQueues(PaymentsDbContext db, QueueMetrics metrics, IO
             await pending.LongCountAsync(delivery => delivery.Attempts > 0, cancellationToken),
             await db.WebhookDeliveries.AsNoTracking().LongCountAsync(delivery => delivery.Status == WebhookDeliveryStatus.DeadLettered, cancellationToken),
             await db.Payments.AsNoTracking().LongCountAsync(
-                payment => payment.Status == Domain.Payments.PaymentStatus.Captured && payment.UpdatedAt < capturedBefore, cancellationToken));
+                payment => payment.Status == Domain.Payments.PaymentStatus.Captured && payment.UpdatedAt < capturedBefore, cancellationToken),
+            await ReconcilePendingPayments.Due(db.Payments.AsNoTracking(), now, reconciliation.Value.GracePeriod).LongCountAsync(cancellationToken));
         metrics.Update(snapshot);
         return snapshot;
     }

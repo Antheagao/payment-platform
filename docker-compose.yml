@@ -128,6 +128,10 @@ services:
       Webhooks__LocalReceiverHosts__0: *webhook-receiver-allowed
       # Captured payments settle a minute after capture, so the demo shows it; production waits for a daily cut-off.
       Settlement__Delay: "00:01:00"
+      # A payment the acquirer did not answer for is asked about again after 30 s, then every minute, so the
+      # late-answering test card (4000 0000 0000 0127) is authorized within about three minutes of its create.
+      Reconciliation__GracePeriod: "00:00:30"
+      Reconciliation__RetryInterval: "00:01:00"
     ports:
       - "127.0.0.1:${WORKER_PORT:-5081}:8080"
 

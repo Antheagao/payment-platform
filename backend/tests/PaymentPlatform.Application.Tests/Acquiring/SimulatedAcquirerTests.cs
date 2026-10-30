@@ -72,6 +72,29 @@ public sealed class SimulatedAcquirerTests
     }
 
     [Fact]
+    public async Task The_late_token_goes_unanswered_for_the_payments_first_minute_then_approves_as_always()
+    {
+        var clock = new FakeTimeProvider(Now);
+        var acquirer = new SimulatedAcquirer(Options.Create(new SimulatedAcquirerOptions { LatencyMilliseconds = 0 }), clock);
+        // The id carries the payment's creation time, which is all the simulator knows of its age.
+        var request = new AuthorizationRequest(PaymentId.New(Now), Amount, SimulatedCardTokens.AcquirerLate);
+
+        var atOnce = await acquirer.AuthorizeAsync(request, _cancellation);
+        clock.Advance(SimulatedAcquirer.LateAnswerAfter - TimeSpan.FromMilliseconds(1));
+        var justBefore = await acquirer.AuthorizeAsync(request, _cancellation);
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        var after = await acquirer.AuthorizeAsync(request, _cancellation);
+        clock.Advance(TimeSpan.FromHours(3));
+        var later = await acquirer.AuthorizeAsync(request, _cancellation);
+
+        Assert.Equal(AcquirerDecision.Unavailable, atOnce.Decision);
+        Assert.Equal(AcquirerDecision.Unavailable, justBefore.Decision);
+        Assert.Equal(AcquirerDecision.Approved, after.Decision);
+        Assert.Equal(after, later);
+        Assert.Equal(SimulatedAcquirer.AuthorizationPrefix + request.PaymentId.Value.ToString("N"), after.Reference);
+    }
+
+    [Fact]
     public async Task Capture_and_refund_need_the_payments_own_authorization()
     {
         var paymentId = PaymentId.New(Now);

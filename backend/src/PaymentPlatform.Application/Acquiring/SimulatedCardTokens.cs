@@ -15,4 +15,10 @@ public static class SimulatedCardTokens
 
     /// <summary>The acquirer does not answer; the payment stays <c>Pending</c> for reconciliation.</summary>
     public const string AcquirerUnavailable = "tok_sim_acquirer_unavailable";
+
+    /// <summary>
+    /// The acquirer does not answer for the first <see cref="SimulatedAcquirer.LateAnswerAfter"/> of the payment's
+    /// life, then approves: a payment that reconciliation finishes.
+    /// </summary>
+    public const string AcquirerLate = "tok_sim_acquirer_late";
 }

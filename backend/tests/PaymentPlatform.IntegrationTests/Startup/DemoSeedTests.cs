@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PaymentPlatform.Application.Demo;
+using PaymentPlatform.Application.Payments;
 using PaymentPlatform.Domain;
 using PaymentPlatform.Domain.Payments;
 using PaymentPlatform.IntegrationTests.Support;
@@ -73,6 +74,31 @@ public sealed class DemoSeedTests(SqlServerFixture sqlServer) : ApiTestBase(sqlS
                 row => Assert.Equal((ActorKind.System, "settlement"), (row.ActorKind, row.ActorId)));
             Assert.InRange(payment.CreatedAt, now.AddDays(-90), now);
         }
+    }
+
+    [Fact]
+    public async Task No_seeded_payment_is_left_pending_past_reconciliations_deadline()
+    {
+        // Seeded older, a pending payment would be failed by the worker's first reconciliation run, with an error
+        // logged at every fresh start; the seed shows what reconciliation would have done instead.
+        var giveUpAfter = new ReconciliationOptions().GiveUpAfter;
+        var pending = DemoPayments.All.Where(spec => spec.Path == DemoPayments.Path.LeftPending).ToList();
+        var unreachable = DemoPayments.All.Where(spec => spec.Path == DemoPayments.Path.Unreachable).ToList();
+
+        Assert.NotEmpty(pending);
+        Assert.All(pending, spec => Assert.True(spec.DaysAgo < giveUpAfter.TotalDays, $"{spec.Reference} is {spec.DaysAgo} days old"));
+        Assert.Contains(unreachable, spec => spec.Reference == "INV-1023");
+
+        await using var factory = Factory.WithWebHostBuilder(builder => builder.UseSetting(DemoSeed.SettingName, "true"));
+        using var client = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
+        var gaveUp = await db.PaymentEvents.AsNoTracking()
+            .Where(row => row.PaymentId == DemoPayments.IdOf(23) && row.ToStatus == PaymentStatus.Failed)
+            .SingleAsync(Cancellation);
+        Assert.Equal(
+            (ActorKind.System, ReconcilePendingPayments.ActorName, ReconcilePendingPayments.UnreachableCode),
+            (gaveUp.ActorKind, gaveUp.ActorId, gaveUp.Reason));
     }
 
     [Fact]

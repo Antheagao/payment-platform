@@ -1,16 +1,22 @@
 using System.Diagnostics;
+using System.Globalization;
 using Microsoft.Extensions.Options;
+using PaymentPlatform.Domain.Payments;
 
 namespace PaymentPlatform.Application.Acquiring;
 
 /// <summary>
 /// A stand-in for the card network: deterministic and stateless. The outcome depends only on the card token
 /// (see <see cref="SimulatedCardTokens"/>) and the reference only on the payment id, so the API and the worker
-/// agree without shared state, and a repeat call returns the original answer as the port requires.
+/// agree without shared state, and a repeat call returns the original answer as the port requires. The one card
+/// whose answer changes with time reads the payment's age from its id, which begins with its creation time.
 /// </summary>
 public sealed class SimulatedAcquirer(IOptions<SimulatedAcquirerOptions> options, TimeProvider timeProvider) : IAcquirer
 {
     public const string AuthorizationPrefix = "sim_auth_";
+
+    /// <summary>How long the late-answering card goes unanswered (<see cref="SimulatedCardTokens.AcquirerLate"/>).</summary>
+    public static readonly TimeSpan LateAnswerAfter = TimeSpan.FromMinutes(1);
 
     private readonly TimeSpan _latency = TimeSpan.FromMilliseconds(options.Value.LatencyMilliseconds);
 
@@ -25,6 +31,7 @@ public sealed class SimulatedAcquirer(IOptions<SimulatedAcquirerOptions> options
             SimulatedCardTokens.CardDeclined => AcquirerResponse.Declined("card_declined"),
             SimulatedCardTokens.InsufficientFunds => AcquirerResponse.Declined("insufficient_funds"),
             SimulatedCardTokens.AcquirerUnavailable => AcquirerResponse.Unavailable(),
+            SimulatedCardTokens.AcquirerLate when AgeOf(request.PaymentId) < LateAnswerAfter => AcquirerResponse.Unavailable(),
             _ => AcquirerResponse.Approved(AuthorizationPrefix + request.PaymentId.Value.ToString("N")),
         };
         return Finish(activity, response);
@@ -49,6 +56,11 @@ public sealed class SimulatedAcquirer(IOptions<SimulatedAcquirerOptions> options
             : AcquirerResponse.Declined("authorization_not_found");
         return Finish(activity, response);
     }
+
+    // A version 7 id begins with its creation time in Unix milliseconds (RFC 9562), which the payment's id is.
+    private TimeSpan AgeOf(PaymentId paymentId) =>
+        timeProvider.GetUtcNow() - DateTimeOffset.FromUnixTimeMilliseconds(
+            long.Parse(paymentId.Value.ToString("N")[..12], NumberStyles.HexNumber, CultureInfo.InvariantCulture));
 
     private Task WaitForNetworkAsync(CancellationToken cancellationToken) =>
         _latency == TimeSpan.Zero ? Task.CompletedTask : Task.Delay(_latency, timeProvider, cancellationToken);

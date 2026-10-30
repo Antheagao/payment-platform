@@ -27,10 +27,11 @@ The backend is complete against the exercise's requirements; the dashboard signs
 | A payment's page in the dashboard: its details and its audit timeline, each change with who made it, when, and its correlation id | |
 | A transactional outbox, and signed webhooks (Standard Webhooks) with SSRF rules, retries with backoff, and dead letters | |
 | Settlement through a T-SQL stored procedure, every minute in compose | |
+| Reconciliation of payments the acquirer did not answer for: asked again, moved on, or failed after a day | |
 | Merchant login with 30-minute HS256 tokens and rate limits per email and per person's address; dashboard sign-in with the token in an `HttpOnly` cookie and a nonce-based Content-Security-Policy, behind an edge proxy | |
 | JSON logs, OpenTelemetry traces from the dashboard's server through the API and the worker to the webhook, payment and queue metrics, correlation ids, health and readiness probes | |
 | RFC 9457 problem details for every error | |
-| 557 backend tests, 152 frontend unit tests, 70 browser runs, and a golden path through the whole composed stack in CI (sign in, a payment's history, capture, refund, the signed webhooks); CodeQL, containers, Bicep | |
+| 564 backend tests, 152 frontend unit tests, 70 browser runs, and a golden path through the whole composed stack in CI (sign in, a payment's history, capture, refund, the signed webhooks); CodeQL, containers, Bicep | |
 | One command to run it all, tested in CI on every push, a [demo guide](docs/demo.md), and a demo merchant with 280 sample payments in every status | |
 | A [load test](docs/load-test.md) with k6 on the composed stack: 2,000 requests a second within the objectives on one machine, and the worker named as the first bottleneck | |
 

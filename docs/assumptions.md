@@ -29,7 +29,7 @@ Each is cheap to revisit; the ones that would be expensive to change have an ADR
 
 7. **Authorization happens during the create request.**
    The payment is stored as `Pending` before the acquirer is called and moves to `Authorized` or `Failed` after it answers, so a crash between the two, or an acquirer that does not answer, leaves a visible `Pending` row rather than a charge with no record.
-   A job that resolves those rows by asking the acquirer again is planned (T41); today they stay `Pending`.
+   The worker's reconciliation job resolves those rows by asking the acquirer again, and fails a payment it never answers for after a day, about as long as the card networks keep an authorization.
 8. **Capture is for the full authorized amount**; partial capture is out of scope.
 9. **Refunds are full refunds**, allowed from `Captured` or `Settled`.
    Partial refunds need a refunded amount and a different state model, so they are a future improvement.

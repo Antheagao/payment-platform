@@ -1,6 +1,7 @@
 using System.Globalization;
 using PaymentPlatform.Application.Acquiring;
 using PaymentPlatform.Application.Cards;
+using PaymentPlatform.Application.Payments;
 using PaymentPlatform.Domain;
 using PaymentPlatform.Domain.Monetary;
 using PaymentPlatform.Domain.Payments;
@@ -20,7 +21,11 @@ public static class DemoPayments
     /// <summary>What happens to a seeded payment after it is created.</summary>
     public enum Path
     {
+        /// <summary>The acquirer has not answered yet; reconciliation is still asking (younger than its deadline).</summary>
         LeftPending,
+
+        /// <summary>The acquirer never answered, and reconciliation failed it a day later, as it would have.</summary>
+        Unreachable,
         Authorized,
         Captured,
         Settled,
@@ -36,8 +41,8 @@ public static class DemoPayments
 
     /// <summary>
     /// Thirty named payments (docs/demo.md picks from these): ten settled, five captured, four authorized, two
-    /// refunded from each of captured and settled, two declined, two for insufficient funds, and three left
-    /// pending by a silent acquirer.
+    /// refunded from each of captured and settled, two declined, two for insufficient funds, and three the
+    /// acquirer never answered for: one still pending, and two that reconciliation failed after a day.
     /// </summary>
     public static readonly IReadOnlyList<Spec> Named =
     [
@@ -63,11 +68,11 @@ public static class DemoPayments
         new(20, 5_600, "CAD", "INV-1020", "6011111111111117", Path.Captured, 19.2),
         new(21, 67_300, "USD", "INV-1021", "4242424242424242", Path.RefundedAfterCapture, 15.6),
         new(22, 9_900, "AUD", "INV-1022", "5555555555554444", Path.Captured, 12.1),
-        new(23, 3_000, "USD", "INV-1023", "4000000000000119", Path.LeftPending, 9.4),
+        new(23, 3_000, "USD", "INV-1023", "4000000000000119", Path.Unreachable, 9.4),
         new(24, 27_500, "USD", "INV-1024", "378282246310005", Path.Captured, 6.8),
         new(25, 14_200, "EUR", "INV-1025", "4242424242424242", Path.Authorized, 4.3),
         new(26, 1_250, "USD", "INV-1026", "5555555555554444", Path.Authorized, 2.9),
-        new(27, 5_000, "USD", "INV-1027", "4000000000000119", Path.LeftPending, 1.6),
+        new(27, 5_000, "USD", "INV-1027", "4000000000000119", Path.Unreachable, 1.6),
         new(28, 76_000, "JPY", "INV-1028", "6011111111111117", Path.Authorized, 0.8),
         new(29, 31_900, "USD", "INV-1029", "4242424242424242", Path.Authorized, 0.3),
         new(30, 4_400, "GBP", "INV-1030", "4000000000000119", Path.LeftPending, 0.1),
@@ -100,6 +105,10 @@ public static class DemoPayments
         Expect(spec.Path switch
         {
             Path.LeftPending => Result.Success(),
+            Path.Unreachable => payment.Fail(
+                ReconcilePendingPayments.UnreachableCode,
+                Actor.System(ReconcilePendingPayments.ActorName),
+                createdAt + new ReconciliationOptions().GiveUpAfter),
             Path.Declined => payment.Fail("card_declined", user, answered),
             Path.InsufficientFunds => payment.Fail("insufficient_funds", user, answered),
             _ => payment.Authorize(authorization, user, answered),
@@ -145,7 +154,8 @@ public static class DemoPayments
                 15 => Path.RefundedAfterCapture,
                 16 => Path.Declined,
                 17 => Path.InsufficientFunds,
-                _ => Path.LeftPending,
+                // Older than reconciliation's deadline, a payment the acquirer never answered for has been failed by it.
+                _ => daysAgo >= new ReconciliationOptions().GiveUpAfter.TotalDays ? Path.Unreachable : Path.LeftPending,
             };
             if (daysAgo < 2.5 && path is Path.Settled or Path.RefundedAfterSettlement or Path.RefundedAfterCapture)
             {
@@ -156,7 +166,7 @@ public static class DemoPayments
             {
                 Path.Declined => "4000000000000002",
                 Path.InsufficientFunds => "4000000000009995",
-                Path.LeftPending => "4000000000000119",
+                Path.LeftPending or Path.Unreachable => "4000000000000119",
                 _ => approved[(hash >> 5) % (uint)approved.Length],
             };
             yield return new Spec(

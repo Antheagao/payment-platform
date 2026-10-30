@@ -7,20 +7,12 @@ This file is also the queue for the `batch-loop` skill (`.claude/skills/batch-lo
 
 Last updated: 2026-10-29.
 
-The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), the client's address per person (T26b), the golden path through the composed stack (T29), traces from the dashboard's server (T29b), the load test (T31), and the documentation checked against the code (T30) are complete; their history is in `past.md`.
+The scaffold (T1 to T18), merchant login (T19), creating and reading payments (T20), capture and refund (T21), list and search (T22), the transactional outbox (T23a), the webhook endpoint API (T23b), signed webhook delivery (T23c), settlement (T24), the domain and queue metrics (T25), the dashboard's sign-in (T26), the payments list (T27), the payment detail (T28), the client's address per person (T26b), the golden path through the composed stack (T29), traces from the dashboard's server (T29b), the load test (T31), the documentation checked against the code (T30), and the reconciliation of payments left `Pending` (T41) are complete; their history is in `past.md`.
 The owner asked on 2026-10-28 for the loop to run continuously through the requirements, each checked for correctness against the code, not only the docs.
 
 ## Now: the payment slice
 
 Ranked by what the exercise grades most: the lifecycle and its audit trail, idempotency, the async workflow, then the dashboard.
-
-### T41. Reconcile payments left Pending
-
-Found in T30: `docs/architecture.md` said the worker reconciles payments stuck in `Pending`, but no such job exists (the worker's own comment calls it next); the docs now say planned.
-A payment stays `Pending` when the acquirer does not answer during create (test card `4000 0000 0000 0119`), or when the process dies between the acquirer's answer and the save.
-- **The job.** `ReconcilePendingPayments` in the worker, every minute: claims `Pending` payments older than a grace period (`UPDLOCK, READPAST`, like the outbox), asks the acquirer to authorize again with the payment id as its idempotency key (`IAcquirer` already promises that), and moves each to `Authorized` or `Failed` with an audit row under the `system` actor `reconciliation` and the outbox event; an acquirer that still does not answer leaves it for the next run, and after a deadline (a day) the payment fails with `acquirer_unreachable`.
-- **The simulator** must remember an answered authorization per payment id, or a retried one could decide differently; check `SimulatedAcquirer` (stateless today) before writing the job, and decide whether the no-answer test card answers on the second try.
-- Gate: integration tests on the fake clock (resolved to authorized, to failed, still unanswered, past the deadline, two workers sharing the rows, the audit row and event), the metric for payments still pending, `docs/demo.md` showing the `0119` payment resolve, and the architecture, assumptions, and production docs updated back from planned.
 
 ### T26c. The operator view
 

@@ -26,6 +26,7 @@ public sealed class SimulatedCardVault : ICardVault
         ["4000000000000002"] = SimulatedCardTokens.CardDeclined,
         ["4000000000009995"] = SimulatedCardTokens.InsufficientFunds,
         ["4000000000000119"] = SimulatedCardTokens.AcquirerUnavailable,
+        ["4000000000000127"] = SimulatedCardTokens.AcquirerLate,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public Result<PaymentCard> Tokenize(CardInput card)

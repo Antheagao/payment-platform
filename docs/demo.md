@@ -150,7 +150,8 @@ The simulated vault accepts only test cards, and each one takes a branch:
 | `4242 4242 4242 4242` (Visa), `5555 5555 5555 4444` (Mastercard), `3782 822463 10005` (Amex, four-digit CVV), `6011 1111 1111 1117` (Discover) | `authorized` |
 | `4000 0000 0000 0002` | `failed`, `failure_reason` `card_declined` |
 | `4000 0000 0000 9995` | `failed`, `insufficient_funds` |
-| `4000 0000 0000 0119` | `pending`: the acquirer does not answer, so the payment stays visible for reconciliation |
+| `4000 0000 0000 0119` | `pending`: the acquirer does not answer, so the payment stays visible; the worker's reconciliation asks again every minute, and fails it as `acquirer_unreachable` after a day |
+| `4000 0000 0000 0127` | `pending` at first: the acquirer answers only once the payment is a minute old, so within about three minutes the worker's reconciliation authorizes it, as the `system` actor `reconciliation`, and the receiver gets its `payment.authorized` |
 | Any other valid number, such as `4111 1111 1111 1111` | `422 card_not_accepted`, and nothing is stored |
 
 A mistyped number (`4242 4242 4242 4241`) is `400` with `"errors":{"card.number":["card_number_invalid"]}`.
@@ -164,7 +165,8 @@ Their ids are fixed, so these read back the same on every machine:
 | `019a2c00-0000-7000-8000-000000001016` (`INV-1016`) | `captured`, until the worker's first settlement run settles it with the stack's other captured payments, within a minute of the start |
 | `019a2c00-0000-7000-8000-000000001025` (`INV-1025`) | `authorized`, ready to capture |
 | `019a2c00-0000-7000-8000-000000001006` (`INV-1006`) | `failed` with `card_declined` |
-| `019a2c00-0000-7000-8000-000000001023` (`INV-1023`) | `pending`: the acquirer never answered |
+| `019a2c00-0000-7000-8000-000000001023` (`INV-1023`) | `failed` with `acquirer_unreachable`: the acquirer never answered, and the `reconciliation` job gave up a day later |
+| `019a2c00-0000-7000-8000-000000001030` (`INV-1030`) | `pending`: the acquirer has not answered yet, and reconciliation asks again every minute until it does, or for a day |
 
 List them, newest first, a page at a time, and filter:
 
@@ -247,7 +249,7 @@ Then open **Structured logs**: each line is JSON with its trace id and scopes, a
 
 ![http.server.request.duration for the API in the Aspire dashboard](images/aspire-metrics.png)
 
-For `payment-worker`, the `PaymentPlatform.Outbox` meter shows the asynchronous workflow: `webhook.delivery.attempts` by outcome (filter on `webhook.outcome` to see the `retried` ones from the `webhook-fail` payment), and gauges for what is waiting and how late it is, `outbox.messages.pending`, `webhook.deliveries.due`, `webhook.deliveries.lag`, `webhook.deliveries.retrying`, `webhook.deliveries.dead_lettered`, and `settlement.payments.due`, measured every 10 seconds.
+For `payment-worker`, the `PaymentPlatform.Outbox` meter shows the asynchronous workflow: `webhook.delivery.attempts` by outcome (filter on `webhook.outcome` to see the `retried` ones from the `webhook-fail` payment), and gauges for what is waiting and how late it is, `outbox.messages.pending`, `webhook.deliveries.due`, `webhook.deliveries.lag`, `webhook.deliveries.retrying`, `webhook.deliveries.dead_lettered`, `settlement.payments.due`, and `reconciliation.payments.due`, measured every 10 seconds.
 `PaymentPlatform.Payments` counts every status change as `payments.transitions`, by the status left and entered (`none` to `pending` is a new payment); the 280 seeded payments do not count, because their history is data, not activity.
 Metrics reach the dashboard about once a minute.
 
@@ -300,7 +302,7 @@ With the .NET 10 SDK installed ([Prerequisites](../README.md#prerequisites)), fr
 dotnet test -c Release
 ```
 
-557 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
+564 tests pass in about a minute, including the integration tests, which start their own SQL Server 2025 container.
 Worth opening while they run:
 
 - `src/PaymentPlatform.Domain/Payments/PaymentLifecycle.cs`: the transition table and the stable error code for every rejected move.

@@ -4,8 +4,8 @@ public static class JobsServiceCollectionExtensions
 {
     /// <summary>
     /// The job runtime and its jobs, each registered with <c>AddHostedService</c> as it lands: the idempotency key
-    /// cleanup, outbox dispatch, webhook delivery, and settlement today; reconciliation of payments stuck in
-    /// <c>Pending</c> next.
+    /// cleanup, outbox dispatch, webhook delivery, settlement, the queue measurements, and the reconciliation of
+    /// payments left <c>Pending</c>.
     /// </summary>
     public static IServiceCollection AddWorkerJobs(this IServiceCollection services)
     {
@@ -17,6 +17,7 @@ public static class JobsServiceCollectionExtensions
         services.AddHostedService<DeliverWebhooksJob>();
         services.AddHostedService<SettlePaymentsJob>();
         services.AddHostedService<MeasureQueuesJob>();
+        services.AddHostedService<ReconcilePendingPaymentsJob>();
         return services;
     }
 }
