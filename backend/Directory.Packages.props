@@ -16,7 +16,7 @@
   <ItemGroup Label="Data">
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Web">
